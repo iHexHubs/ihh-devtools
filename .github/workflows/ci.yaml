@@ -13,6 +13,8 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,5 +22,18 @@ jobs:
       - name: Setup Task
         uses: arduino/setup-task@v2
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Run Native CI
         run: task ci
+
+      - name: Run Devbox App CI
+        run: task app:devbox:ci

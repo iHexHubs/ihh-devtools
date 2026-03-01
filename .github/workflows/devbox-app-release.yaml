@@ -1,0 +1,46 @@
+name: devbox-app-release
+
+on:
+  push:
+    tags:
+      - "ihh-devtools-v*"
+
+jobs:
+  publish-images:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve release tag
+        id: vars
+        run: |
+          echo "tag=${GITHUB_REF_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "Using shared release tag: ${GITHUB_REF_NAME}"
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: devbox-app/backend
+          push: true
+          tags: ghcr.io/ihexhubs/devbox-app-backend:${{ steps.vars.outputs.tag }}
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: devbox-app/frontend
+          push: true
+          tags: ghcr.io/ihexhubs/devbox-app-frontend:${{ steps.vars.outputs.tag }}

@@ -30,6 +30,43 @@ promote_local_maybe_create_local_tag_or_die() {
 
 
 
+promote_local_pin_gitops_release_or_die() {
+    local final_tag="${1:-}"
+    local repo_root=""
+    local hook_script=""
+    local overlay_rel="devbox-app/gitops/overlays/minikube/kustomization.yaml"
+    local overlay_abs=""
+
+    [[ -n "${final_tag:-}" ]] || die "Tag final vacio para pin de GitOps."
+
+    repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+    hook_script="${repo_root}/devbox-app/scripts/set-release-tag.sh"
+    overlay_abs="${repo_root}/${overlay_rel}"
+
+    [[ -x "${hook_script}" ]] || die "No existe hook ejecutable: ${hook_script}"
+    [[ -f "${overlay_abs}" ]] || die "No existe overlay a pinnear: ${overlay_abs}"
+
+    "${hook_script}" "${final_tag}" || die "Fallo set-release-tag.sh para ${final_tag}."
+
+    if git diff --quiet -- "${overlay_abs}"; then
+        log_info "GitOps ya estaba pinneado en ${final_tag}."
+        return 0
+    fi
+
+    git add "${overlay_rel}" || die "No pude stagear ${overlay_rel}."
+    if git diff --cached --quiet -- "${overlay_rel}"; then
+        log_info "Sin cambios stageados en ${overlay_rel}; continuo."
+        return 0
+    fi
+
+    git -c commit.gpgsign=false commit -m "chore(gitops): pin devbox-app images to ${final_tag}" >/dev/null 2>&1 \
+        || die "No pude commitear pin de GitOps para ${final_tag}."
+    log_info "Checkpoint: commit GitOps creado para ${final_tag}."
+    return 0
+}
+
+
+
 promote_to_local_v2() {
     resync_submodules_hard
 
@@ -110,6 +147,10 @@ promote_to_local_v2() {
         promote_local_select_rc_build "$app_name" "$base_version" rc build
         rev="$(promote_local_next_rev "$app_name" "$base_version" "$rc" "$build")"
         final_tag="$(promote_local_tag_name "$app_name" "$base_version" "$rc" "$build" "$rev")"
+
+        promote_local_pin_gitops_release_or_die "$final_tag"
+        candidate_sha="$(git rev-parse HEAD 2>/dev/null || true)"
+        [[ -n "${candidate_sha:-}" ]] || die "No pude resolver HEAD tras commit de GitOps."
 
         promote_local_create_tag "$final_tag" "$candidate_sha" \
             || die "No pude crear/publicar tag local ${final_tag}."

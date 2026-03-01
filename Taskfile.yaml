@@ -22,3 +22,42 @@ tasks:
     desc: "Pipeline local mínimo"
     cmds:
       - task ci
+
+  app:devbox:ci:
+    desc: "CI de devbox-app (backend pytest + frontend build)"
+    cmds:
+      - bash -euo pipefail -c 'cd devbox-app/backend && python3 -m venv .venv && . .venv/bin/activate && pip install --upgrade pip >/dev/null && pip install -r requirements.txt >/dev/null && pytest -q'
+      - bash -euo pipefail -c 'cd devbox-app/frontend && npm install && npm run build'
+
+  app:devbox:docker:up:
+    desc: "Levanta devbox-app con Docker Compose"
+    cmds:
+      - bash -euo pipefail -c 'cd devbox-app && [ -f .env ] || cp .env.example .env'
+      - bash -euo pipefail -c 'cd devbox-app && docker compose up -d --build'
+
+  app:devbox:docker:down:
+    desc: "Baja devbox-app en Docker Compose"
+    cmds:
+      - bash -euo pipefail -c 'cd devbox-app && docker compose down -v'
+
+  app:devbox:images:build:
+    desc: "Build de imagenes backend/frontend con mismo TAG"
+    cmds:
+      - bash -euo pipefail -c 'TAG="{{.TAG}}"; [ -n "${TAG}" ] || TAG="local"; docker build -t ghcr.io/ihexhubs/devbox-app-backend:${TAG} devbox-app/backend'
+      - bash -euo pipefail -c 'TAG="{{.TAG}}"; [ -n "${TAG}" ] || TAG="local"; docker build -t ghcr.io/ihexhubs/devbox-app-frontend:${TAG} devbox-app/frontend'
+
+  app:devbox:minikube:deploy:
+    desc: "Build + load + pin tag + apply overlay minikube"
+    cmds:
+      - bash -euo pipefail -c 'TAG="{{.TAG}}"; [ -n "${TAG}" ] || TAG="local"; task app:devbox:images:build TAG=${TAG}'
+      - bash -euo pipefail -c 'TAG="{{.TAG}}"; [ -n "${TAG}" ] || TAG="local"; minikube image load ghcr.io/ihexhubs/devbox-app-backend:${TAG}'
+      - bash -euo pipefail -c 'TAG="{{.TAG}}"; [ -n "${TAG}" ] || TAG="local"; minikube image load ghcr.io/ihexhubs/devbox-app-frontend:${TAG}'
+      - bash -euo pipefail -c 'TAG="{{.TAG}}"; [ -n "${TAG}" ] || TAG="local"; ./devbox-app/scripts/set-release-tag.sh ${TAG}'
+      - bash -euo pipefail -c 'kubectl apply -k devbox-app/gitops/overlays/minikube'
+
+  app:devbox:argocd:deploy:
+    desc: "Set tag compartido + aplicar Application + sync opcional por argocd CLI"
+    cmds:
+      - bash -euo pipefail -c 'REV="{{.REV}}"; [ -n "${REV}" ] || REV="local"; ./devbox-app/scripts/set-release-tag.sh ${REV}'
+      - bash -euo pipefail -c 'kubectl apply -f devbox-app/gitops/argocd/application.yaml'
+      - bash -euo pipefail -c 'REV="{{.REV}}"; [ -n "${REV}" ] || REV="local"; if command -v argocd >/dev/null 2>&1; then argocd app set devbox-app --revision ${REV} && argocd app sync devbox-app; else echo "argocd CLI no instalado; cambia revision manualmente a ${REV}"; fi'

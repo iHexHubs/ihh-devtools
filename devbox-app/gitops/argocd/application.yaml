@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: devbox-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/iHexHubs/ihh-devtools.git
+    targetRevision: local
+    path: devbox-app/gitops/overlays/minikube
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: devbox-app
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
