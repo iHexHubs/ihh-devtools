@@ -433,6 +433,15 @@ case "$TARGET_ENV" in
         rc=$?
         set -e
 
+        # Flujo local finalizado de forma intencional sin promover (exit/pr):
+        # - no post-push
+        # - no ensure_local_checkout
+        # - no landing forzado por trap
+        if [[ "$rc" -eq 42 || "$rc" -eq 43 ]]; then
+            export DEVTOOLS_LAND_ON_SUCCESS_BRANCH=""
+            exit 0
+        fi
+
         local_ok=0
 
         if [[ "$rc" -eq 0 ]]; then

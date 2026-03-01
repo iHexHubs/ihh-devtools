@@ -108,14 +108,14 @@ promote_to_local_v2() {
             0) break ;;
             10)
                 log_info "🚪 Flujo finalizado sin promover local."
-                return 0
+                return 42
                 ;;
             11)
                 continue
                 ;;
             12)
                 log_info "📨 PR creado. Finalizo sin promover local."
-                return 0
+                return 43
                 ;;
             *)
                 die "Validación '${selected_level}' falló (rc=${run_rc}). Abortando sin tocar 'local'."
