@@ -28,7 +28,108 @@ promote_local_maybe_create_local_tag_or_die() {
     return 0
 }
 
+
+
+promote_to_local_v2() {
+    resync_submodules_hard
+
+    local source_branch="${DEVTOOLS_PROMOTE_FROM_BRANCH:-}"
+    if [[ -z "${source_branch:-}" || "${source_branch:-}" == "(detached)" ]]; then
+        source_branch="$(git branch --show-current 2>/dev/null || true)"
+    fi
+    source_branch="$(echo "${source_branch:-}" | tr -d '[:space:]')"
+    [[ -n "${source_branch:-}" ]] || die "No pude detectar rama fuente."
+
+    if promote_local_is_protected_branch "$source_branch"; then
+        die "No ejecutes promote local desde rama protegida (${source_branch}). Crea una rama de trabajo."
+    fi
+
+    local source_sha="${DEVTOOLS_PROMOTE_FROM_SHA:-}"
+    if [[ -z "${source_sha:-}" ]]; then
+        source_sha="$(git rev-parse HEAD 2>/dev/null || true)"
+    fi
+    [[ -n "${source_sha:-}" ]] || die "No pude resolver SHA fuente."
+
+    if declare -F ensure_promote_preflight_or_die >/dev/null 2>&1; then
+        ensure_promote_preflight_or_die "$source_sha"
+    fi
+
+    log_info "PROMOCION LOCAL (transaccional)"
+    log_info "Fuente : ${source_branch} @${source_sha:0:7}"
+
+    local selected_level=""
+    local run_rc=0
+    while true; do
+        selected_level="$(promote_local_choose_validation_level)"
+        selected_level="${selected_level//$'\r'/}"
+        selected_level="$(echo "${selected_level:-}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+        [[ -n "${selected_level:-}" ]] || selected_level="exit"
+
+        promote_local_run_validation_level "$selected_level" "$source_branch"
+        run_rc=$?
+        case "$run_rc" in
+            0) break ;;
+            10)
+                log_info "🚪 Flujo finalizado sin promover local."
+                return 0
+                ;;
+            11)
+                continue
+                ;;
+            12)
+                log_info "📨 PR creado. Finalizo sin promover local."
+                return 0
+                ;;
+            *)
+                die "Validación '${selected_level}' falló (rc=${run_rc}). Abortando sin tocar 'local'."
+                ;;
+        esac
+    done
+
+    local local_sha_before=""
+    local_sha_before="$(git rev-parse refs/heads/local 2>/dev/null || true)"
+
+    local candidate_sha=""
+    candidate_sha="$(promote_local_promote_transactional_or_die "$source_sha" "local")"
+    [[ -n "${candidate_sha:-}" ]] || die "No pude resolver SHA final de local."
+
+    if [[ "${DEVTOOLS_DRY_RUN:-0}" != "1" ]]; then
+        git checkout local >/dev/null 2>&1 || log_warn "No pude dejarte en rama 'local'."
+    fi
+
+    if [[ "$selected_level" == "standard" && "${DEVTOOLS_DRY_RUN:-0}" != "1" ]]; then
+        local app_name=""
+        local base_version=""
+        local rc=""
+        local build=""
+        local rev=""
+        local final_tag=""
+
+        app_name="$(promote_local_app_name)" || die "No pude resolver nombre de programa para tag local."
+        base_version="$(promote_local_base_version)" || die "VERSION inválida o ausente en raíz."
+        promote_local_select_rc_build "$app_name" "$base_version" rc build
+        rev="$(promote_local_next_rev "$app_name" "$base_version" "$rc" "$build")"
+        final_tag="$(promote_local_tag_name "$app_name" "$base_version" "$rc" "$build" "$rev")"
+
+        promote_local_create_tag "$final_tag" "$candidate_sha" \
+            || die "No pude crear/publicar tag local ${final_tag}."
+        log_success "✅ Tag local creado: ${final_tag}"
+    fi
+
+    log_info "Local antes: ${local_sha_before:-<vacío>}"
+    log_info "Local ahora: ${candidate_sha}"
+    log_success "✅ Promoción local completada (transaccional)."
+    return 0
+}
+
+
+
 promote_to_local() {
+    if [[ "${DEVTOOLS_LOCAL_PROMOTE_V2:-1}" == "1" ]]; then
+        promote_to_local_v2 "$@"
+        return $?
+    fi
+
     resync_submodules_hard
     PROMOTE_ENTRY_DIR="${PROMOTE_ENTRY_DIR:-${REPO_ROOT:-$PWD}}"
     git_entry() {

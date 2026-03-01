@@ -1,0 +1,24 @@
+version: "3"
+
+tasks:
+  ci:
+    desc: "Gate nativo base para el repo devtools"
+    cmds:
+      - bash -euo pipefail -c 'bash -n bin/devtools bin/git-ci.sh bin/git-promote.sh'
+      - bash -euo pipefail -c './scripts/gh-policy-check.sh'
+
+  ci:act:
+    desc: "Ejecuta workflow de CI usando Act"
+    cmds:
+      - bash -euo pipefail -c 'command -v act >/dev/null 2>&1 || { echo "act no está instalado"; exit 1; }'
+      - bash -euo pipefail -c 'act -W .github/workflows/ci.yaml -j ci --pull=false'
+
+  ui:local:
+    desc: "Abre K9s si está disponible"
+    cmds:
+      - bash -euo pipefail -c 'if command -v k9s >/dev/null 2>&1; then exec k9s; else echo "k9s no está instalado"; exit 1; fi'
+
+  local:check:
+    desc: "Pipeline local mínimo"
+    cmds:
+      - task ci

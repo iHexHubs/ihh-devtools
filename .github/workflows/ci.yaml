@@ -1,0 +1,24 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - "feature/**"
+      - "fix/**"
+      - "hotfix/**"
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Task
+        uses: arduino/setup-task@v2
+
+      - name: Run Native CI
+        run: task ci

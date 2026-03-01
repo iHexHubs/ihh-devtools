@@ -283,6 +283,153 @@ promote_local_apply_strategy_to_local_or_die() {
 
 
 
+promote_local_apply_strategy_in_candidate_or_die() {
+    local candidate_dir="$1"
+    local source_sha="$2"
+    local strategy="${DEVTOOLS_PROMOTE_STRATEGY:-}"
+    local rc=0
+
+    [[ -d "${candidate_dir:-}" ]] || die "No existe worktree candidato: ${candidate_dir}"
+    [[ -n "${source_sha:-}" ]] || die "source_sha vacío para candidato."
+
+    if [[ -z "${strategy:-}" ]]; then
+        strategy="$(promote_choose_strategy_or_die)"
+        export DEVTOOLS_PROMOTE_STRATEGY="$strategy"
+    fi
+
+    while true; do
+        rc=0
+        case "$strategy" in
+            ff-only)
+                local base_sha=""
+                base_sha="$(git -C "$candidate_dir" rev-parse HEAD 2>/dev/null || true)"
+                if [[ -n "${base_sha:-}" ]] && ! git merge-base --is-ancestor "$base_sha" "$source_sha"; then
+                    rc=3
+                else
+                    git -C "$candidate_dir" merge --ff-only "$source_sha" >/dev/null 2>&1 || rc=1
+                fi
+                ;;
+            merge)
+                git -C "$candidate_dir" -c commit.gpgsign=false merge --no-ff --no-edit "$source_sha" >/dev/null 2>&1 || rc=1
+                ;;
+            merge-theirs)
+                git -C "$candidate_dir" -c commit.gpgsign=false merge --no-ff --no-edit -X theirs "$source_sha" >/dev/null 2>&1 || rc=1
+                ;;
+            force)
+                git -C "$candidate_dir" reset --hard "$source_sha" >/dev/null 2>&1 || rc=1
+                ;;
+            *)
+                die "Estrategia inválida: ${strategy}"
+                ;;
+        esac
+
+        if [[ "$rc" -eq 3 ]]; then
+            if can_prompt; then
+                log_warn "⚠️ FF-only no es posible para el candidato. Elige otra estrategia."
+                strategy="$(promote_choose_strategy_or_die)"
+                export DEVTOOLS_PROMOTE_STRATEGY="$strategy"
+                continue
+            fi
+            die "FF-only no es posible y no hay interacción para elegir otra estrategia."
+        fi
+
+        [[ "$rc" -eq 0 ]] || die "Falló integración en candidato (strategy=${strategy}, rc=${rc})."
+        break
+    done
+}
+
+
+
+promote_local_task_exists_in_dir() {
+    local workdir="$1"
+    local task_name="$2"
+    command -v task >/dev/null 2>&1 || return 1
+    (cd "$workdir" && task -l 2>/dev/null | awk '{print $1}' | grep -qx "$task_name")
+}
+
+
+
+promote_local_run_candidate_pipeline_or_die() {
+    local candidate_dir="$1"
+
+    if promote_local_task_exists_in_dir "$candidate_dir" "local:check"; then
+        log_info "🧪 Pipeline local candidato: task local:check"
+        (cd "$candidate_dir" && task local:check) || die "Falló task local:check en candidato."
+        return 0
+    fi
+
+    if promote_local_task_exists_in_dir "$candidate_dir" "pipeline:local"; then
+        log_info "🧪 Pipeline local candidato: task pipeline:local"
+        (cd "$candidate_dir" && task pipeline:local) || die "Falló task pipeline:local en candidato."
+        return 0
+    fi
+
+    log_info "ℹ️ No detecté pipeline local adicional en candidato; continúo."
+    return 0
+}
+
+
+
+promote_local_promote_transactional_or_die() {
+    local source_sha="$1"
+    local local_branch="${2:-local}"
+    local local_sha_before=""
+    local base_ref=""
+    local tmpdir=""
+    local candidate_branch=""
+    local candidate_sha=""
+
+    [[ -n "${source_sha:-}" ]] || die "No puedo iniciar promoción transaccional: source_sha vacío."
+
+    local_sha_before="$(git rev-parse "refs/heads/${local_branch}" 2>/dev/null || true)"
+    base_ref="${local_sha_before:-$source_sha}"
+    candidate_branch="__promote_local_candidate_${$}"
+    tmpdir="$(mktemp -d "/tmp/promote-local-candidate.XXXXXX")"
+
+    if ! git worktree add -B "${candidate_branch}" "${tmpdir}" "${base_ref}" >/dev/null 2>&1; then
+        rm -rf "${tmpdir}" >/dev/null 2>&1 || true
+        die "No pude crear worktree candidato para promote local."
+    fi
+
+    local cleanup_needed=1
+    promote_local_cleanup_candidate() {
+        [[ "${cleanup_needed}" == "1" ]] || return 0
+        git worktree remove --force "${tmpdir}" >/dev/null 2>&1 || true
+        git branch -D "${candidate_branch}" >/dev/null 2>&1 || true
+        cleanup_needed=0
+        return 0
+    }
+
+    promote_local_apply_strategy_in_candidate_or_die "${tmpdir}" "${source_sha}"
+    promote_local_run_candidate_pipeline_or_die "${tmpdir}"
+    candidate_sha="$(git -C "${tmpdir}" rev-parse HEAD 2>/dev/null || true)"
+    [[ -n "${candidate_sha:-}" ]] || {
+        promote_local_cleanup_candidate
+        die "No pude resolver SHA del candidato."
+    }
+
+    if [[ "${DEVTOOLS_DRY_RUN:-0}" == "1" ]]; then
+        log_warn "⚗️ DRY-RUN: omito update-ref de '${local_branch}'."
+        promote_local_cleanup_candidate
+        printf '%s\n' "${candidate_sha}"
+        return 0
+    fi
+
+    if [[ -n "${local_sha_before:-}" ]]; then
+        git update-ref "refs/heads/${local_branch}" "${candidate_sha}" "${local_sha_before}" \
+            || { promote_local_cleanup_candidate; die "No pude actualizar refs/heads/${local_branch} de forma atómica."; }
+    else
+        git update-ref "refs/heads/${local_branch}" "${candidate_sha}" \
+            || { promote_local_cleanup_candidate; die "No pude crear refs/heads/${local_branch}."; }
+    fi
+
+    promote_local_cleanup_candidate
+    printf '%s\n' "${candidate_sha}"
+    return 0
+}
+
+
+
 promote_local_push_branch_force_or_die() {
     local branch="${1:-local}"
     local remote="${2:-origin}"

@@ -55,6 +55,10 @@ task_exists() {
 
 detect_ci_tools() {
     root="$(git rev-parse --show-toplevel 2>/dev/null || echo ".")"
+    local has_taskfile=0
+    if [[ -f "${root}/Taskfile.yaml" || -f "${root}/Taskfile.yml" || -f "${root}/taskfile.yml" ]]; then
+        has_taskfile=1
+    fi
 
     : "${POST_PUSH_FLOW:=true}"
 
@@ -64,6 +68,8 @@ detect_ci_tools() {
             export NATIVE_CI_CMD="task ci"
         elif task_exists "test"; then
             export NATIVE_CI_CMD="task test"
+        elif [[ "${has_taskfile}" == "1" ]]; then
+            export NATIVE_CI_CMD="task ci"
         elif [[ -f "${root}/apps/pmbok/Taskfile.yaml" ]]; then
             export NATIVE_CI_CMD="task -d apps/pmbok test"
         fi
@@ -72,6 +78,8 @@ detect_ci_tools() {
     # --- Nivel 2: Act (GitHub Actions Local) ---
     if [[ -z "${ACT_CI_CMD:-}" ]]; then
         if task_exists "ci:act"; then
+            export ACT_CI_CMD="task ci:act"
+        elif [[ "${has_taskfile}" == "1" ]]; then
             export ACT_CI_CMD="task ci:act"
         # FIX: fallback seguro (NO usar `act` pelado). Si existe el wrapper Taskfile, úsalo.
         elif [[ -f "${root}/.github/workflows/test/Taskfile.yaml" ]]; then
