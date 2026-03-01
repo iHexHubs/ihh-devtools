@@ -3,3 +3,13 @@ run/tunnels.log
 run/tunnels.pids
 devbox.lock
 .promote_tag
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Frontend artifacts
+node_modules/
+dist/
