@@ -3,66 +3,45 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-ARGO_NS="argocd"
-APP_NAME="devbox-app"
-ARGO_INSTALL_URL="https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
+
+# Delega a la implementación real de promote local (sin reimplementar bootstrap).
+source "${REPO_ROOT}/lib/core/utils.sh"
+source "${REPO_ROOT}/lib/promote/workflows/to-local/10-utils.sh"
+source "${REPO_ROOT}/lib/promote/workflows/to-local/50-k8s.sh"
+source "${REPO_ROOT}/lib/promote/workflows/to-local/60-argocd.sh"
+
+REVISION="${1:-local}"
+APP_NAME="${DEVTOOLS_ARGOCD_APP_LOCAL:-devbox-app}"
 APP_FILE="${REPO_ROOT}/devbox-app/gitops/argocd/application.yaml"
 
-need_cmd() {
-  command -v "$1" >/dev/null 2>&1 || {
-    echo "Falta comando requerido: $1" >&2
-    exit 1
-  }
+main() {
+    local runtime=""
+
+    # 1) Runtime/cluster por contrato existente del toolset.
+    promote_local_ensure_cluster_runtime runtime
+    promote_local_guard_runtime_matches_kubectl_context_or_die "${runtime}"
+    log_info "Bootstrap delegado: runtime local = ${runtime}"
+
+    # 2) Si existe contrato task cluster:up, delega ahí.
+    if command -v task >/dev/null 2>&1 && task_exists "cluster:up"; then
+        log_info "Delegando bootstrap de cluster al contrato existente: task cluster:up"
+        run_cmd "task cluster:up"
+    else
+        log_warn "No existe task cluster:up; continúo con validaciones/sync existentes."
+    fi
+
+    # 3) App manifest (idempotente). No instala ArgoCD: solo usa recursos existentes.
+    if command -v kubectl >/dev/null 2>&1 && [[ -f "${APP_FILE}" ]]; then
+        run_cmd "kubectl apply -f ${APP_FILE}"
+    else
+        log_warn "Omito apply de Application (kubectl o manifest no disponibles)."
+    fi
+
+    # 4) Delega preflight/sync al módulo existente de ArgoCD.
+    promote_local_preflight_argocd_or_die "${APP_NAME}"
+    promote_local_argocd_sync_by_tag_or_die "${REVISION}" "${APP_NAME}" "${DEVTOOLS_ARGOCD_WAIT_TIMEOUT:-300}"
+
+    log_success "✅ Bootstrap delegado completado: app=${APP_NAME} revision=${REVISION}"
 }
 
-need_cmd minikube
-need_cmd kubectl
-
-if ! minikube status >/dev/null 2>&1; then
-  echo "Iniciando minikube..."
-  minikube start --driver=docker
-else
-  echo "Minikube ya esta en ejecucion."
-fi
-
-echo "Habilitando ingress..."
-minikube addons enable ingress >/dev/null
-
-if ! kubectl get ns "${ARGO_NS}" >/dev/null 2>&1; then
-  kubectl create namespace "${ARGO_NS}"
-fi
-
-if ! kubectl -n "${ARGO_NS}" get deploy argocd-server >/dev/null 2>&1; then
-  echo "Instalando Argo CD..."
-  kubectl apply -n "${ARGO_NS}" -f "${ARGO_INSTALL_URL}"
-else
-  echo "Argo CD ya esta instalado."
-fi
-
-echo "Esperando despliegues de Argo CD..."
-kubectl -n "${ARGO_NS}" rollout status deploy/argocd-server --timeout=300s
-kubectl -n "${ARGO_NS}" rollout status deploy/argocd-repo-server --timeout=300s
-
-[[ -f "${APP_FILE}" ]] || {
-  echo "No existe Application manifest: ${APP_FILE}" >&2
-  exit 1
-}
-kubectl apply -f "${APP_FILE}"
-
-echo "Application aplicada: ${APP_NAME}"
-echo "Si necesitas UI de Argo CD:"
-echo "  kubectl -n ${ARGO_NS} port-forward svc/argocd-server 8081:443"
-echo "Password inicial:"
-echo "  kubectl -n ${ARGO_NS} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo"
-
-if command -v argocd >/dev/null 2>&1; then
-  if argocd app get "${APP_NAME}" >/dev/null 2>&1; then
-    echo "Sincronizando app con argocd CLI..."
-    argocd app sync "${APP_NAME}" || true
-  else
-    echo "argocd CLI detectado, pero no hay sesion iniciada. Login y corre:"
-    echo "  argocd app sync ${APP_NAME}"
-  fi
-else
-  echo "argocd CLI no instalado. Sincroniza luego con kubectl/argocd UI."
-fi
+main "$@"

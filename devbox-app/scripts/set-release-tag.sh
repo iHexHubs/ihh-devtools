@@ -11,6 +11,10 @@ if [[ "${TAG}" =~ [[:space:]] ]]; then
   exit 1
 fi
 
+# Docker/OCI no acepta '+' en tags; mantenemos el release tag en git
+# y escribimos formato de imagen (sanitizado) en overlays.
+IMAGE_TAG="${TAG//+/-}"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 KUSTOMIZATION_FILE="${REPO_ROOT}/devbox-app/gitops/overlays/minikube/kustomization.yaml"
@@ -24,12 +28,12 @@ FRONTEND_IMAGE="ghcr.io/ihexhubs/devbox-app-frontend"
 
 if command -v yq >/dev/null 2>&1; then
   yq -i '
-    (.images[] | select(.name == "'"${BACKEND_IMAGE}"'" or .newName == "'"${BACKEND_IMAGE}"'") | .newTag) = "'"${TAG}"'" |
-    (.images[] | select(.name == "'"${FRONTEND_IMAGE}"'" or .newName == "'"${FRONTEND_IMAGE}"'") | .newTag) = "'"${TAG}"'"
+    (.images[] | select(.name == "'"${BACKEND_IMAGE}"'" or .newName == "'"${BACKEND_IMAGE}"'") | .newTag) = "'"${IMAGE_TAG}"'" |
+    (.images[] | select(.name == "'"${FRONTEND_IMAGE}"'" or .newName == "'"${FRONTEND_IMAGE}"'") | .newTag) = "'"${IMAGE_TAG}"'"
   ' "${KUSTOMIZATION_FILE}"
 else
   TMP_FILE="$(mktemp "${KUSTOMIZATION_FILE}.XXXXXX")"
-  awk -v tag="${TAG}" \
+  awk -v tag="${IMAGE_TAG}" \
       -v backend="${BACKEND_IMAGE}" \
       -v frontend="${FRONTEND_IMAGE}" '
     BEGIN { in_backend=0; in_frontend=0; backend_set=0; frontend_set=0 }
@@ -89,12 +93,12 @@ FRONTEND_TAG="$(extract_tag "${FRONTEND_IMAGE}")"
   echo "No pude leer newTag de frontend en ${KUSTOMIZATION_FILE}" >&2
   exit 1
 }
-[[ "${BACKEND_TAG}" == "${TAG}" ]] || {
-  echo "Backend newTag no coincide: ${BACKEND_TAG} != ${TAG}" >&2
+[[ "${BACKEND_TAG}" == "${IMAGE_TAG}" ]] || {
+  echo "Backend newTag no coincide: ${BACKEND_TAG} != ${IMAGE_TAG}" >&2
   exit 1
 }
-[[ "${FRONTEND_TAG}" == "${TAG}" ]] || {
-  echo "Frontend newTag no coincide: ${FRONTEND_TAG} != ${TAG}" >&2
+[[ "${FRONTEND_TAG}" == "${IMAGE_TAG}" ]] || {
+  echo "Frontend newTag no coincide: ${FRONTEND_TAG} != ${IMAGE_TAG}" >&2
   exit 1
 }
 [[ "${BACKEND_TAG}" == "${FRONTEND_TAG}" ]] || {
@@ -102,4 +106,8 @@ FRONTEND_TAG="$(extract_tag "${FRONTEND_IMAGE}")"
   exit 1
 }
 
-echo "OK: release tag aplicado en minikube overlay (${TAG})"
+if [[ "${IMAGE_TAG}" != "${TAG}" ]]; then
+  echo "OK: release tag aplicado en minikube overlay (${TAG} -> ${IMAGE_TAG})"
+else
+  echo "OK: release tag aplicado en minikube overlay (${IMAGE_TAG})"
+fi
