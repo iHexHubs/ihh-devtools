@@ -87,6 +87,91 @@ ci_run_command_with_evidence() {
     return "$rc"
 }
 
+ci_task_list_has_task() {
+    local list_text="${1:-}"
+    local task_name="${2:-}"
+    [[ -n "${list_text:-}" && -n "${task_name:-}" ]] || return 1
+
+    awk -v want="${task_name}" '
+        /^task:/ {next}
+        NF==0 {next}
+        {
+            name=$1
+            if (name ~ /^[*+-]$/) { name=$2 }
+            gsub(/^[*+-]+/, "", name)
+            gsub(/:$/, "", name)
+            if (name == want) exit 0
+        }
+        END {exit 1}
+    ' <<<"${list_text}"
+}
+
+ci_task_exists_here() {
+    local task_name="${1:-}"
+    local list_text=""
+    command -v task >/dev/null 2>&1 || return 1
+    list_text="$(TASK_COLOR=0 task --list 2>/dev/null || true)"
+    ci_task_list_has_task "${list_text}" "${task_name}"
+}
+
+ci_task_exists_in_dir() {
+    local rel_dir="${1:-}"
+    local task_name="${2:-}"
+    local list_text=""
+    [[ -n "${rel_dir:-}" && -n "${task_name:-}" ]] || return 1
+    command -v task >/dev/null 2>&1 || return 1
+    [[ -d "${rel_dir}" ]] || return 1
+
+    list_text="$(TASK_COLOR=0 task -d "${rel_dir}" --list 2>/dev/null || true)"
+    ci_task_list_has_task "${list_text}" "${task_name}"
+}
+
+ci_resolve_native_app_ci_cmd() {
+    if task_exists "app:devbox:ci" || ci_task_exists_here "app:devbox:ci"; then
+        printf '%s\n' "task app:devbox:ci"
+        return 0
+    fi
+    if ci_task_exists_in_dir "devbox-app" "ci"; then
+        printf '%s\n' "task -d devbox-app ci"
+        return 0
+    fi
+    if ci_task_exists_in_dir "devbox-app/backend" "test"; then
+        printf '%s\n' "task -d devbox-app/backend test"
+        return 0
+    fi
+    return 1
+}
+
+ci_print_task_context_evidence() {
+    local task_version=""
+    local task_list=""
+    local list_rc=0
+
+    echo "🧰 Task Context:"
+    echo "  - pwd: '$(pwd)'"
+    echo "  - TASKFILE: '${TASKFILE:-<vacío>}'"
+
+    if ! command -v task >/dev/null 2>&1; then
+        echo "  - task --version: '<no instalado>'"
+        return 0
+    fi
+
+    task_version="$(task --version 2>&1 | head -n 1)"
+    echo "  - task --version: '${task_version}'"
+
+    if task_list="$(TASK_COLOR=0 task --list 2>&1)"; then
+        list_rc=0
+    else
+        list_rc=$?
+    fi
+    if [[ "$list_rc" -eq 0 ]]; then
+        echo "  - task --list (primeras 10 líneas):"
+    else
+        echo "  - task --list ERROR (rc=${list_rc}, primeras 10 líneas):"
+    fi
+    printf '%s\n' "${task_list}" | head -n 10 | sed 's/^/      /'
+}
+
 ci_normalize_selection() {
     local raw="${1:-}"
     local normalized=""
@@ -223,15 +308,13 @@ ci_run_validation_option() {
     local selected=""
     local mapped=""
     native_cmd="$(ci_get_native_cmd)"
-    if task_exists "app:devbox:ci"; then
-        native_app_cmd="task app:devbox:ci"
-    fi
+    native_app_cmd="$(ci_resolve_native_app_ci_cmd || true)"
     ci_acp_native_include_devtools_checks && include_devtools_checks=1
 
     selected="$(ci_normalize_selection "$selected_raw")"
     mapped="$(ci_map_validation_option "$selected")"
     ci_trace "selected='${selected_raw}' normalized='${selected}' mapped='${mapped}'"
-    ci_trace "NATIVE_CI_CMD='${native_cmd:-}' ACT_CI_CMD='${ACT_CI_CMD:-}'"
+    ci_trace "NATIVE_CI_CMD='${native_cmd:-}' ACT_CI_CMD='${ACT_CI_CMD:-}' NATIVE_APP_CI_CMD='${native_app_cmd:-}'"
 
     case "$mapped" in
         gate)
@@ -263,7 +346,9 @@ ci_run_validation_option() {
 
         native)
             [[ -n "${native_app_cmd:-}" ]] || {
-                ui_error "No existe task app:devbox:ci. Ejecuta: task --list | grep app:devbox:ci"
+                ui_error "No se detectó comando CI para devbox-app (probados: task app:devbox:ci, task -d devbox-app ci, task -d devbox-app/backend test)."
+                ci_print_task_context_evidence
+                echo "   Ejecuta: task --list | grep app:devbox:ci"
                 return 1
             }
             echo "▶️  Ejecutando Solo Nativo..."
@@ -490,10 +575,9 @@ run_post_push_flow() {
 
     native_cmd="$(ci_get_native_cmd)"
     ci_acp_native_include_devtools_checks && include_devtools_checks="1"
-    if task_exists "app:devbox:ci"; then
-        native_app_cmd="task app:devbox:ci"
-    else
-        native_app_cmd="<no detectado: task app:devbox:ci>"
+    native_app_cmd="$(ci_resolve_native_app_ci_cmd || true)"
+    if [[ -z "${native_app_cmd:-}" ]]; then
+        native_app_cmd="<no detectado: app:devbox ci/test>"
     fi
     native_effective_cmd="${native_app_cmd}"
     if [[ "$include_devtools_checks" == "1" ]]; then
@@ -510,6 +594,7 @@ run_post_push_flow() {
     echo "  - ACT_CI_CMD: '${ACT_CI_CMD:-<no detectado>}'"
     echo "  - DEVTOOLS_ACP_NATIVE_DEVTOOLS_CHECKS: '${include_devtools_checks}'"
     echo "  - NATIVE_APP_CI_CMD: '${native_app_cmd}'"
+    ci_print_task_context_evidence
     if [[ "$mapped" == "native" ]]; then
         echo "  - NATIVE_EFFECTIVE_CMD: '${native_effective_cmd}'"
     fi
