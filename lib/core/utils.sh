@@ -241,6 +241,34 @@ confirm_action() {
     ask_yes_no "$1"
 }
 
+# Confirmación con default SI (pensada para flujos guiados).
+# - TTY + gum: gum confirm --default=true
+# - TTY sin gum: ask_yes_no o read [Y/n]
+# - No TTY: YES automático para no bloquear.
+ui_confirm_default_yes() {
+    local q="$1"
+
+    if command -v gum >/dev/null 2>&1 && have_gum_ui; then
+        gum confirm --default=true "$q" </dev/tty
+        return $?
+    fi
+
+    if can_prompt; then
+        if declare -F ask_yes_no >/dev/null 2>&1; then
+            ask_yes_no "$q"
+            return $?
+        fi
+        local ans=""
+        printf "%s [Y/n]: " "$q" > /dev/tty
+        read -r ans < /dev/tty || ans="Y"
+        ans="${ans:-Y}"
+        [[ "$ans" =~ ^[YySs]$ ]]
+        return $?
+    fi
+
+    return 0
+}
+
 # ==============================================================================
 # 6. EJECUCIÓN DE COMANDOS
 # ==============================================================================

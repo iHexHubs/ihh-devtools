@@ -49,21 +49,23 @@ promote_local_run_act_with_progress() {
 
 
 promote_local_confirm_standard_validation() {
-    local msg="Se ejecutará build nativo + Act. Si todo sale bien, se creará el tag y se subirá a GitHub con sufijo rev.N."
+    local confirm_msg="Se ejecutará build nativo + Act. Si todo sale bien, se creará el tag y se publicará en GitHub con sufijo rev.N. ¿Continuar?"
 
     if can_prompt; then
-        if command -v gum >/dev/null 2>&1 && have_gum_ui; then
-            gum confirm --default=true "$msg"
-            return $?
-        fi
-        if declare -F ask_yes_no >/dev/null 2>&1; then
-            ask_yes_no "$msg"
-            return $?
-        fi
+        cat >/dev/tty <<'EOF'
+Se ejecutará: build nativo + Act.
+  - build nativo: task ci + task app:devbox:ci
+  - act: task ci:act
+Si todo sale bien, se creará el tag y se publicará en GitHub con sufijo rev.N.
+EOF
+        printf '\n' >/dev/tty
     fi
 
-    # Sin TTY confirmamos por defecto para no bloquear ejecución automática.
-    log_info "ℹ️ ${msg}"
+    if declare -F ui_confirm_default_yes >/dev/null 2>&1; then
+        ui_confirm_default_yes "$confirm_msg"
+        return $?
+    fi
+
     return 0
 }
 
@@ -249,6 +251,29 @@ promote_local_detect_changes() {
 
 
 promote_local_choose_validation_level() {
+    local forced_level="${DEVTOOLS_LOCAL_VALIDATION_LEVEL:-}"
+    local menu_mode="${DEVTOOLS_LOCAL_VALIDATION_MENU:-}"
+
+    if [[ -n "${forced_level:-}" ]]; then
+        printf '%s\n' "${forced_level}"
+        return 0
+    fi
+
+    if [[ "${menu_mode}" != "legacy" ]]; then
+        if promote_local_confirm_standard_validation; then
+            if can_prompt; then
+                printf '%s\n' "✅ Confirmado: se ejecutará Gate Estándar." >/dev/tty
+            fi
+            printf '%s\n' "standard"
+        else
+            if can_prompt; then
+                printf '%s\n' "ℹ️ Cancelado por el usuario." >/dev/tty
+            fi
+            printf '%s\n' "exit"
+        fi
+        return 0
+    fi
+
     local options=(
         "✅ Gate Estándar (Nativo + Act)"
         "🔍 Solo Nativo (Rápido)"
@@ -261,21 +286,21 @@ promote_local_choose_validation_level() {
     local selected=""
 
     if ! can_prompt; then
-        printf '%s\n' "${DEVTOOLS_LOCAL_VALIDATION_LEVEL:-exit}"
+        printf '%s\n' "exit"
         return 0
     fi
 
     if command -v gum >/dev/null 2>&1 && have_gum_ui; then
         selected="$(gum choose --header "Selecciona un nivel de validación:" "${options[@]}")"
     else
-        echo "Selecciona un nivel de validación:"
-        echo "1) ${options[0]}"
-        echo "2) ${options[1]}"
-        echo "3) ${options[2]}"
-        echo "4) ${options[3]}"
-        echo "5) ${options[4]}"
-        echo "6) ${options[5]}"
-        echo "7) ${options[6]}"
+        echo "Selecciona un nivel de validación:" >/dev/tty
+        echo "1) ${options[0]}" >/dev/tty
+        echo "2) ${options[1]}" >/dev/tty
+        echo "3) ${options[2]}" >/dev/tty
+        echo "4) ${options[3]}" >/dev/tty
+        echo "5) ${options[4]}" >/dev/tty
+        echo "6) ${options[5]}" >/dev/tty
+        echo "7) ${options[6]}" >/dev/tty
         local answer=""
         read -r -p "Opción [1-7]: " answer </dev/tty || answer="7"
         case "${answer:-}" in
@@ -369,11 +394,6 @@ promote_local_run_validation_level() {
             task_exists "ci" || die "Gate Estándar requiere task 'ci'."
             task_exists "app:devbox:ci" || die "Gate Estándar requiere task 'app:devbox:ci'."
             task_exists "ci:act" || die "Gate Estándar requiere task 'ci:act'."
-            if ! promote_local_confirm_standard_validation; then
-                PROMOTE_LOCAL_UI_PROGRESS_ACTIVE=0
-                log_info "ℹ️ Validación estándar cancelada."
-                return 11
-            fi
             promote_local_run_standard_validation_quiet "$native_repo_cmd" "$native_app_cmd" "$act_cmd" || return 1
             return 0
             ;;
