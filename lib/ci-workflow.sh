@@ -54,12 +54,8 @@ ci_trace() {
     echo "TRACE $*"
 }
 
-ci_acp_native_mode() {
-    local mode="${DEVTOOLS_ACP_NATIVE_MODE:-fast}"
-    case "$mode" in
-        full) printf '%s\n' "full" ;;
-        *) printf '%s\n' "fast" ;;
-    esac
+ci_acp_native_include_devtools_checks() {
+    [[ "${DEVTOOLS_ACP_NATIVE_DEVTOOLS_CHECKS:-0}" == "1" ]]
 }
 
 ci_run_command_with_evidence() {
@@ -222,15 +218,15 @@ ci_run_validation_option() {
     ci_ensure_ui_fallbacks
 
     local native_cmd
-    local native_mode
     local native_app_cmd=""
+    local include_devtools_checks=0
     local selected=""
     local mapped=""
     native_cmd="$(ci_get_native_cmd)"
-    native_mode="$(ci_acp_native_mode)"
     if task_exists "app:devbox:ci"; then
         native_app_cmd="task app:devbox:ci"
     fi
+    ci_acp_native_include_devtools_checks && include_devtools_checks=1
 
     selected="$(ci_normalize_selection "$selected_raw")"
     mapped="$(ci_map_validation_option "$selected")"
@@ -266,24 +262,24 @@ ci_run_validation_option() {
             ;;
 
         native)
-            [[ -n "${native_cmd:-}" ]] || {
-                ui_error "❌ No se detectó comando para Solo Nativo."
+            [[ -n "${native_app_cmd:-}" ]] || {
+                ui_error "No existe task app:devbox:ci. Ejecuta: task --list | grep app:devbox:ci"
                 return 1
             }
             echo "▶️  Ejecutando Solo Nativo..."
-            ci_trace "about_to_run='${native_cmd}'"
-            if ! ci_run_command_with_evidence "$native_cmd"; then
-                ui_error "Falló Solo Nativo."
+            ci_trace "about_to_run='${native_app_cmd}'"
+            if ! ci_run_command_with_evidence "$native_app_cmd"; then
+                ui_error "Falló Solo Nativo (app:devbox:ci)."
                 return 1
             fi
-            if [[ "$mode" == "post" && "$native_mode" == "full" ]]; then
-                [[ -n "${native_app_cmd:-}" ]] || {
-                    ui_error "Modo DEVTOOLS_ACP_NATIVE_MODE=full requiere task 'app:devbox:ci'."
+            if [[ "$mode" == "post" && "$include_devtools_checks" == "1" ]]; then
+                [[ -n "${native_cmd:-}" ]] || {
+                    ui_error "No se detectó comando para checks devtools (NATIVE_CI_CMD)."
                     return 1
                 }
-                ci_trace "about_to_run='${native_app_cmd}'"
-                if ! ci_run_command_with_evidence "$native_app_cmd"; then
-                    ui_error "Falló Solo Nativo (app:devbox:ci)."
+                ci_trace "about_to_run='${native_cmd}'"
+                if ! ci_run_command_with_evidence "$native_cmd"; then
+                    ui_error "Falló Solo Nativo (checks devtools)."
                     return 1
                 fi
             fi
@@ -484,30 +480,39 @@ run_post_push_flow() {
     local selected_raw=""
     local selected=""
     local mapped=""
+    local native_cmd
+    local include_devtools_checks="0"
+    local native_app_cmd
+    local native_effective_cmd
     selected_raw="$(ci_prompt_validation_menu)"
     selected="$(ci_normalize_selection "$selected_raw")"
     mapped="$(ci_map_validation_option "$selected")"
-    local native_mode
-    local native_app_cmd
-    native_mode="$(ci_acp_native_mode)"
-    native_app_cmd="(no aplica)"
-    if [[ "$native_mode" == "full" ]]; then
-        if task_exists "app:devbox:ci"; then
-            native_app_cmd="task app:devbox:ci"
-        else
-            native_app_cmd="(no detectado: task app:devbox:ci)"
-        fi
+
+    native_cmd="$(ci_get_native_cmd)"
+    ci_acp_native_include_devtools_checks && include_devtools_checks="1"
+    if task_exists "app:devbox:ci"; then
+        native_app_cmd="task app:devbox:ci"
+    else
+        native_app_cmd="<no detectado: task app:devbox:ci>"
     fi
+    native_effective_cmd="${native_app_cmd}"
+    if [[ "$include_devtools_checks" == "1" ]]; then
+        native_effective_cmd="${native_effective_cmd} + ${native_cmd:-<no detectado>}"
+    fi
+
     ci_trace "selected='${selected_raw}' normalized='${selected}' mapped='${mapped}'"
-    ci_trace "NATIVE_CI_CMD='${NATIVE_CI_CMD:-}' ACT_CI_CMD='${ACT_CI_CMD:-}'"
+    ci_trace "NATIVE_CI_CMD='${native_cmd:-}' ACT_CI_CMD='${ACT_CI_CMD:-}' NATIVE_APP_CI_CMD='${native_app_cmd}'"
     echo "🧾 Selección CI:"
     echo "  - raw: '${selected_raw}'"
     echo "  - normalized: '${selected}'"
     echo "  - mapped: ${mapped}"
-    echo "  - NATIVE_CI_CMD: '${NATIVE_CI_CMD:-<no detectado>}'"
+    echo "  - NATIVE_CI_CMD: '${native_cmd:-<no detectado>}'"
     echo "  - ACT_CI_CMD: '${ACT_CI_CMD:-<no detectado>}'"
-    echo "  - DEVTOOLS_ACP_NATIVE_MODE: '${native_mode}'"
+    echo "  - DEVTOOLS_ACP_NATIVE_DEVTOOLS_CHECKS: '${include_devtools_checks}'"
     echo "  - NATIVE_APP_CI_CMD: '${native_app_cmd}'"
+    if [[ "$mapped" == "native" ]]; then
+        echo "  - NATIVE_EFFECTIVE_CMD: '${native_effective_cmd}'"
+    fi
 
     if ci_is_skip_option "$selected"; then
         echo "👌 Omitido."
