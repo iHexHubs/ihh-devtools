@@ -8,7 +8,7 @@ resources:
 images:
   - name: ghcr.io/ihexhubs/devbox-app-backend
     newName: ghcr.io/ihexhubs/devbox-app-backend
-    newTag: local
+    newTag: ihh-devtools-v0.1.0.rc.1-build.1-rev.1
   - name: ghcr.io/ihexhubs/devbox-app-frontend
     newName: ghcr.io/ihexhubs/devbox-app-frontend
-    newTag: local
+    newTag: ihh-devtools-v0.1.0.rc.1-build.1-rev.1
