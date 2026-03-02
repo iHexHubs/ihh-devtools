@@ -56,7 +56,7 @@ function App() {
       <p>
         Backend health: <strong>{health}</strong>
       </p>
-      {error ? <p style={{ color: "#2cb91cff" }}>{error}</p> : null}
+      {error ? <p style={{ color: "#b9291cff" }}>{error}</p> : null}
 
       <form onSubmit={onSubmit}>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="New item name" />
