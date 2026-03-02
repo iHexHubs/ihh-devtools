@@ -33,6 +33,103 @@ promote_local_ensure_checks_loaded >/dev/null 2>&1 || true
 # ------------------------------------------------------------------------------
 
 
+promote_local_run_act_with_progress() {
+    local act_cmd="$1"
+    local act_image_hint="${DEVTOOLS_ACT_IMAGE_HINT:-catthehacker/ubuntu:full-latest}"
+    local act_pid=0
+    local watcher_pid=0
+    local rc=0
+
+    # En no-TTY no mostramos panel periódico; solo hint inicial.
+    if ! can_prompt; then
+        log_info "⏳ Act puede tardar la primera vez descargando la imagen ${act_image_hint}. Para ver progreso: docker pull ${act_image_hint}"
+        run_cmd "$act_cmd"
+        return $?
+    fi
+
+    log_info "⏳ Ejecutando Act (progreso cada ~2s)..."
+    log_info "💡 Si parece detenido, abre otra terminal y ejecuta: docker pull ${act_image_hint}"
+
+    run_cmd "$act_cmd" &
+    act_pid=$!
+
+    (
+        local ticks=0
+        local containers=""
+        while kill -0 "$act_pid" >/dev/null 2>&1; do
+            ticks=$((ticks + 1))
+            if command -v docker >/dev/null 2>&1; then
+                containers="$(
+                    docker ps --format '{{.Image}} | {{.Status}} | {{.Names}}' 2>/dev/null \
+                        | grep -Ei 'act|catthehacker|nektos/act' \
+                        | head -n 3 || true
+                )"
+                if [[ -n "${containers:-}" ]]; then
+                    while IFS= read -r line; do
+                        [[ -n "${line:-}" ]] || continue
+                        log_info "🐳 ${line}"
+                    done <<< "$containers"
+                elif docker image inspect "${act_image_hint}" >/dev/null 2>&1; then
+                    log_info "🐳 Imagen ${act_image_hint} disponible; Act sigue ejecutando pasos."
+                else
+                    log_info "🐳 Descargando/preparando imagen ${act_image_hint}..."
+                fi
+            else
+                log_info "⏳ Act sigue ejecutando..."
+            fi
+
+            if (( ticks % 3 == 0 )); then
+                log_info "💡 Tip: docker pull ${act_image_hint}"
+            fi
+            sleep 2
+        done
+    ) &
+    watcher_pid=$!
+
+    wait "$act_pid" || rc=$?
+    kill "$watcher_pid" >/dev/null 2>&1 || true
+    wait "$watcher_pid" >/dev/null 2>&1 || true
+    return "$rc"
+}
+
+
+
+promote_local_maybe_print_app_ci_db_help() {
+    local log_file="${1:-}"
+
+    [[ -n "${log_file:-}" && -f "${log_file}" ]] || return 0
+    if ! grep -Eqi 'connection refused|127\.0\.0\.1:5432|port 5432|psycopg\.OperationalError|django\.db\.utils\.OperationalError|could not connect to server' "$log_file"; then
+        return 0
+    fi
+
+    log_error "❌ app:devbox:ci falló: la base de datos no está disponible (Postgres / puerto 5432)."
+    cat <<'EOF'
+Acciones recomendadas:
+  - Levanta servicios locales: task app:devbox:docker:up
+  - (Opcional) reinicia limpio: task app:devbox:docker:down && task app:devbox:docker:up
+  - Verifica Postgres: docker ps | grep -i postgres
+EOF
+}
+
+
+
+promote_local_run_app_ci_with_help() {
+    local app_cmd="$1"
+    local log_file=""
+
+    log_file="$(mktemp "/tmp/promote-local-app-ci.XXXXXX.log")"
+    if (set -o pipefail; run_cmd "$app_cmd" 2>&1 | tee "$log_file"); then
+        rm -f "$log_file" >/dev/null 2>&1 || true
+        return 0
+    fi
+
+    promote_local_maybe_print_app_ci_db_help "$log_file"
+    rm -f "$log_file" >/dev/null 2>&1 || true
+    return 1
+}
+
+
+
 promote_local_detect_changes() {
     local base_ref="$1"
     local source_sha="$2"
@@ -192,9 +289,9 @@ promote_local_run_validation_level() {
             log_info "✅ Gate Estándar: ejecutando ${native_repo_cmd}"
             run_cmd "$native_repo_cmd" || return 1
             log_info "✅ Gate Estándar: ejecutando ${native_app_cmd}"
-            run_cmd "$native_app_cmd" || return 1
+            promote_local_run_app_ci_with_help "$native_app_cmd" || return 1
             log_info "✅ Gate Estándar: ejecutando ${act_cmd}"
-            run_cmd "$act_cmd" || return 1
+            promote_local_run_act_with_progress "$act_cmd" || return 1
             return 0
             ;;
         native)
@@ -204,14 +301,14 @@ promote_local_run_validation_level() {
             log_info "🔍 Solo Nativo: ejecutando ${native_repo_cmd}"
             run_cmd "$native_repo_cmd" || return 1
             log_info "🔍 Solo Nativo: ejecutando ${native_app_cmd}"
-            run_cmd "$native_app_cmd" || return 1
+            promote_local_run_app_ci_with_help "$native_app_cmd" || return 1
             return 0
             ;;
         act)
             command -v task >/dev/null 2>&1 || die "Validación Act requiere 'task' instalado."
             task_exists "ci:act" || die "No existe task 'ci:act'."
             log_info "🎬 Solo Act: ejecutando ${act_cmd}"
-            run_cmd "$act_cmd" || return 1
+            promote_local_run_act_with_progress "$act_cmd" || return 1
             return 0
             ;;
         k9s)
