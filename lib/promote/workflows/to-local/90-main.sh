@@ -84,6 +84,61 @@ promote_local_pin_gitops_release_or_die() {
 
 
 
+promote_local_run_tag_step_with_progress() {
+    local final_tag="$1"
+    local out_sha_var="$2"
+    local tag_log=""
+    local new_sha=""
+
+    tag_log="$(promote_local_ui_log_path "tag" 2>/dev/null || true)"
+    [[ -n "${tag_log:-}" ]] || tag_log="$(mktemp "/tmp/promote-local-tag.XXXXXX.log")"
+    : >"$tag_log"
+
+    if [[ "${PROMOTE_LOCAL_UI_PROGRESS_ACTIVE:-0}" == "1" ]] && declare -F promote_local_ui_set_state >/dev/null 2>&1; then
+        promote_local_ui_set_state "tag" "running" || true
+    fi
+
+    if ! (promote_local_pin_gitops_release_or_die "$final_tag") >>"$tag_log" 2>&1; then
+        if [[ "${PROMOTE_LOCAL_UI_PROGRESS_ACTIVE:-0}" == "1" ]] && declare -F promote_local_ui_set_state >/dev/null 2>&1; then
+            promote_local_ui_set_state "tag" "failed" || true
+        fi
+        if declare -F promote_local_ui_print_failure_summary >/dev/null 2>&1; then
+            promote_local_ui_print_failure_summary "tag (pin GitOps)" "$tag_log"
+        fi
+        return 1
+    fi
+
+    new_sha="$(git rev-parse HEAD 2>/dev/null || true)"
+    if [[ -z "${new_sha:-}" ]]; then
+        if [[ "${PROMOTE_LOCAL_UI_PROGRESS_ACTIVE:-0}" == "1" ]] && declare -F promote_local_ui_set_state >/dev/null 2>&1; then
+            promote_local_ui_set_state "tag" "failed" || true
+        fi
+        if declare -F promote_local_ui_print_failure_summary >/dev/null 2>&1; then
+            promote_local_ui_print_failure_summary "tag (resolver SHA)" "$tag_log"
+        fi
+        return 1
+    fi
+
+    if ! (promote_local_create_tag "$final_tag" "$new_sha") >>"$tag_log" 2>&1; then
+        if [[ "${PROMOTE_LOCAL_UI_PROGRESS_ACTIVE:-0}" == "1" ]] && declare -F promote_local_ui_set_state >/dev/null 2>&1; then
+            promote_local_ui_set_state "tag" "failed" || true
+        fi
+        if declare -F promote_local_ui_print_failure_summary >/dev/null 2>&1; then
+            promote_local_ui_print_failure_summary "tag (create/push)" "$tag_log"
+        fi
+        return 1
+    fi
+
+    if [[ "${PROMOTE_LOCAL_UI_PROGRESS_ACTIVE:-0}" == "1" ]] && declare -F promote_local_ui_set_state >/dev/null 2>&1; then
+        promote_local_ui_set_state "tag" "done" || true
+    fi
+
+    printf -v "$out_sha_var" '%s' "$new_sha"
+    return 0
+}
+
+
+
 promote_to_local_v2() {
     resync_submodules_hard
 
@@ -167,11 +222,7 @@ promote_to_local_v2() {
         rev="$(promote_local_next_rev "$app_name" "$base_version" "$rc" "$build")"
         final_tag="$(promote_local_tag_name "$app_name" "$base_version" "$rc" "$build" "$rev")"
 
-        promote_local_pin_gitops_release_or_die "$final_tag"
-        candidate_sha="$(git rev-parse HEAD 2>/dev/null || true)"
-        [[ -n "${candidate_sha:-}" ]] || die "No pude resolver HEAD tras commit de GitOps."
-
-        promote_local_create_tag "$final_tag" "$candidate_sha" \
+        promote_local_run_tag_step_with_progress "$final_tag" candidate_sha \
             || die "No pude crear/publicar tag local ${final_tag}."
         log_success "✅ Tag local creado: ${final_tag}"
     fi

@@ -48,6 +48,135 @@ promote_local_run_act_with_progress() {
 
 
 
+promote_local_confirm_standard_validation() {
+    local confirm_msg="Se ejecutará build nativo + Act. Si todo sale bien, se creará el tag y se publicará en GitHub con sufijo rev.N. ¿Continuar?"
+
+    if can_prompt; then
+        cat >/dev/tty <<'EOF'
+Se ejecutará: build nativo + Act.
+  - build nativo: task ci + task app:devbox:ci
+  - act: task ci:act
+Si todo sale bien, se creará el tag y se publicará en GitHub con sufijo rev.N.
+EOF
+        printf '\n' >/dev/tty
+    fi
+
+    if declare -F ui_confirm_default_yes >/dev/null 2>&1; then
+        ui_confirm_default_yes "$confirm_msg"
+        return $?
+    fi
+
+    return 0
+}
+
+promote_local_ui_log_path() {
+    local step="${1:-step}"
+    if [[ -z "${PROMOTE_LOCAL_UI_LOG_DIR:-}" || ! -d "${PROMOTE_LOCAL_UI_LOG_DIR:-}" ]]; then
+        PROMOTE_LOCAL_UI_LOG_DIR="$(mktemp -d "/tmp/promote-local-ui.XXXXXX")"
+    fi
+    export PROMOTE_LOCAL_UI_LOG_DIR
+    printf '%s\n' "${PROMOTE_LOCAL_UI_LOG_DIR}/${step}.log"
+}
+
+
+
+promote_local_ui_render_progress_panel() {
+    [[ "${PROMOTE_LOCAL_UI_PROGRESS_ACTIVE:-0}" == "1" ]] || return 0
+
+    local build_state="${PROMOTE_LOCAL_UI_STATE_BUILD:-pending}"
+    local act_state="${PROMOTE_LOCAL_UI_STATE_ACT:-pending}"
+    local tag_state="${PROMOTE_LOCAL_UI_STATE_TAG:-pending}"
+
+    if declare -F ui_print_step_status_line >/dev/null 2>&1; then
+        ui_print_step_status_line "build nativo" "$build_state"
+        ui_print_step_status_line "act" "$act_state"
+        ui_print_step_status_line "tag" "$tag_state"
+    else
+        printf 'build nativo: %s\n' "$build_state"
+        printf 'act:          %s\n' "$act_state"
+        printf 'tag:          %s\n' "$tag_state"
+    fi
+}
+
+
+
+promote_local_ui_set_state() {
+    local step="$1"
+    local state="$2"
+
+    case "$step" in
+        build) PROMOTE_LOCAL_UI_STATE_BUILD="$state" ;;
+        act) PROMOTE_LOCAL_UI_STATE_ACT="$state" ;;
+        tag) PROMOTE_LOCAL_UI_STATE_TAG="$state" ;;
+        *) return 1 ;;
+    esac
+    promote_local_ui_render_progress_panel
+    return 0
+}
+
+
+
+promote_local_ui_print_failure_summary() {
+    local step_name="$1"
+    local log_file="$2"
+
+    log_error "❌ Falló ${step_name}."
+    if [[ -f "${log_file:-}" ]]; then
+        log_error "📄 Log: ${log_file}"
+        echo "----- Últimas 40 líneas -----"
+        tail -n 40 "$log_file" || true
+        echo "-----------------------------"
+    fi
+}
+
+
+
+promote_local_run_standard_validation_quiet() {
+    local native_repo_cmd="$1"
+    local native_app_cmd="$2"
+    local act_cmd="$3"
+    local build_log=""
+    local act_log=""
+
+    PROMOTE_LOCAL_UI_PROGRESS_ACTIVE=1
+    PROMOTE_LOCAL_UI_STATE_BUILD="pending"
+    PROMOTE_LOCAL_UI_STATE_ACT="pending"
+    PROMOTE_LOCAL_UI_STATE_TAG="pending"
+    export PROMOTE_LOCAL_UI_PROGRESS_ACTIVE PROMOTE_LOCAL_UI_STATE_BUILD PROMOTE_LOCAL_UI_STATE_ACT PROMOTE_LOCAL_UI_STATE_TAG
+
+    build_log="$(promote_local_ui_log_path "build")"
+    act_log="$(promote_local_ui_log_path "act")"
+    : >"$build_log"
+    : >"$act_log"
+
+    promote_local_ui_render_progress_panel
+
+    promote_local_ui_set_state "build" "running"
+    if ! (set -o pipefail; eval "$native_repo_cmd") >>"$build_log" 2>&1; then
+        promote_local_ui_set_state "build" "failed"
+        promote_local_ui_print_failure_summary "build nativo (task ci)" "$build_log"
+        return 1
+    fi
+    if ! (set -o pipefail; eval "$native_app_cmd") >>"$build_log" 2>&1; then
+        promote_local_ui_set_state "build" "failed"
+        promote_local_maybe_print_app_ci_db_help "$build_log"
+        promote_local_ui_print_failure_summary "build nativo (task app:devbox:ci)" "$build_log"
+        return 1
+    fi
+    promote_local_ui_set_state "build" "done"
+
+    promote_local_ui_set_state "act" "running"
+    if ! (set -o pipefail; eval "$act_cmd") >>"$act_log" 2>&1; then
+        promote_local_ui_set_state "act" "failed"
+        promote_local_ui_print_failure_summary "act" "$act_log"
+        return 1
+    fi
+    promote_local_ui_set_state "act" "done"
+    return 0
+}
+
+
+
 promote_local_maybe_print_app_ci_db_help() {
     local log_file="${1:-}"
 
@@ -122,6 +251,29 @@ promote_local_detect_changes() {
 
 
 promote_local_choose_validation_level() {
+    local forced_level="${DEVTOOLS_LOCAL_VALIDATION_LEVEL:-}"
+    local menu_mode="${DEVTOOLS_LOCAL_VALIDATION_MENU:-}"
+
+    if [[ -n "${forced_level:-}" ]]; then
+        printf '%s\n' "${forced_level}"
+        return 0
+    fi
+
+    if [[ "${menu_mode}" != "legacy" ]]; then
+        if promote_local_confirm_standard_validation; then
+            if can_prompt; then
+                printf '%s\n' "✅ Confirmado: se ejecutará Gate Estándar." >/dev/tty
+            fi
+            printf '%s\n' "standard"
+        else
+            if can_prompt; then
+                printf '%s\n' "ℹ️ Cancelado por el usuario." >/dev/tty
+            fi
+            printf '%s\n' "exit"
+        fi
+        return 0
+    fi
+
     local options=(
         "✅ Gate Estándar (Nativo + Act)"
         "🔍 Solo Nativo (Rápido)"
@@ -134,21 +286,21 @@ promote_local_choose_validation_level() {
     local selected=""
 
     if ! can_prompt; then
-        printf '%s\n' "${DEVTOOLS_LOCAL_VALIDATION_LEVEL:-exit}"
+        printf '%s\n' "exit"
         return 0
     fi
 
-    if have_gum_ui; then
+    if command -v gum >/dev/null 2>&1 && have_gum_ui; then
         selected="$(gum choose --header "Selecciona un nivel de validación:" "${options[@]}")"
     else
-        echo "Selecciona un nivel de validación:"
-        echo "1) ${options[0]}"
-        echo "2) ${options[1]}"
-        echo "3) ${options[2]}"
-        echo "4) ${options[3]}"
-        echo "5) ${options[4]}"
-        echo "6) ${options[5]}"
-        echo "7) ${options[6]}"
+        echo "Selecciona un nivel de validación:" >/dev/tty
+        echo "1) ${options[0]}" >/dev/tty
+        echo "2) ${options[1]}" >/dev/tty
+        echo "3) ${options[2]}" >/dev/tty
+        echo "4) ${options[3]}" >/dev/tty
+        echo "5) ${options[4]}" >/dev/tty
+        echo "6) ${options[5]}" >/dev/tty
+        echo "7) ${options[6]}" >/dev/tty
         local answer=""
         read -r -p "Opción [1-7]: " answer </dev/tty || answer="7"
         case "${answer:-}" in
@@ -242,12 +394,7 @@ promote_local_run_validation_level() {
             task_exists "ci" || die "Gate Estándar requiere task 'ci'."
             task_exists "app:devbox:ci" || die "Gate Estándar requiere task 'app:devbox:ci'."
             task_exists "ci:act" || die "Gate Estándar requiere task 'ci:act'."
-            log_info "✅ Gate Estándar: ejecutando ${native_repo_cmd}"
-            run_cmd "$native_repo_cmd" || return 1
-            log_info "✅ Gate Estándar: ejecutando ${native_app_cmd}"
-            promote_local_run_app_ci_with_help "$native_app_cmd" || return 1
-            log_info "✅ Gate Estándar: ejecutando ${act_cmd}"
-            promote_local_run_act_with_progress "$act_cmd" || return 1
+            promote_local_run_standard_validation_quiet "$native_repo_cmd" "$native_app_cmd" "$act_cmd" || return 1
             return 0
             ;;
         native)
