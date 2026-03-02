@@ -36,60 +36,14 @@ promote_local_ensure_checks_loaded >/dev/null 2>&1 || true
 promote_local_run_act_with_progress() {
     local act_cmd="$1"
     local act_image_hint="${DEVTOOLS_ACT_IMAGE_HINT:-catthehacker/ubuntu:full-latest}"
-    local act_pid=0
-    local watcher_pid=0
-    local rc=0
 
-    # En no-TTY no mostramos panel periódico; solo hint inicial.
     if ! can_prompt; then
         log_info "⏳ Act puede tardar la primera vez descargando la imagen ${act_image_hint}. Para ver progreso: docker pull ${act_image_hint}"
-        run_cmd "$act_cmd"
-        return $?
     fi
 
-    log_info "⏳ Ejecutando Act (progreso cada ~2s)..."
-    log_info "💡 Si parece detenido, abre otra terminal y ejecuta: docker pull ${act_image_hint}"
-
-    run_cmd "$act_cmd" &
-    act_pid=$!
-
-    (
-        local ticks=0
-        local containers=""
-        while kill -0 "$act_pid" >/dev/null 2>&1; do
-            ticks=$((ticks + 1))
-            if command -v docker >/dev/null 2>&1; then
-                containers="$(
-                    docker ps --format '{{.Image}} | {{.Status}} | {{.Names}}' 2>/dev/null \
-                        | grep -Ei 'act|catthehacker|nektos/act' \
-                        | head -n 3 || true
-                )"
-                if [[ -n "${containers:-}" ]]; then
-                    while IFS= read -r line; do
-                        [[ -n "${line:-}" ]] || continue
-                        log_info "🐳 ${line}"
-                    done <<< "$containers"
-                elif docker image inspect "${act_image_hint}" >/dev/null 2>&1; then
-                    log_info "🐳 Imagen ${act_image_hint} disponible; Act sigue ejecutando pasos."
-                else
-                    log_info "🐳 Descargando/preparando imagen ${act_image_hint}..."
-                fi
-            else
-                log_info "⏳ Act sigue ejecutando..."
-            fi
-
-            if (( ticks % 3 == 0 )); then
-                log_info "💡 Tip: docker pull ${act_image_hint}"
-            fi
-            sleep 2
-        done
-    ) &
-    watcher_pid=$!
-
-    wait "$act_pid" || rc=$?
-    kill "$watcher_pid" >/dev/null 2>&1 || true
-    wait "$watcher_pid" >/dev/null 2>&1 || true
-    return "$rc"
+    # El progreso real de pull se muestra dentro de task ci:act (docker pull explícito).
+    run_cmd "$act_cmd"
+    return $?
 }
 
 
@@ -102,12 +56,14 @@ promote_local_maybe_print_app_ci_db_help() {
         return 0
     fi
 
-    log_error "❌ app:devbox:ci falló: la base de datos no está disponible (Postgres / puerto 5432)."
+    log_error "❌ Devbox CI falló por DB no disponible (localhost:5432)."
     cat <<'EOF'
-Acciones recomendadas:
-  - Levanta servicios locales: task app:devbox:docker:up
-  - (Opcional) reinicia limpio: task app:devbox:docker:down && task app:devbox:docker:up
-  - Verifica Postgres: docker ps | grep -i postgres
+👉 Para levantar servicios:
+   task app:devbox:docker:up
+👉 Para verificar:
+   docker ps | grep -i postgres
+👉 Para bajar:
+   task app:devbox:docker:down
 EOF
 }
 

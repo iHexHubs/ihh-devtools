@@ -11,7 +11,7 @@ tasks:
     desc: "Ejecuta workflow de CI usando Act"
     cmds:
       - bash -euo pipefail -c 'command -v act >/dev/null 2>&1 || { echo "act no está instalado"; exit 1; }'
-      - bash -euo pipefail -c 'act -W .github/workflows/ci.yaml -j ci --pull=false'
+      - bash -euo pipefail -c 'command -v docker >/dev/null 2>&1 || { echo "docker no está instalado"; exit 1; }; ACT_IMAGE="${DEVTOOLS_ACT_IMAGE:-catthehacker/ubuntu:full-latest}"; if ! docker image inspect "${ACT_IMAGE}" >/dev/null 2>&1; then echo "🐳 Preparando imagen para Act ${ACT_IMAGE} (primera vez puede tardar)"; if ! docker pull "${ACT_IMAGE}"; then echo "❌ No se pudo descargar la imagen. Prueba docker pull ${ACT_IMAGE}"; exit 1; fi; fi; act -W .github/workflows/ci.yaml -j ci --pull=false'
 
   ui:local:
     desc: "Abre K9s si está disponible"
