@@ -182,6 +182,8 @@ ci_run_validation_option() {
     local base="$3"
     local mode="${4:-post}"
 
+    ci_ensure_ui_fallbacks
+
     local native_cmd
     local selected=""
     local mapped=""
@@ -221,14 +223,33 @@ ci_run_validation_option() {
             ;;
 
         native)
-            [[ -n "${native_cmd:-}" ]] || return 1
+            [[ -n "${native_cmd:-}" ]] || {
+                ui_error "❌ No se detectó comando para Solo Nativo."
+                return 1
+            }
+            echo "▶️  Ejecutando Solo Nativo..."
             ci_trace "about_to_run='${native_cmd}'"
-            run_cmd "$native_cmd"
+            if run_cmd "$native_cmd"; then
+                ui_success "Solo Nativo completado."
+            else
+                ui_error "Falló Solo Nativo."
+                return 1
+            fi
             ;;
 
         act)
+            [[ -n "${ACT_CI_CMD:-}" ]] || {
+                ui_error "❌ No se detectó comando para Solo Act."
+                return 1
+            }
+            echo "▶️  Ejecutando Solo Act..."
             ci_trace "about_to_run='${ACT_CI_CMD:-<vacío>}'"
-            run_cmd "$ACT_CI_CMD"
+            if run_cmd "$ACT_CI_CMD"; then
+                ui_success "Solo Act completado."
+            else
+                ui_error "Falló Solo Act."
+                return 1
+            fi
             ;;
 
         compose)
@@ -416,6 +437,7 @@ run_post_push_flow() {
     mapped="$(ci_map_validation_option "$selected")"
     ci_trace "selected='${selected_raw}' normalized='${selected}' mapped='${mapped}'"
     ci_trace "NATIVE_CI_CMD='${NATIVE_CI_CMD:-}' ACT_CI_CMD='${ACT_CI_CMD:-}'"
+    [[ -n "${selected:-}" ]] && ui_info "Selección: ${selected}"
 
     if ci_is_skip_option "$selected"; then
         echo "👌 Omitido."
