@@ -124,8 +124,8 @@ promote_local_choose_validation_level() {
 
 promote_local_print_validation_help() {
     cat <<'EOF'
-✅ Gate Estándar (Nativo + Act): ejecuta task ci y task ci:act (recomendado).
-🔍 Solo Nativo (Rápido): ejecuta solo task ci.
+✅ Gate Estándar (Nativo + Act): ejecuta task ci, task app:devbox:ci y task ci:act (recomendado).
+🔍 Solo Nativo (Rápido): ejecuta task ci y task app:devbox:ci.
 🎬 Solo Act (GH Actions): ejecuta solo task ci:act.
 👀 Abrir K9s (ui:local): abre task ui:local o k9s para inspección.
 📨 Finalizar y Crear PR: crea PR y termina sin promover local.
@@ -179,16 +179,20 @@ promote_local_create_pr_or_die() {
 promote_local_run_validation_level() {
     local level="$1"
     local source_branch="${2:-}"
-    local native_cmd="task ci"
+    local native_repo_cmd="task ci"
+    local native_app_cmd="task app:devbox:ci"
     local act_cmd="task ci:act"
 
     case "$level" in
         standard)
             command -v task >/dev/null 2>&1 || die "Gate Estándar requiere 'task' instalado."
             task_exists "ci" || die "Gate Estándar requiere task 'ci'."
+            task_exists "app:devbox:ci" || die "Gate Estándar requiere task 'app:devbox:ci'."
             task_exists "ci:act" || die "Gate Estándar requiere task 'ci:act'."
-            log_info "✅ Gate Estándar: ejecutando ${native_cmd}"
-            run_cmd "$native_cmd" || return 1
+            log_info "✅ Gate Estándar: ejecutando ${native_repo_cmd}"
+            run_cmd "$native_repo_cmd" || return 1
+            log_info "✅ Gate Estándar: ejecutando ${native_app_cmd}"
+            run_cmd "$native_app_cmd" || return 1
             log_info "✅ Gate Estándar: ejecutando ${act_cmd}"
             run_cmd "$act_cmd" || return 1
             return 0
@@ -196,8 +200,11 @@ promote_local_run_validation_level() {
         native)
             command -v task >/dev/null 2>&1 || die "Validación nativa requiere 'task' instalado."
             task_exists "ci" || die "No existe task 'ci'."
-            log_info "🔍 Solo Nativo: ejecutando ${native_cmd}"
-            run_cmd "$native_cmd" || return 1
+            task_exists "app:devbox:ci" || die "No existe task 'app:devbox:ci'."
+            log_info "🔍 Solo Nativo: ejecutando ${native_repo_cmd}"
+            run_cmd "$native_repo_cmd" || return 1
+            log_info "🔍 Solo Nativo: ejecutando ${native_app_cmd}"
+            run_cmd "$native_app_cmd" || return 1
             return 0
             ;;
         act)

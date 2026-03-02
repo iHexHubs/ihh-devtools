@@ -128,12 +128,21 @@ promote_local_app_name() {
     local repo_root=""
     local app_name=""
 
-    repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+    if [[ -n "${REPO_ROOT:-}" && -d "${REPO_ROOT}" ]]; then
+        repo_root="${REPO_ROOT}"
+    else
+        repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+    fi
+    [[ -n "${repo_root:-}" ]] || repo_root="$(pwd)"
+
     app_name="$(basename "$repo_root")"
-    app_name="$(printf '%s' "$app_name" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9._-' '-')"
+    app_name="$(printf '%s' "$app_name" | tr -cs 'A-Za-z0-9._-' '-')"
     app_name="${app_name#-}"
     app_name="${app_name%-}"
     [[ -n "${app_name:-}" ]] || app_name="app"
+
+    export APP="$app_name"
+    export TAG_PREFIX="$app_name"
     printf '%s\n' "$app_name"
 }
 
@@ -144,7 +153,13 @@ promote_local_base_version() {
     local version_file=""
     local version=""
 
-    repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+    if [[ -n "${REPO_ROOT:-}" && -d "${REPO_ROOT}" ]]; then
+        repo_root="${REPO_ROOT}"
+    else
+        repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+    fi
+    [[ -n "${repo_root:-}" ]] || repo_root="$(pwd)"
+
     version_file="${repo_root}/VERSION"
     [[ -f "$version_file" ]] || return 1
 
@@ -156,24 +171,98 @@ promote_local_base_version() {
 
 
 
+promote_local_regex_escape() {
+    printf '%s' "${1:-}" | sed 's/[][(){}.^$*+?|\\]/\\&/g'
+}
+
+
+
+promote_local_parse_tag_components() {
+    local tag="$1"
+    local app="$2"
+    local version="$3"
+    local out_rc_var="$4"
+    local out_build_var="$5"
+    local out_rev_var="${6:-}"
+    local app_rx=""
+    local version_rx=""
+    local rc_val=""
+    local build_val=""
+    local rev_val="0"
+
+    app_rx="$(promote_local_regex_escape "$app")"
+    version_rx="$(promote_local_regex_escape "$version")"
+
+    if [[ "$tag" =~ ^${app_rx}-v${version_rx}\.rc\.([0-9]+)-build\.([0-9]+)(-rev\.([0-9]+))?$ ]]; then
+        rc_val="${BASH_REMATCH[1]}"
+        build_val="${BASH_REMATCH[2]}"
+        rev_val="${BASH_REMATCH[4]:-0}"
+    elif [[ "$tag" =~ ^${app_rx}-v${version_rx}-rc\.([0-9]+)\+build\.([0-9]+)(-rev\.([0-9]+))?$ ]]; then
+        rc_val="${BASH_REMATCH[1]}"
+        build_val="${BASH_REMATCH[2]}"
+        rev_val="${BASH_REMATCH[4]:-0}"
+    elif [[ "$tag" =~ ^v${version_rx}\.rc\.([0-9]+)-build\.([0-9]+)(-rev\.([0-9]+))?$ ]]; then
+        rc_val="${BASH_REMATCH[1]}"
+        build_val="${BASH_REMATCH[2]}"
+        rev_val="${BASH_REMATCH[4]:-0}"
+    elif [[ "$tag" =~ ^v${version_rx}-rc\.([0-9]+)\+build\.([0-9]+)(-rev\.([0-9]+))?$ ]]; then
+        rc_val="${BASH_REMATCH[1]}"
+        build_val="${BASH_REMATCH[2]}"
+        rev_val="${BASH_REMATCH[4]:-0}"
+    else
+        return 1
+    fi
+
+    printf -v "$out_rc_var" '%s' "$rc_val"
+    printf -v "$out_build_var" '%s' "$build_val"
+    if [[ -n "${out_rev_var:-}" ]]; then
+        printf -v "$out_rev_var" '%s' "$rev_val"
+    fi
+    return 0
+}
+
+
+
 promote_local_select_rc_build() {
     local app="$1"
     local version="$2"
     local out_rc_var="$3"
     local out_build_var="$4"
-    local pattern=""
-    local latest=""
+    local pattern_new=""
+    local pattern_legacy=""
+    local pattern_new_noprefix=""
+    local pattern_legacy_noprefix=""
+    local tag=""
+    local parsed_rc=""
+    local parsed_build=""
     local selected_rc="1"
     local selected_build="1"
+    local found=0
 
-    pattern="${app}-v${version}.rc.*-build.*-rev.*"
+    pattern_new="${app}-v${version}.rc.*-build.*"
+    pattern_legacy="${app}-v${version}-rc.*+build.*"
+    pattern_new_noprefix="v${version}.rc.*-build.*"
+    pattern_legacy_noprefix="v${version}-rc.*+build.*"
     git fetch --tags --quiet >/dev/null 2>&1 || true
-    latest="$(git tag -l "$pattern" | sort -V | tail -n 1)"
 
-    if [[ -n "${latest:-}" ]] && [[ "$latest" =~ ^${app}-v${version}\.rc\.([0-9]+)-build\.([0-9]+)-rev\.([0-9]+)$ ]]; then
-        selected_rc="${BASH_REMATCH[1]}"
-        selected_build="${BASH_REMATCH[2]}"
-    fi
+    while IFS= read -r tag; do
+        [[ -n "${tag:-}" ]] || continue
+        promote_local_parse_tag_components "$tag" "$app" "$version" parsed_rc parsed_build || continue
+        if [[ "$found" -eq 0 ]] \
+            || (( 10#${parsed_rc} > 10#${selected_rc} )) \
+            || (( 10#${parsed_rc} == 10#${selected_rc} && 10#${parsed_build} > 10#${selected_build} )); then
+            selected_rc="$parsed_rc"
+            selected_build="$parsed_build"
+            found=1
+        fi
+    done < <(
+        {
+            git tag -l "$pattern_new"
+            git tag -l "$pattern_legacy"
+            git tag -l "$pattern_new_noprefix"
+            git tag -l "$pattern_legacy_noprefix"
+        } | sort -u
+    )
 
     printf -v "$out_rc_var" '%s' "$selected_rc"
     printf -v "$out_build_var" '%s' "$selected_build"
@@ -187,21 +276,36 @@ promote_local_next_rev() {
     local version="$2"
     local rc="$3"
     local build="$4"
-    local pattern=""
+    local pattern_new=""
+    local pattern_legacy=""
+    local pattern_new_noprefix=""
+    local pattern_legacy_noprefix=""
     local max_rev="0"
     local tag=""
+    local parsed_rc=""
+    local parsed_build=""
+    local parsed_rev="0"
 
-    pattern="${app}-v${version}.rc.${rc}-build.${build}-rev.*"
+    pattern_new="${app}-v${version}.rc.${rc}-build.${build}-rev.*"
+    pattern_legacy="${app}-v${version}-rc.${rc}+build.${build}-rev.*"
+    pattern_new_noprefix="v${version}.rc.${rc}-build.${build}-rev.*"
+    pattern_legacy_noprefix="v${version}-rc.${rc}+build.${build}-rev.*"
     git fetch --tags --quiet >/dev/null 2>&1 || true
 
     while IFS= read -r tag; do
         [[ -n "${tag:-}" ]] || continue
-        if [[ "$tag" =~ -rev\.([0-9]+)$ ]]; then
-            if (( BASH_REMATCH[1] > max_rev )); then
-                max_rev="${BASH_REMATCH[1]}"
-            fi
+        promote_local_parse_tag_components "$tag" "$app" "$version" parsed_rc parsed_build parsed_rev || continue
+        if (( 10#${parsed_rc} == 10#${rc} && 10#${parsed_build} == 10#${build} && 10#${parsed_rev} > 10#${max_rev} )); then
+            max_rev="${parsed_rev}"
         fi
-    done < <(git tag -l "$pattern" | sort -V)
+    done < <(
+        {
+            git tag -l "$pattern_new"
+            git tag -l "$pattern_legacy"
+            git tag -l "$pattern_new_noprefix"
+            git tag -l "$pattern_legacy_noprefix"
+        } | sort -u
+    )
 
     printf '%s\n' "$((max_rev + 1))"
 }
@@ -220,21 +324,55 @@ promote_local_tag_name() {
 
 
 
+promote_local_remote_tag_sha_or_empty_fallback() {
+    local tag="${1:-}"
+    local remote="${2:-origin}"
+    local resolved=""
+
+    [[ -n "${tag:-}" ]] || {
+        printf '%s\n' ""
+        return 0
+    }
+
+    resolved="$(git ls-remote --tags "${remote}" "refs/tags/${tag}^{}" 2>/dev/null | awk 'NR==1 {print $1}')"
+    if [[ -z "${resolved:-}" ]]; then
+        resolved="$(git ls-remote --tags "${remote}" "refs/tags/${tag}" 2>/dev/null | awk 'NR==1 {print $1}')"
+    fi
+    printf '%s\n' "${resolved:-}"
+    return 0
+}
+
+
+
 promote_local_create_tag() {
     local tag="$1"
     local target_sha="${2:-}"
     local push_tags="${DEVTOOLS_PUSH_LOCAL_TAGS:-1}"
+    local existing_sha=""
+    local remote_sha=""
+    local created_local=0
 
     [[ -n "${tag:-}" ]] || return 1
     [[ -n "${target_sha:-}" ]] || target_sha="$(git rev-parse "refs/heads/local" 2>/dev/null || true)"
     [[ -n "${target_sha:-}" ]] || return 1
 
+    if [[ "${DEVTOOLS_DRY_RUN:-0}" != "1" && "${push_tags}" == "1" ]]; then
+        if declare -F promote_local_remote_tag_sha_or_empty >/dev/null 2>&1; then
+            remote_sha="$(promote_local_remote_tag_sha_or_empty "${tag}" "origin" 2>/dev/null || true)"
+        else
+            remote_sha="$(promote_local_remote_tag_sha_or_empty_fallback "${tag}" "origin")"
+        fi
+        if [[ -n "${remote_sha:-}" && "${remote_sha}" != "${target_sha}" ]]; then
+            return 1
+        fi
+    fi
+
     if git show-ref --verify --quiet "refs/tags/${tag}"; then
-        local existing_sha=""
         existing_sha="$(git rev-list -n 1 "${tag}" 2>/dev/null || true)"
         [[ "${existing_sha:-}" == "${target_sha}" ]] || return 1
     else
         git tag -a "$tag" "$target_sha" -m "promote local: ${tag}" || return 1
+        created_local=1
     fi
 
     if [[ "${DEVTOOLS_DRY_RUN:-0}" == "1" ]]; then
@@ -242,7 +380,15 @@ promote_local_create_tag() {
     fi
 
     if [[ "$push_tags" == "1" ]]; then
-        git push origin "$tag" || return 1
+        if [[ -n "${remote_sha:-}" ]]; then
+            return 0
+        fi
+        if ! git push origin "$tag"; then
+            if [[ "$created_local" -eq 1 ]]; then
+                git tag -d "$tag" >/dev/null 2>&1 || true
+            fi
+            return 1
+        fi
     fi
     return 0
 }

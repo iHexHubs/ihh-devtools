@@ -160,6 +160,8 @@ promote_to_local_v2() {
         local final_tag=""
 
         app_name="$(promote_local_app_name)" || die "No pude resolver nombre de programa para tag local."
+        export APP="$app_name"
+        export TAG_PREFIX="$app_name"
         base_version="$(promote_local_base_version)" || die "VERSION inválida o ausente en raíz."
         promote_local_select_rc_build "$app_name" "$base_version" rc build
         rev="$(promote_local_next_rev "$app_name" "$base_version" "$rc" "$build")"
