@@ -41,6 +41,33 @@ ui_header() {
     echo
 }
 
+# ------------------------------------------------------------------------------
+# Step status helpers (reusable progress line)
+# ------------------------------------------------------------------------------
+ui_status_bar_for_state() {
+    case "${1:-pending}" in
+        running) printf '%s' "[==============>..............]" ;;
+        done) printf '%s' "[==============================>]" ;;
+        failed) printf '%s' "[=============FAILED===========]" ;;
+        *) printf '%s' "[------------------------------]" ;;
+    esac
+}
+
+ui_status_icon_for_state() {
+    case "${1:-pending}" in
+        running) printf '%s' "⏳" ;;
+        done) printf '%s' "✅" ;;
+        failed) printf '%s' "❌" ;;
+        *) printf '%s' "⏸️" ;;
+    esac
+}
+
+ui_print_step_status_line() {
+    local label="${1:-step}"
+    local state="${2:-pending}"
+    printf '%-13s %s %s\n' "${label}:" "$(ui_status_bar_for_state "${state}")" "$(ui_status_icon_for_state "${state}")"
+}
+
 # Termina la ejecución con error (Exit code 1)
 die() {
     log_error "$1"

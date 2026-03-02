@@ -28,14 +28,6 @@ promote_local_ensure_checks_loaded() {
 # Carga eager del wiring para tests/source directo; no falla duro si aún no está disponible.
 promote_local_ensure_checks_loaded >/dev/null 2>&1 || true
 
-# Fallbacks defensivos para source directo en tests.
-if ! declare -F can_prompt >/dev/null 2>&1; then
-    can_prompt() { [[ -r /dev/tty && -w /dev/tty ]]; }
-fi
-if ! declare -F have_gum_ui >/dev/null 2>&1; then
-    have_gum_ui() { command -v gum >/dev/null 2>&1 && can_prompt; }
-fi
-
 # ------------------------------------------------------------------------------
 # Helpers: task_exists / leer previous tag canónico / asegurar minikube / rev.N
 # ------------------------------------------------------------------------------
@@ -86,36 +78,6 @@ promote_local_ui_log_path() {
 
 
 
-promote_local_ui_render_line() {
-    local label="$1"
-    local state="$2"
-    local bar=""
-    local icon=""
-
-    case "${state:-pending}" in
-        running)
-            bar="[==============>..............]"
-            icon="⏳"
-            ;;
-        done)
-            bar="[==============================>]"
-            icon="✅"
-            ;;
-        failed)
-            bar="[=============FAILED===========]"
-            icon="❌"
-            ;;
-        *)
-            bar="[------------------------------]"
-            icon="⏸️"
-            ;;
-    esac
-
-    printf '%-13s %s %s\n' "${label}:" "$bar" "$icon"
-}
-
-
-
 promote_local_ui_render_progress_panel() {
     [[ "${PROMOTE_LOCAL_UI_PROGRESS_ACTIVE:-0}" == "1" ]] || return 0
 
@@ -123,9 +85,15 @@ promote_local_ui_render_progress_panel() {
     local act_state="${PROMOTE_LOCAL_UI_STATE_ACT:-pending}"
     local tag_state="${PROMOTE_LOCAL_UI_STATE_TAG:-pending}"
 
-    promote_local_ui_render_line "build nativo" "$build_state"
-    promote_local_ui_render_line "act" "$act_state"
-    promote_local_ui_render_line "tag" "$tag_state"
+    if declare -F ui_print_step_status_line >/dev/null 2>&1; then
+        ui_print_step_status_line "build nativo" "$build_state"
+        ui_print_step_status_line "act" "$act_state"
+        ui_print_step_status_line "tag" "$tag_state"
+    else
+        printf 'build nativo: %s\n' "$build_state"
+        printf 'act:          %s\n' "$act_state"
+        printf 'tag:          %s\n' "$tag_state"
+    fi
 }
 
 
