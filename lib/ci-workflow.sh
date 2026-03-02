@@ -144,6 +144,9 @@ ci_run_validation_option() {
     local native_cmd
     native_cmd="$(ci_get_native_cmd)"
 
+    selected="${selected//$'\r'/}"
+    selected="${selected%"${selected##*[![:space:]]}"}"
+
     case "$selected" in
         "${CI_OPT_GATE:-}")
             echo "▶️  Ejecutando Gate Estándar..."
@@ -289,6 +292,10 @@ ci_run_validation_option() {
             echo "👌 Omitido."
             return 10
             ;;
+        *)
+            ui_warn "Opción no reconocida: '${selected}'."
+            return 11
+            ;;
     esac
 
     return 0
@@ -341,8 +348,12 @@ run_post_push_flow() {
     # --- 2. Mostrar Dashboard + Menú ---
     ci_render_validation_menu_header "$head"
 
+    # IMPORTANT: evitar subshell-loss de CI_OPT_* (ci_prompt_validation_menu corre en $(...))
+    ci_build_validation_menu
     local selected
     selected="$(ci_prompt_validation_menu)"
+    selected="${selected//$'\r'/}"
+    selected="${selected%"${selected##*[![:space:]]}"}"
     if ci_is_skip_option "$selected"; then
         echo "👌 Omitido."
         return 0

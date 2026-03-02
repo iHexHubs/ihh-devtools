@@ -48,6 +48,166 @@ promote_local_run_act_with_progress() {
 
 
 
+promote_local_confirm_standard_validation() {
+    local msg="Se ejecutará build nativo + Act. Si todo sale bien, se creará el tag y se subirá a GitHub con sufijo rev.N."
+
+    if can_prompt; then
+        if have_gum_ui; then
+            gum confirm --default=true "$msg"
+            return $?
+        fi
+        if declare -F ask_yes_no >/dev/null 2>&1; then
+            ask_yes_no "$msg"
+            return $?
+        fi
+    fi
+
+    # Sin TTY confirmamos por defecto para no bloquear ejecución automática.
+    log_info "ℹ️ ${msg}"
+    return 0
+}
+
+
+
+promote_local_ui_prepare_logs() {
+    if [[ -z "${PROMOTE_LOCAL_UI_LOG_DIR:-}" || ! -d "${PROMOTE_LOCAL_UI_LOG_DIR:-}" ]]; then
+        PROMOTE_LOCAL_UI_LOG_DIR="$(mktemp -d "/tmp/promote-local-ui.XXXXXX")"
+    fi
+    export PROMOTE_LOCAL_UI_LOG_DIR
+    return 0
+}
+
+
+
+promote_local_ui_log_path() {
+    local step="${1:-step}"
+    promote_local_ui_prepare_logs || return 1
+    printf '%s\n' "${PROMOTE_LOCAL_UI_LOG_DIR}/${step}.log"
+}
+
+
+
+promote_local_ui_bar_for_state() {
+    case "${1:-pending}" in
+        running) printf '%s' "[==============>..............]" ;;
+        done) printf '%s' "[==============================>]" ;;
+        failed) printf '%s' "[=============FAILED===========]" ;;
+        *) printf '%s' "[------------------------------]" ;;
+    esac
+}
+
+
+
+promote_local_ui_icon_for_state() {
+    case "${1:-pending}" in
+        running) printf '%s' "⏳" ;;
+        done) printf '%s' "✅" ;;
+        failed) printf '%s' "❌" ;;
+        *) printf '%s' "⏸️" ;;
+    esac
+}
+
+
+
+promote_local_ui_render_progress_panel() {
+    [[ "${PROMOTE_LOCAL_UI_PROGRESS_ACTIVE:-0}" == "1" ]] || return 0
+
+    local build_state="${PROMOTE_LOCAL_UI_STATE_BUILD:-pending}"
+    local act_state="${PROMOTE_LOCAL_UI_STATE_ACT:-pending}"
+    local tag_state="${PROMOTE_LOCAL_UI_STATE_TAG:-pending}"
+
+    printf 'build nativo: %s %s\n' "$(promote_local_ui_bar_for_state "$build_state")" "$(promote_local_ui_icon_for_state "$build_state")"
+    printf 'act:          %s %s\n' "$(promote_local_ui_bar_for_state "$act_state")" "$(promote_local_ui_icon_for_state "$act_state")"
+    printf 'tag:          %s %s\n' "$(promote_local_ui_bar_for_state "$tag_state")" "$(promote_local_ui_icon_for_state "$tag_state")"
+}
+
+
+
+promote_local_ui_set_state() {
+    local step="$1"
+    local state="$2"
+
+    case "$step" in
+        build) PROMOTE_LOCAL_UI_STATE_BUILD="$state" ;;
+        act) PROMOTE_LOCAL_UI_STATE_ACT="$state" ;;
+        tag) PROMOTE_LOCAL_UI_STATE_TAG="$state" ;;
+        *) return 1 ;;
+    esac
+    promote_local_ui_render_progress_panel
+    return 0
+}
+
+
+
+promote_local_ui_print_failure_summary() {
+    local step_name="$1"
+    local log_file="$2"
+
+    log_error "❌ Falló ${step_name}."
+    if [[ -f "${log_file:-}" ]]; then
+        log_error "📄 Log: ${log_file}"
+        echo "----- Últimas 40 líneas -----"
+        tail -n 40 "$log_file" || true
+        echo "-----------------------------"
+    fi
+}
+
+
+
+promote_local_run_cmd_silent_logged() {
+    local cmd="$1"
+    local log_file="$2"
+    (set -o pipefail; eval "$cmd") >>"$log_file" 2>&1
+}
+
+
+
+promote_local_run_standard_validation_quiet() {
+    local native_repo_cmd="$1"
+    local native_app_cmd="$2"
+    local act_cmd="$3"
+    local build_log=""
+    local act_log=""
+
+    PROMOTE_LOCAL_UI_PROGRESS_ACTIVE=1
+    PROMOTE_LOCAL_UI_STATE_BUILD="pending"
+    PROMOTE_LOCAL_UI_STATE_ACT="pending"
+    PROMOTE_LOCAL_UI_STATE_TAG="pending"
+    export PROMOTE_LOCAL_UI_PROGRESS_ACTIVE PROMOTE_LOCAL_UI_STATE_BUILD PROMOTE_LOCAL_UI_STATE_ACT PROMOTE_LOCAL_UI_STATE_TAG
+
+    build_log="$(promote_local_ui_log_path "build")"
+    act_log="$(promote_local_ui_log_path "act")"
+    : >"$build_log"
+    : >"$act_log"
+
+    promote_local_ui_render_progress_panel
+
+    promote_local_ui_set_state "build" "running"
+    if ! promote_local_run_cmd_silent_logged "$native_repo_cmd" "$build_log"; then
+        promote_local_ui_set_state "build" "failed"
+        promote_local_ui_print_failure_summary "build nativo (task ci)" "$build_log"
+        return 1
+    fi
+    if ! promote_local_run_cmd_silent_logged "$native_app_cmd" "$build_log"; then
+        promote_local_ui_set_state "build" "failed"
+        promote_local_maybe_print_app_ci_db_help "$build_log"
+        promote_local_ui_print_failure_summary "build nativo (task app:devbox:ci)" "$build_log"
+        return 1
+    fi
+    promote_local_ui_set_state "build" "done"
+
+    promote_local_ui_set_state "act" "running"
+    if ! promote_local_run_cmd_silent_logged "$act_cmd" "$act_log"; then
+        promote_local_ui_set_state "act" "failed"
+        promote_local_ui_print_failure_summary "act" "$act_log"
+        return 1
+    fi
+    promote_local_ui_set_state "act" "done"
+    return 0
+}
+
+
+
 promote_local_maybe_print_app_ci_db_help() {
     local log_file="${1:-}"
 
@@ -242,12 +402,12 @@ promote_local_run_validation_level() {
             task_exists "ci" || die "Gate Estándar requiere task 'ci'."
             task_exists "app:devbox:ci" || die "Gate Estándar requiere task 'app:devbox:ci'."
             task_exists "ci:act" || die "Gate Estándar requiere task 'ci:act'."
-            log_info "✅ Gate Estándar: ejecutando ${native_repo_cmd}"
-            run_cmd "$native_repo_cmd" || return 1
-            log_info "✅ Gate Estándar: ejecutando ${native_app_cmd}"
-            promote_local_run_app_ci_with_help "$native_app_cmd" || return 1
-            log_info "✅ Gate Estándar: ejecutando ${act_cmd}"
-            promote_local_run_act_with_progress "$act_cmd" || return 1
+            if ! promote_local_confirm_standard_validation; then
+                PROMOTE_LOCAL_UI_PROGRESS_ACTIVE=0
+                log_info "ℹ️ Validación estándar cancelada."
+                return 11
+            fi
+            promote_local_run_standard_validation_quiet "$native_repo_cmd" "$native_app_cmd" "$act_cmd" || return 1
             return 0
             ;;
         native)
