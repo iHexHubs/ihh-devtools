@@ -33,13 +33,13 @@ El overlay de Minikube usa un tag comun para:
 Actualiza ambos con:
 
 ```bash
-./devbox-app/scripts/set-release-tag.sh <TAG>
+task app:devbox:gitops:pin-tag TAG=<TAG>
 ```
 
 Ejemplo:
 
 ```bash
-./devbox-app/scripts/set-release-tag.sh ihh-devtools-v0.1.0.rc.1-build.1-rev.1
+task app:devbox:gitops:pin-tag TAG=ihh-devtools-v0.1.0.rc.1-build.1-rev.1
 ```
 
 ## Argo CD
@@ -58,12 +58,8 @@ argocd app sync devbox-app
 ## Minikube bootstrap
 
 ```bash
-./devbox-app/scripts/minikube-bootstrap.sh
+task cluster:up
+task app:devbox:argocd:deploy REV=<TAG>
 ```
 
-El script:
-
-- inicia Minikube
-- habilita `ingress`
-- instala Argo CD (si no existe)
-- aplica la app `devbox-app`
+Si el repo no define `cluster:up`, crea/usa el entrypoint oficial del toolset en `Taskfile` o `bin/` y evita scripts ad-hoc en `devbox-app/scripts`.

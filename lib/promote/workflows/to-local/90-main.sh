@@ -33,23 +33,40 @@ promote_local_maybe_create_local_tag_or_die() {
 promote_local_pin_gitops_release_or_die() {
     local final_tag="${1:-}"
     local repo_root=""
-    local hook_script=""
     local overlay_rel="devbox-app/gitops/overlays/minikube/kustomization.yaml"
     local overlay_abs=""
+    local image_tag=""
+    local pinned_tag=""
+    local unique_tags=""
 
     [[ -n "${final_tag:-}" ]] || die "Tag final vacio para pin de GitOps."
 
     repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-    hook_script="${repo_root}/devbox-app/scripts/set-release-tag.sh"
     overlay_abs="${repo_root}/${overlay_rel}"
 
-    [[ -x "${hook_script}" ]] || die "No existe hook ejecutable: ${hook_script}"
     [[ -f "${overlay_abs}" ]] || die "No existe overlay a pinnear: ${overlay_abs}"
 
-    "${hook_script}" "${final_tag}" || die "Fallo set-release-tag.sh para ${final_tag}."
+    image_tag="${final_tag}"
+    if declare -F semver_to_image_tag >/dev/null 2>&1; then
+        image_tag="$(semver_to_image_tag "${final_tag}")"
+    else
+        # Fallback seguro para runtime parcial: OCI no acepta '+' en tags.
+        image_tag="${final_tag/+build./-build.}"
+    fi
+
+    declare -F promote_local_update_kustomize_tag >/dev/null 2>&1 \
+        || die "No existe promote_local_update_kustomize_tag en el runtime actual."
+    promote_local_update_kustomize_tag "${overlay_abs}" "${image_tag}"
+
+    pinned_tag="$(awk '/^[[:space:]]*newTag:[[:space:]]*/ {print $2; exit}' "${overlay_abs}" 2>/dev/null || true)"
+    [[ -n "${pinned_tag:-}" ]] || die "No pude verificar newTag en ${overlay_rel}."
+    [[ "${pinned_tag}" == "${image_tag}" ]] || die "newTag en ${overlay_rel} no coincide (${pinned_tag} != ${image_tag})."
+
+    unique_tags="$(awk '/^[[:space:]]*newTag:[[:space:]]*/ {print $2}' "${overlay_abs}" | sort -u | wc -l | tr -d '[:space:]')"
+    [[ "${unique_tags}" == "1" ]] || die "newTag backend/frontend desalineados en ${overlay_rel}."
 
     if git diff --quiet -- "${overlay_abs}"; then
-        log_info "GitOps ya estaba pinneado en ${final_tag}."
+        log_info "GitOps ya estaba pinneado en ${final_tag} (imageTag=${image_tag})."
         return 0
     fi
 
@@ -502,6 +519,9 @@ promote_to_local() {
     else
         if declare -F semver_to_image_tag >/dev/null 2>&1; then
             image_tag="$(semver_to_image_tag "$final_tag")"
+        else
+            # Fallback seguro para runtime parcial: OCI no acepta '+' en tags.
+            image_tag="${final_tag/+build./-build.}"
         fi
     fi
     export DEVTOOLS_PROMOTE_IMAGE_TAG="$image_tag"

@@ -43,21 +43,26 @@ tasks:
   app:devbox:images:build:
     desc: "Build de imagenes backend/frontend con mismo TAG"
     cmds:
-      - bash -euo pipefail -c 'TAG="{{.TAG}}"; [ -n "${TAG}" ] || TAG="local"; docker build -t ghcr.io/ihexhubs/devbox-app-backend:${TAG} devbox-app/backend'
-      - bash -euo pipefail -c 'TAG="{{.TAG}}"; [ -n "${TAG}" ] || TAG="local"; docker build -t ghcr.io/ihexhubs/devbox-app-frontend:${TAG} devbox-app/frontend'
+      - bash -euo pipefail -c 'RAW_TAG="{{.TAG}}"; [ -n "${RAW_TAG}" ] || RAW_TAG="local"; IMAGE_TAG="${RAW_TAG}"; source ./lib/core/semver.sh; if declare -F semver_to_image_tag >/dev/null 2>&1; then IMAGE_TAG="$(semver_to_image_tag "${RAW_TAG}")"; fi; docker build -t ghcr.io/ihexhubs/devbox-app-backend:${IMAGE_TAG} devbox-app/backend; echo "backend image tag: ${RAW_TAG} -> ${IMAGE_TAG}"'
+      - bash -euo pipefail -c 'RAW_TAG="{{.TAG}}"; [ -n "${RAW_TAG}" ] || RAW_TAG="local"; IMAGE_TAG="${RAW_TAG}"; source ./lib/core/semver.sh; if declare -F semver_to_image_tag >/dev/null 2>&1; then IMAGE_TAG="$(semver_to_image_tag "${RAW_TAG}")"; fi; docker build -t ghcr.io/ihexhubs/devbox-app-frontend:${IMAGE_TAG} devbox-app/frontend; echo "frontend image tag: ${RAW_TAG} -> ${IMAGE_TAG}"'
+
+  app:devbox:gitops:pin-tag:
+    desc: "Pin de tag compartido en overlay minikube usando toolset (sin scripts duplicados)"
+    cmds:
+      - bash -euo pipefail -c 'TAG="{{.TAG}}"; [ -n "${TAG}" ] || TAG="local"; IMAGE_TAG="${TAG}"; source ./lib/core/utils.sh; source ./lib/core/semver.sh; source ./lib/promote/workflows/to-local/10-utils.sh; source ./lib/promote/workflows/to-local/50-k8s.sh; if declare -F semver_to_image_tag >/dev/null 2>&1; then IMAGE_TAG="$(semver_to_image_tag "${TAG}")"; fi; promote_local_update_kustomize_tag "devbox-app/gitops/overlays/minikube/kustomization.yaml" "${IMAGE_TAG}"; uniq_count="$(awk "/^[[:space:]]*newTag:[[:space:]]*/ {print \\$2}" devbox-app/gitops/overlays/minikube/kustomization.yaml | sort -u | wc -l | tr -d "[:space:]")"; [ "${uniq_count}" = "1" ] || die "newTag desalineados en overlay minikube"; echo "Pinned overlay tag: ${TAG} -> ${IMAGE_TAG}"'
 
   app:devbox:minikube:deploy:
     desc: "Build + load + pin tag + apply overlay minikube"
     cmds:
       - bash -euo pipefail -c 'TAG="{{.TAG}}"; [ -n "${TAG}" ] || TAG="local"; task app:devbox:images:build TAG=${TAG}'
-      - bash -euo pipefail -c 'TAG="{{.TAG}}"; [ -n "${TAG}" ] || TAG="local"; minikube image load ghcr.io/ihexhubs/devbox-app-backend:${TAG}'
-      - bash -euo pipefail -c 'TAG="{{.TAG}}"; [ -n "${TAG}" ] || TAG="local"; minikube image load ghcr.io/ihexhubs/devbox-app-frontend:${TAG}'
-      - bash -euo pipefail -c 'TAG="{{.TAG}}"; [ -n "${TAG}" ] || TAG="local"; ./devbox-app/scripts/set-release-tag.sh ${TAG}'
+      - bash -euo pipefail -c 'RAW_TAG="{{.TAG}}"; [ -n "${RAW_TAG}" ] || RAW_TAG="local"; IMAGE_TAG="${RAW_TAG}"; source ./lib/core/semver.sh; if declare -F semver_to_image_tag >/dev/null 2>&1; then IMAGE_TAG="$(semver_to_image_tag "${RAW_TAG}")"; fi; minikube image load ghcr.io/ihexhubs/devbox-app-backend:${IMAGE_TAG}'
+      - bash -euo pipefail -c 'RAW_TAG="{{.TAG}}"; [ -n "${RAW_TAG}" ] || RAW_TAG="local"; IMAGE_TAG="${RAW_TAG}"; source ./lib/core/semver.sh; if declare -F semver_to_image_tag >/dev/null 2>&1; then IMAGE_TAG="$(semver_to_image_tag "${RAW_TAG}")"; fi; minikube image load ghcr.io/ihexhubs/devbox-app-frontend:${IMAGE_TAG}'
+      - bash -euo pipefail -c 'TAG="{{.TAG}}"; [ -n "${TAG}" ] || TAG="local"; task app:devbox:gitops:pin-tag TAG=${TAG}'
       - bash -euo pipefail -c 'kubectl apply -k devbox-app/gitops/overlays/minikube'
 
   app:devbox:argocd:deploy:
     desc: "Set tag compartido + aplicar Application + sync opcional por argocd CLI"
     cmds:
-      - bash -euo pipefail -c 'REV="{{.REV}}"; [ -n "${REV}" ] || REV="local"; ./devbox-app/scripts/set-release-tag.sh ${REV}'
+      - bash -euo pipefail -c 'REV="{{.REV}}"; [ -n "${REV}" ] || REV="local"; task app:devbox:gitops:pin-tag TAG=${REV}'
       - bash -euo pipefail -c 'kubectl apply -f devbox-app/gitops/argocd/application.yaml'
       - bash -euo pipefail -c 'REV="{{.REV}}"; [ -n "${REV}" ] || REV="local"; if command -v argocd >/dev/null 2>&1; then argocd app set devbox-app --revision ${REV} && argocd app sync devbox-app; else echo "argocd CLI no instalado; cambia revision manualmente a ${REV}"; fi'
