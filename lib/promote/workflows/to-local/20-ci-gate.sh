@@ -80,6 +80,51 @@ promote_local_ui_log_path() {
 
 
 
+promote_local_ui_trace_enabled() {
+    [[ "${DEVTOOLS_UI_PROGRESS_TRACE:-0}" == "1" ]]
+}
+
+
+
+promote_local_ui_ensure_trace_file() {
+    if [[ -n "${PROMOTE_LOCAL_UI_TRACE_FILE:-}" ]]; then
+        return 0
+    fi
+
+    if [[ -n "${PROMOTE_LOCAL_UI_LOG_DIR:-}" && -d "${PROMOTE_LOCAL_UI_LOG_DIR:-}" ]]; then
+        PROMOTE_LOCAL_UI_TRACE_FILE="${PROMOTE_LOCAL_UI_LOG_DIR}/progress.trace.log"
+    else
+        PROMOTE_LOCAL_UI_TRACE_FILE="/tmp/promote-ui-trace.$$.log"
+    fi
+    export PROMOTE_LOCAL_UI_TRACE_FILE
+    return 0
+}
+
+
+
+promote_local_ui_trace_file_path() {
+    promote_local_ui_ensure_trace_file
+    printf '%s\n' "${PROMOTE_LOCAL_UI_TRACE_FILE}"
+}
+
+
+
+promote_local_ui_trace() {
+    local step="${1:-na}"
+    local event="${2:-evt}"
+    shift 2 || true
+    local detail="${*:-}"
+    local ts=""
+
+    promote_local_ui_trace_enabled || return 0
+    promote_local_ui_ensure_trace_file
+    ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf 'TS=%s STEP=%s EVT=%s caller=%s pid=%s %s\n' \
+        "$ts" "$step" "$event" "${FUNCNAME[1]:-main}" "$$" "$detail" >>"${PROMOTE_LOCAL_UI_TRACE_FILE}"
+}
+
+
+
 promote_local_ui_render_progress_panel() {
     [[ "${PROMOTE_LOCAL_UI_PROGRESS_ACTIVE:-0}" == "1" ]] || return 0
 
@@ -107,6 +152,7 @@ promote_local_ui_render_progress_panel() {
         printf 'act:          %s (%s%%)\n' "$act_state" "$act_percent"
         printf 'tag:          %s (%s%%)\n' "$tag_state" "$tag_percent"
     fi
+    promote_local_ui_trace "panel" "panel_render" "build=${build_percent}/${build_state} act=${act_percent}/${act_state} tag=${tag_percent}/${tag_state}"
 }
 
 
@@ -135,6 +181,28 @@ promote_local_ui_set_state() {
     local step="$1"
     local state="$2"
     local percent="${3:-}"
+    local update_source="${4:-manual}"
+    local current_state=""
+    local current_percent="0"
+    local caller_fn="${FUNCNAME[1]:-main}"
+
+    case "$step" in
+        build)
+            current_state="${PROMOTE_LOCAL_UI_STATE_BUILD:-pending}"
+            current_percent="${PROMOTE_LOCAL_UI_PERCENT_BUILD:-0}"
+            ;;
+        act)
+            current_state="${PROMOTE_LOCAL_UI_STATE_ACT:-pending}"
+            current_percent="${PROMOTE_LOCAL_UI_PERCENT_ACT:-0}"
+            ;;
+        tag)
+            current_state="${PROMOTE_LOCAL_UI_STATE_TAG:-pending}"
+            current_percent="${PROMOTE_LOCAL_UI_PERCENT_TAG:-0}"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
 
     if [[ -z "${percent:-}" ]]; then
         case "$step" in
@@ -143,6 +211,29 @@ promote_local_ui_set_state() {
             tag) percent="$(promote_local_ui_percent_for_state "$state" "${PROMOTE_LOCAL_UI_PERCENT_TAG:-0}")" ;;
             *) return 1 ;;
         esac
+    fi
+    [[ "${percent}" =~ ^[0-9]+$ ]] || percent=0
+
+    # Latch final: una vez done/failed, no aceptar updates regresivos.
+    if [[ "${current_state}" == "done" || "${current_state}" == "failed" ]]; then
+        if [[ "${state}" != "done" && "${state}" != "failed" ]]; then
+            promote_local_ui_trace "$step" "set_state_ignored" "from=${update_source} caller=${caller_fn} prev_state=${current_state} prev_pct=${current_percent} req_state=${state} req_pct=${percent}"
+            return 0
+        fi
+        percent=100
+    fi
+
+    if [[ "${state}" == "done" || "${state}" == "failed" ]]; then
+        percent=100
+    fi
+
+    if [[ "${state}" == "running" ]]; then
+        (( percent < 1 )) && percent=1
+        (( percent > 90 )) && percent=90
+        if [[ "${current_percent}" =~ ^[0-9]+$ ]] && (( current_percent > percent )); then
+            # Evita saltos hacia atrás en running.
+            percent="${current_percent}"
+        fi
     fi
 
     case "$step" in
@@ -163,6 +254,7 @@ promote_local_ui_set_state() {
 
     export PROMOTE_LOCAL_UI_STATE_BUILD PROMOTE_LOCAL_UI_STATE_ACT PROMOTE_LOCAL_UI_STATE_TAG
     export PROMOTE_LOCAL_UI_PERCENT_BUILD PROMOTE_LOCAL_UI_PERCENT_ACT PROMOTE_LOCAL_UI_PERCENT_TAG
+    promote_local_ui_trace "$step" "set_state" "from=${update_source} caller=${caller_fn} prev_state=${current_state} prev_pct=${current_percent} new_state=${state} new_pct=${percent}"
     promote_local_ui_render_progress_panel
     return 0
 }
@@ -272,11 +364,12 @@ promote_local_ui_run_cmd_for_step() {
     [[ "${max_pct}" =~ ^[0-9]+$ ]] || max_pct=90
     (( max_pct < min_pct )) && max_pct="$min_pct"
 
-    promote_local_ui_set_state "$step" "running" "$min_pct"
+    promote_local_ui_set_state "$step" "running" "$min_pct" "start"
 
     (set -o pipefail; eval "$cmd") >>"$log_file" 2>&1 &
     cmd_pid=$!
     start_ts="$(date +%s)"
+    promote_local_ui_trace "$step" "cmd_start" "pid=${cmd_pid} mode=${mode} min=${min_pct} max=${max_pct} cmd=$(printf %q "$cmd")"
 
     if [[ -t 1 ]]; then
         while kill -0 "$cmd_pid" 2>/dev/null; do
@@ -292,7 +385,8 @@ promote_local_ui_run_cmd_for_step() {
                     fi
                 fi
             fi
-            promote_local_ui_set_state "$step" "running" "$progress"
+            promote_local_ui_trace "$step" "tick" "pid=${cmd_pid} alive=1 est=${progress} parsed=${parsed_pct} scaled=${scaled_pct} chosen=${progress} state=running"
+            promote_local_ui_set_state "$step" "running" "$progress" "ticker"
         done
     fi
 
@@ -302,16 +396,19 @@ promote_local_ui_run_cmd_for_step() {
     set +e
     wait "$cmd_pid"
     rc=$?
+    promote_local_ui_trace "$step" "wait_done" "pid=${cmd_pid} rc=${rc}"
     if [[ "$errexit_was_on" -eq 1 ]]; then
         set -e
     fi
 
     if [[ "$rc" -eq 0 ]]; then
-        promote_local_ui_set_state "$step" "running" "$max_pct"
+        promote_local_ui_set_state "$step" "running" "$max_pct" "post_wait_ok"
+        promote_local_ui_trace "$step" "cmd_ok" "pid=${cmd_pid} rc=${rc} pct=${max_pct}"
         return 0
     fi
 
-    promote_local_ui_set_state "$step" "failed" "100"
+    promote_local_ui_set_state "$step" "failed" "100" "post_wait_fail"
+    promote_local_ui_trace "$step" "cmd_fail" "pid=${cmd_pid} rc=${rc} pct=100"
     return "$rc"
 }
 
@@ -335,10 +432,21 @@ promote_local_run_standard_validation_quiet() {
     export PROMOTE_LOCAL_UI_PROGRESS_ACTIVE PROMOTE_LOCAL_UI_STATE_BUILD PROMOTE_LOCAL_UI_STATE_ACT PROMOTE_LOCAL_UI_STATE_TAG
     export PROMOTE_LOCAL_UI_PERCENT_BUILD PROMOTE_LOCAL_UI_PERCENT_ACT PROMOTE_LOCAL_UI_PERCENT_TAG PROMOTE_LOCAL_UI_PANEL_DRAWN
 
-    build_log="$(promote_local_ui_log_path "build")"
-    act_log="$(promote_local_ui_log_path "act")"
+    if [[ -z "${PROMOTE_LOCAL_UI_LOG_DIR:-}" || ! -d "${PROMOTE_LOCAL_UI_LOG_DIR:-}" ]]; then
+        PROMOTE_LOCAL_UI_LOG_DIR="$(mktemp -d "/tmp/promote-local-ui.XXXXXX")"
+        export PROMOTE_LOCAL_UI_LOG_DIR
+    fi
+    build_log="${PROMOTE_LOCAL_UI_LOG_DIR}/build.log"
+    act_log="${PROMOTE_LOCAL_UI_LOG_DIR}/act.log"
     : >"$build_log"
     : >"$act_log"
+
+    if promote_local_ui_trace_enabled; then
+        promote_local_ui_ensure_trace_file
+        : >"${PROMOTE_LOCAL_UI_TRACE_FILE}"
+        log_info "🧪 UI trace activo: ${PROMOTE_LOCAL_UI_TRACE_FILE}"
+        promote_local_ui_trace "panel" "trace_enabled" "build_log=${build_log} act_log=${act_log}"
+    fi
 
     promote_local_ui_render_progress_panel
 
@@ -351,13 +459,13 @@ promote_local_run_standard_validation_quiet() {
         promote_local_ui_print_failure_summary "build nativo (task app:devbox:ci)" "$build_log"
         return 1
     fi
-    promote_local_ui_set_state "build" "done" "100"
+    promote_local_ui_set_state "build" "done" "100" "standard_done"
 
     if ! promote_local_ui_run_cmd_for_step "act" "$act_cmd" "$act_log" "act" "0" "90"; then
         promote_local_ui_print_failure_summary "act" "$act_log"
         return 1
     fi
-    promote_local_ui_set_state "act" "done" "100"
+    promote_local_ui_set_state "act" "done" "100" "standard_done"
     return 0
 }
 

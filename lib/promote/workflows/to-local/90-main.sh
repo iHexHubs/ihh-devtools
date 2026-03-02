@@ -95,7 +95,7 @@ promote_local_run_tag_step_with_progress() {
     : >"$tag_log"
 
     if [[ "${PROMOTE_LOCAL_UI_PROGRESS_ACTIVE:-0}" == "1" ]] && declare -F promote_local_ui_set_state >/dev/null 2>&1; then
-        promote_local_ui_set_state "tag" "running" "0" || true
+        promote_local_ui_set_state "tag" "running" "0" "tag_start" || true
     fi
 
     local pin_cmd=""
@@ -120,7 +120,7 @@ promote_local_run_tag_step_with_progress() {
     new_sha="$(git rev-parse HEAD 2>/dev/null || true)"
     if [[ -z "${new_sha:-}" ]]; then
         if [[ "${PROMOTE_LOCAL_UI_PROGRESS_ACTIVE:-0}" == "1" ]] && declare -F promote_local_ui_set_state >/dev/null 2>&1; then
-            promote_local_ui_set_state "tag" "failed" || true
+            promote_local_ui_set_state "tag" "failed" "100" "tag_resolve_sha_fail" || true
         fi
         if declare -F promote_local_ui_print_failure_summary >/dev/null 2>&1; then
             promote_local_ui_print_failure_summary "tag (resolver SHA)" "$tag_log"
@@ -148,7 +148,7 @@ promote_local_run_tag_step_with_progress() {
     fi
 
     if [[ "${PROMOTE_LOCAL_UI_PROGRESS_ACTIVE:-0}" == "1" ]] && declare -F promote_local_ui_set_state >/dev/null 2>&1; then
-        promote_local_ui_set_state "tag" "done" "100" || true
+        promote_local_ui_set_state "tag" "done" "100" "tag_done" || true
     fi
 
     printf -v "$out_sha_var" '%s' "$new_sha"

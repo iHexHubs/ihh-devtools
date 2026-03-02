@@ -96,6 +96,7 @@ ensure_local_checkout() {
         local worktrees_count="0"
         worktrees_count="$(git_entry worktree list 2>/dev/null | wc -l | tr -d '[:space:]')"
         log_info "ℹ️ Git env: repo_root=${REPO_ROOT:-<unset>} rama_pre=$(git_entry branch --show-current 2>/dev/null || echo '?') worktrees=${worktrees_count:-0}"
+        log_info "ℹ️ Target=${TARGET_ENV:-?} | Source SHA=${DEVTOOLS_PROMOTE_FROM_SHA:-<unset>}"
     else
         log_info "🔎 promote target: ${TARGET_ENV:-?} args: ${TARGET_ENV:-} ${REST_ARGS[*]:-}"
         log_info "🔎 PWD(wrapper)=$(pwd)"
