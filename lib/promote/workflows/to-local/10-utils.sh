@@ -2,9 +2,27 @@
 # Module loaded by to-local.sh. Must not execute actions on load (only define functions/vars).
 
 task_exists() {
-    # Fallback si no existe en tu framework
     command -v task >/dev/null 2>&1 || return 1
-    task -l 2>/dev/null | awk '{print $1}' | grep -qx "$1"
+    local wanted="${1:-}"
+    local listed=""
+
+    [[ -n "${wanted:-}" ]] || return 1
+
+    # go-task >=3 imprime "* taskname: desc"; extraemos taskname de esas líneas.
+    listed="$(
+        NO_COLOR=1 task --list 2>/dev/null \
+            | sed -n 's/^[[:space:]]*\*[[:space:]]*\(.*\):[[:space:]].*$/\1/p'
+    )"
+
+    # Fallback defensivo para formatos antiguos.
+    if [[ -z "${listed:-}" ]]; then
+        listed="$(
+            NO_COLOR=1 task -l 2>/dev/null \
+                | sed -n 's/^[[:space:]]*\([[:alnum:]_.:-][[:alnum:]_.:-]*\):[[:space:]].*$/\1/p'
+        )"
+    fi
+
+    printf '%s\n' "${listed:-}" | grep -Fxq "${wanted}"
 }
 
 
