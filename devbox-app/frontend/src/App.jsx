@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
+// Comentario
+
 function App() {
   const apiBase = useMemo(() => import.meta.env.VITE_API_URL || "/api", []);
   const [health, setHealth] = useState("checking...");
