@@ -33,6 +33,59 @@ promote_local_ensure_checks_loaded >/dev/null 2>&1 || true
 # ------------------------------------------------------------------------------
 
 
+promote_local_run_act_with_progress() {
+    local act_cmd="$1"
+    local act_image_hint="${DEVTOOLS_ACT_IMAGE_HINT:-catthehacker/ubuntu:full-latest}"
+
+    if ! can_prompt; then
+        log_info "⏳ Act puede tardar la primera vez descargando la imagen ${act_image_hint}. Para ver progreso: docker pull ${act_image_hint}"
+    fi
+
+    # El progreso real de pull se muestra dentro de task ci:act (docker pull explícito).
+    run_cmd "$act_cmd"
+    return $?
+}
+
+
+
+promote_local_maybe_print_app_ci_db_help() {
+    local log_file="${1:-}"
+
+    [[ -n "${log_file:-}" && -f "${log_file}" ]] || return 0
+    if ! grep -Eqi 'connection refused|127\.0\.0\.1:5432|port 5432|psycopg\.OperationalError|django\.db\.utils\.OperationalError|could not connect to server' "$log_file"; then
+        return 0
+    fi
+
+    log_error "❌ Devbox CI falló por DB no disponible (localhost:5432)."
+    cat <<'EOF'
+👉 Para levantar servicios:
+   task app:devbox:docker:up
+👉 Para verificar:
+   docker ps | grep -i postgres
+👉 Para bajar:
+   task app:devbox:docker:down
+EOF
+}
+
+
+
+promote_local_run_app_ci_with_help() {
+    local app_cmd="$1"
+    local log_file=""
+
+    log_file="$(mktemp "/tmp/promote-local-app-ci.XXXXXX.log")"
+    if (set -o pipefail; run_cmd "$app_cmd" 2>&1 | tee "$log_file"); then
+        rm -f "$log_file" >/dev/null 2>&1 || true
+        return 0
+    fi
+
+    promote_local_maybe_print_app_ci_db_help "$log_file"
+    rm -f "$log_file" >/dev/null 2>&1 || true
+    return 1
+}
+
+
+
 promote_local_detect_changes() {
     local base_ref="$1"
     local source_sha="$2"
@@ -124,8 +177,8 @@ promote_local_choose_validation_level() {
 
 promote_local_print_validation_help() {
     cat <<'EOF'
-✅ Gate Estándar (Nativo + Act): ejecuta task ci y task ci:act (recomendado).
-🔍 Solo Nativo (Rápido): ejecuta solo task ci.
+✅ Gate Estándar (Nativo + Act): ejecuta task ci, task app:devbox:ci y task ci:act (recomendado).
+🔍 Solo Nativo (Rápido): ejecuta task ci y task app:devbox:ci.
 🎬 Solo Act (GH Actions): ejecuta solo task ci:act.
 👀 Abrir K9s (ui:local): abre task ui:local o k9s para inspección.
 📨 Finalizar y Crear PR: crea PR y termina sin promover local.
@@ -179,32 +232,39 @@ promote_local_create_pr_or_die() {
 promote_local_run_validation_level() {
     local level="$1"
     local source_branch="${2:-}"
-    local native_cmd="task ci"
+    local native_repo_cmd="task ci"
+    local native_app_cmd="task app:devbox:ci"
     local act_cmd="task ci:act"
 
     case "$level" in
         standard)
             command -v task >/dev/null 2>&1 || die "Gate Estándar requiere 'task' instalado."
             task_exists "ci" || die "Gate Estándar requiere task 'ci'."
+            task_exists "app:devbox:ci" || die "Gate Estándar requiere task 'app:devbox:ci'."
             task_exists "ci:act" || die "Gate Estándar requiere task 'ci:act'."
-            log_info "✅ Gate Estándar: ejecutando ${native_cmd}"
-            run_cmd "$native_cmd" || return 1
+            log_info "✅ Gate Estándar: ejecutando ${native_repo_cmd}"
+            run_cmd "$native_repo_cmd" || return 1
+            log_info "✅ Gate Estándar: ejecutando ${native_app_cmd}"
+            promote_local_run_app_ci_with_help "$native_app_cmd" || return 1
             log_info "✅ Gate Estándar: ejecutando ${act_cmd}"
-            run_cmd "$act_cmd" || return 1
+            promote_local_run_act_with_progress "$act_cmd" || return 1
             return 0
             ;;
         native)
             command -v task >/dev/null 2>&1 || die "Validación nativa requiere 'task' instalado."
             task_exists "ci" || die "No existe task 'ci'."
-            log_info "🔍 Solo Nativo: ejecutando ${native_cmd}"
-            run_cmd "$native_cmd" || return 1
+            task_exists "app:devbox:ci" || die "No existe task 'app:devbox:ci'."
+            log_info "🔍 Solo Nativo: ejecutando ${native_repo_cmd}"
+            run_cmd "$native_repo_cmd" || return 1
+            log_info "🔍 Solo Nativo: ejecutando ${native_app_cmd}"
+            promote_local_run_app_ci_with_help "$native_app_cmd" || return 1
             return 0
             ;;
         act)
             command -v task >/dev/null 2>&1 || die "Validación Act requiere 'task' instalado."
             task_exists "ci:act" || die "No existe task 'ci:act'."
             log_info "🎬 Solo Act: ejecutando ${act_cmd}"
-            run_cmd "$act_cmd" || return 1
+            promote_local_run_act_with_progress "$act_cmd" || return 1
             return 0
             ;;
         k9s)

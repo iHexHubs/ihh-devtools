@@ -13,3 +13,4 @@ __pycache__/
 # Frontend artifacts
 node_modules/
 dist/
+devbox-app/.env
