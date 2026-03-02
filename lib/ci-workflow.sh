@@ -45,6 +45,47 @@ ci_get_native_cmd() {
     echo "${NATIVE_CI_CMD:-}"
 }
 
+ci_trace_enabled() {
+    [[ "${DEVTOOLS_CI_TRACE:-0}" == "1" ]]
+}
+
+ci_trace() {
+    ci_trace_enabled || return 0
+    echo "TRACE $*"
+}
+
+ci_normalize_selection() {
+    local raw="${1:-}"
+    local normalized=""
+
+    normalized="$(printf '%s\n' "$raw" \
+        | sed -e 's/\r//g' -e '/^[[:space:]]*$/d' \
+        | tail -n 1 \
+        | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+    printf '%s\n' "$normalized"
+}
+
+ci_map_validation_option() {
+    local raw="${1:-}"
+    local selected=""
+    selected="$(ci_normalize_selection "$raw")"
+
+    case "$selected" in
+        "${CI_OPT_GATE:-}"|*"Gate Estándar"*) printf '%s\n' "gate" ;;
+        "${CI_OPT_NATIVE:-}"|*"Solo Nativo"*) printf '%s\n' "native" ;;
+        "${CI_OPT_ACT:-}"|*"Solo Act"*) printf '%s\n' "act" ;;
+        "${CI_OPT_COMPOSE:-}"|*"Chequeo Compose"*) printf '%s\n' "compose" ;;
+        "${CI_OPT_K8S:-}"|*"K8s Pro"*) printf '%s\n' "k8s" ;;
+        "${CI_OPT_K8S_FULL:-}"|*"Pipeline Completo"*) printf '%s\n' "k8s_full" ;;
+        "${CI_OPT_START_MINIKUBE:-}"|*"Activar Minikube"*) printf '%s\n' "start_minikube" ;;
+        "${CI_OPT_K9S:-}"|*"Abrir K9s"*) printf '%s\n' "k9s" ;;
+        "${CI_OPT_HELP:-}"|*"¿Qué hace cada opción?"*) printf '%s\n' "help" ;;
+        "${CI_OPT_PR:-}"|*"Finalizar y Crear PR"*) printf '%s\n' "pr" ;;
+        "${CI_OPT_SKIP:-}"|""|*"Salir (Seguir trabajando)"*) printf '%s\n' "skip" ;;
+        *) printf '%s\n' "unknown" ;;
+    esac
+}
+
 ci_build_validation_menu() {
     CI_OPT_GATE="✅ Gate Estándar (Nativo + Act)"
     CI_OPT_NATIVE="🔍 Solo Nativo (Rápido)"
@@ -106,20 +147,20 @@ ci_prompt_validation_menu() {
     if command -v gum >/dev/null 2>&1 && have_gum_ui; then
         selected=$(gum choose --header "Selecciona un nivel de validación:" "${CI_MENU_CHOICES[@]}")
     else
-        echo "Selecciona opción:"
-        select opt in "${CI_MENU_CHOICES[@]}"; do selected="$opt"; break; done
+        echo "Selecciona opción:" >/dev/tty
+        select opt in "${CI_MENU_CHOICES[@]}"; do selected="$opt"; break; done </dev/tty
     fi
 
     echo "$selected"
 }
 
 ci_is_skip_option() {
-    [[ -z "${1:-}" || "$1" == "${CI_OPT_SKIP:-}" ]]
+    [[ "$(ci_map_validation_option "${1:-}")" == "skip" ]]
 }
 
 ci_is_validation_option() {
-    case "$1" in
-        "${CI_OPT_GATE:-}"|"${CI_OPT_NATIVE:-}"|"${CI_OPT_ACT:-}"|"${CI_OPT_COMPOSE:-}"|"${CI_OPT_K8S:-}"|"${CI_OPT_K8S_FULL:-}")
+    case "$(ci_map_validation_option "${1:-}")" in
+        gate|native|act|compose|k8s|k8s_full)
             return 0
             ;;
     esac
@@ -127,8 +168,8 @@ ci_is_validation_option() {
 }
 
 ci_selection_uses_native() {
-    case "$1" in
-        "${CI_OPT_GATE:-}"|"${CI_OPT_NATIVE:-}")
+    case "$(ci_map_validation_option "${1:-}")" in
+        gate|native)
             return 0
             ;;
     esac
@@ -136,21 +177,26 @@ ci_selection_uses_native() {
 }
 
 ci_run_validation_option() {
-    local selected="$1"
+    local selected_raw="$1"
     local head="$2"
     local base="$3"
     local mode="${4:-post}"
 
     local native_cmd
+    local selected=""
+    local mapped=""
     native_cmd="$(ci_get_native_cmd)"
 
-    selected="${selected//$'\r'/}"
-    selected="${selected%"${selected##*[![:space:]]}"}"
+    selected="$(ci_normalize_selection "$selected_raw")"
+    mapped="$(ci_map_validation_option "$selected")"
+    ci_trace "selected='${selected_raw}' normalized='${selected}' mapped='${mapped}'"
+    ci_trace "NATIVE_CI_CMD='${native_cmd:-}' ACT_CI_CMD='${ACT_CI_CMD:-}'"
 
-    case "$selected" in
-        "${CI_OPT_GATE:-}")
+    case "$mapped" in
+        gate)
             echo "▶️  Ejecutando Gate Estándar..."
             if [[ -n "${native_cmd:-}" ]]; then
+                ci_trace "about_to_run='${native_cmd}'"
                 if run_cmd "$native_cmd"; then
                     echo
                 else
@@ -158,6 +204,7 @@ ci_run_validation_option() {
                     return 1
                 fi
             fi
+            ci_trace "about_to_run='${ACT_CI_CMD:-<vacío>}'"
             if run_cmd "$ACT_CI_CMD"; then
                 ui_success "✅ Gate completado."
                 CI_GATE_PASSED=1
@@ -173,28 +220,33 @@ ci_run_validation_option() {
             fi
             ;;
 
-        "${CI_OPT_NATIVE:-}")
+        native)
             [[ -n "${native_cmd:-}" ]] || return 1
+            ci_trace "about_to_run='${native_cmd}'"
             run_cmd "$native_cmd"
             ;;
 
-        "${CI_OPT_ACT:-}")
+        act)
+            ci_trace "about_to_run='${ACT_CI_CMD:-<vacío>}'"
             run_cmd "$ACT_CI_CMD"
             ;;
 
-        "${CI_OPT_COMPOSE:-}")
+        compose)
             echo "▶️  Verificando entorno Compose..."
+            ci_trace "about_to_run='${COMPOSE_CI_CMD:-<vacío>}'"
             run_cmd "$COMPOSE_CI_CMD"
             ;;
 
-        "${CI_OPT_K8S:-}")
+        k8s)
             echo "▶️  Ejecutando Pipeline K8s Local (Headless)..."
+            ci_trace "about_to_run='${K8S_HEADLESS_CMD:-<vacío>}'"
             run_cmd "$K8S_HEADLESS_CMD"
             ;;
 
-        "${CI_OPT_K8S_FULL:-}")
+        k8s_full)
             echo "▶️  Ejecutando Pipeline Full (Bloqueará la terminal)..."
 
+            ci_trace "about_to_run='${K8S_FULL_CMD:-<vacío>}'"
             run_cmd "$K8S_FULL_CMD"
             local rc=$?
 
@@ -222,21 +274,24 @@ ci_run_validation_option() {
             ui_info "👌 Entendido. Túneles cerrados definitivamente."
             ;;
 
-        "${CI_OPT_START_MINIKUBE:-}")
+        start_minikube)
+            ci_trace "about_to_run='task cluster:up'"
             run_cmd "task cluster:up"
             return 11
             ;;
 
-        "${CI_OPT_K9S:-}")
+        k9s)
             if task_exists "ui:local"; then
+                ci_trace "about_to_run='task ui:local'"
                 run_cmd "task ui:local"
             else
+                ci_trace "about_to_run='k9s'"
                 run_cmd "k9s"
             fi
             return 11
             ;;
 
-        "${CI_OPT_HELP:-}")
+        help)
             if command -v gum >/dev/null 2>&1 && have_gum_ui; then
                 gum style --border rounded --padding "1 2" \
                     "📘 Ayuda rápida" \
@@ -262,7 +317,7 @@ ci_run_validation_option() {
             return 11
             ;;
 
-        "${CI_OPT_PR:-}")
+        pr)
             if [[ "$mode" == "pre" ]]; then
                 ui_warn "PR no disponible en preflight."
                 return 11
@@ -273,6 +328,8 @@ ci_run_validation_option() {
                 echo "   Esto asegura que no subamos código roto."
                 echo 
                 if ask_yes_no "¿Ejecutar Gate ahora?"; then
+                    ci_trace "about_to_run='${native_cmd:-<vacío>}'"
+                    ci_trace "about_to_run='${ACT_CI_CMD:-<vacío>}'"
                     if run_cmd "$native_cmd" && run_cmd "$ACT_CI_CMD"; then
                         CI_GATE_PASSED=1
                         ui_success "Gate superado. Procediendo al PR..."
@@ -288,12 +345,13 @@ ci_run_validation_option() {
             do_create_pr_flow "$head" "$base"
             ;;
 
-        "${CI_OPT_SKIP:-}"|"" )
+        skip)
             echo "👌 Omitido."
             return 10
             ;;
         *)
             ui_warn "Opción no reconocida: '${selected}'."
+            ci_trace "selected='${selected_raw}' normalized='${selected}' mapped='unknown'"
             return 11
             ;;
     esac
@@ -350,10 +408,15 @@ run_post_push_flow() {
 
     # IMPORTANT: evitar subshell-loss de CI_OPT_* (ci_prompt_validation_menu corre en $(...))
     ci_build_validation_menu
-    local selected
-    selected="$(ci_prompt_validation_menu)"
-    selected="${selected//$'\r'/}"
-    selected="${selected%"${selected##*[![:space:]]}"}"
+    local selected_raw=""
+    local selected=""
+    local mapped=""
+    selected_raw="$(ci_prompt_validation_menu)"
+    selected="$(ci_normalize_selection "$selected_raw")"
+    mapped="$(ci_map_validation_option "$selected")"
+    ci_trace "selected='${selected_raw}' normalized='${selected}' mapped='${mapped}'"
+    ci_trace "NATIVE_CI_CMD='${NATIVE_CI_CMD:-}' ACT_CI_CMD='${ACT_CI_CMD:-}'"
+
     if ci_is_skip_option "$selected"; then
         echo "👌 Omitido."
         return 0
