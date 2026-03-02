@@ -28,6 +28,14 @@ promote_local_ensure_checks_loaded() {
 # Carga eager del wiring para tests/source directo; no falla duro si aún no está disponible.
 promote_local_ensure_checks_loaded >/dev/null 2>&1 || true
 
+# Fallbacks defensivos para source directo en tests.
+if ! declare -F can_prompt >/dev/null 2>&1; then
+    can_prompt() { [[ -r /dev/tty && -w /dev/tty ]]; }
+fi
+if ! declare -F have_gum_ui >/dev/null 2>&1; then
+    have_gum_ui() { command -v gum >/dev/null 2>&1 && can_prompt; }
+fi
+
 # ------------------------------------------------------------------------------
 # Helpers: task_exists / leer previous tag canónico / asegurar minikube / rev.N
 # ------------------------------------------------------------------------------
@@ -52,7 +60,7 @@ promote_local_confirm_standard_validation() {
     local msg="Se ejecutará build nativo + Act. Si todo sale bien, se creará el tag y se subirá a GitHub con sufijo rev.N."
 
     if can_prompt; then
-        if have_gum_ui; then
+        if command -v gum >/dev/null 2>&1 && have_gum_ui; then
             gum confirm --default=true "$msg"
             return $?
         fi
@@ -67,44 +75,43 @@ promote_local_confirm_standard_validation() {
     return 0
 }
 
-
-
-promote_local_ui_prepare_logs() {
+promote_local_ui_log_path() {
+    local step="${1:-step}"
     if [[ -z "${PROMOTE_LOCAL_UI_LOG_DIR:-}" || ! -d "${PROMOTE_LOCAL_UI_LOG_DIR:-}" ]]; then
         PROMOTE_LOCAL_UI_LOG_DIR="$(mktemp -d "/tmp/promote-local-ui.XXXXXX")"
     fi
     export PROMOTE_LOCAL_UI_LOG_DIR
-    return 0
-}
-
-
-
-promote_local_ui_log_path() {
-    local step="${1:-step}"
-    promote_local_ui_prepare_logs || return 1
     printf '%s\n' "${PROMOTE_LOCAL_UI_LOG_DIR}/${step}.log"
 }
 
 
 
-promote_local_ui_bar_for_state() {
-    case "${1:-pending}" in
-        running) printf '%s' "[==============>..............]" ;;
-        done) printf '%s' "[==============================>]" ;;
-        failed) printf '%s' "[=============FAILED===========]" ;;
-        *) printf '%s' "[------------------------------]" ;;
+promote_local_ui_render_line() {
+    local label="$1"
+    local state="$2"
+    local bar=""
+    local icon=""
+
+    case "${state:-pending}" in
+        running)
+            bar="[==============>..............]"
+            icon="⏳"
+            ;;
+        done)
+            bar="[==============================>]"
+            icon="✅"
+            ;;
+        failed)
+            bar="[=============FAILED===========]"
+            icon="❌"
+            ;;
+        *)
+            bar="[------------------------------]"
+            icon="⏸️"
+            ;;
     esac
-}
 
-
-
-promote_local_ui_icon_for_state() {
-    case "${1:-pending}" in
-        running) printf '%s' "⏳" ;;
-        done) printf '%s' "✅" ;;
-        failed) printf '%s' "❌" ;;
-        *) printf '%s' "⏸️" ;;
-    esac
+    printf '%-13s %s %s\n' "${label}:" "$bar" "$icon"
 }
 
 
@@ -116,9 +123,9 @@ promote_local_ui_render_progress_panel() {
     local act_state="${PROMOTE_LOCAL_UI_STATE_ACT:-pending}"
     local tag_state="${PROMOTE_LOCAL_UI_STATE_TAG:-pending}"
 
-    printf 'build nativo: %s %s\n' "$(promote_local_ui_bar_for_state "$build_state")" "$(promote_local_ui_icon_for_state "$build_state")"
-    printf 'act:          %s %s\n' "$(promote_local_ui_bar_for_state "$act_state")" "$(promote_local_ui_icon_for_state "$act_state")"
-    printf 'tag:          %s %s\n' "$(promote_local_ui_bar_for_state "$tag_state")" "$(promote_local_ui_icon_for_state "$tag_state")"
+    promote_local_ui_render_line "build nativo" "$build_state"
+    promote_local_ui_render_line "act" "$act_state"
+    promote_local_ui_render_line "tag" "$tag_state"
 }
 
 
@@ -154,14 +161,6 @@ promote_local_ui_print_failure_summary() {
 
 
 
-promote_local_run_cmd_silent_logged() {
-    local cmd="$1"
-    local log_file="$2"
-    (set -o pipefail; eval "$cmd") >>"$log_file" 2>&1
-}
-
-
-
 promote_local_run_standard_validation_quiet() {
     local native_repo_cmd="$1"
     local native_app_cmd="$2"
@@ -183,12 +182,12 @@ promote_local_run_standard_validation_quiet() {
     promote_local_ui_render_progress_panel
 
     promote_local_ui_set_state "build" "running"
-    if ! promote_local_run_cmd_silent_logged "$native_repo_cmd" "$build_log"; then
+    if ! (set -o pipefail; eval "$native_repo_cmd") >>"$build_log" 2>&1; then
         promote_local_ui_set_state "build" "failed"
         promote_local_ui_print_failure_summary "build nativo (task ci)" "$build_log"
         return 1
     fi
-    if ! promote_local_run_cmd_silent_logged "$native_app_cmd" "$build_log"; then
+    if ! (set -o pipefail; eval "$native_app_cmd") >>"$build_log" 2>&1; then
         promote_local_ui_set_state "build" "failed"
         promote_local_maybe_print_app_ci_db_help "$build_log"
         promote_local_ui_print_failure_summary "build nativo (task app:devbox:ci)" "$build_log"
@@ -197,7 +196,7 @@ promote_local_run_standard_validation_quiet() {
     promote_local_ui_set_state "build" "done"
 
     promote_local_ui_set_state "act" "running"
-    if ! promote_local_run_cmd_silent_logged "$act_cmd" "$act_log"; then
+    if ! (set -o pipefail; eval "$act_cmd") >>"$act_log" 2>&1; then
         promote_local_ui_set_state "act" "failed"
         promote_local_ui_print_failure_summary "act" "$act_log"
         return 1
@@ -298,7 +297,7 @@ promote_local_choose_validation_level() {
         return 0
     fi
 
-    if have_gum_ui; then
+    if command -v gum >/dev/null 2>&1 && have_gum_ui; then
         selected="$(gum choose --header "Selecciona un nivel de validación:" "${options[@]}")"
     else
         echo "Selecciona un nivel de validación:"

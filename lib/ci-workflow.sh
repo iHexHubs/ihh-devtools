@@ -103,7 +103,7 @@ ci_prompt_validation_menu() {
     ci_build_validation_menu
 
     local selected=""
-    if have_gum_ui; then
+    if command -v gum >/dev/null 2>&1 && have_gum_ui; then
         selected=$(gum choose --header "Selecciona un nivel de validación:" "${CI_MENU_CHOICES[@]}")
     else
         echo "Selecciona opción:"
@@ -237,7 +237,7 @@ ci_run_validation_option() {
             ;;
 
         "${CI_OPT_HELP:-}")
-            if have_gum_ui; then
+            if command -v gum >/dev/null 2>&1 && have_gum_ui; then
                 gum style --border rounded --padding "1 2" \
                     "📘 Ayuda rápida" \
                     "" \
