@@ -85,16 +85,28 @@ ensure_local_checkout() {
     local local_branch="local"
     local current_root=""
     local sync_to_origin=0
+    local quiet_ui_mode=0
     current_root="$(git_entry rev-parse --show-toplevel 2>/dev/null || pwd)"
+    if declare -F ui_is_quiet_mode >/dev/null 2>&1 && ui_is_quiet_mode; then
+        quiet_ui_mode=1
+    fi
+
     log_info "🔧 ensure_local_checkout(): aterrizando en rama final 'local' (alineada a origin/local cuando exista)..."
-    log_info "🔎 promote target: ${TARGET_ENV:-?} args: ${TARGET_ENV:-} ${REST_ARGS[*]:-}"
-    log_info "🔎 PWD(wrapper)=$(pwd)"
-    log_info "🔎 REPO_ROOT=${REPO_ROOT:-<unset>}"
-    log_info "🔎 GIT_* en workflow: $(env | grep -E '^GIT_' | tr '\n' ' ' || true)"
-    log_info "🔎 git-dir(entry): $(git_entry rev-parse --git-dir 2>/dev/null || echo '?')"
-    log_info "🔎 rama(entry) PRE: $(git_entry branch --show-current 2>/dev/null || echo '?')"
-    log_info "🔎 worktrees(entry):"
-    git_entry worktree list 2>/dev/null || true
+    if [[ "$quiet_ui_mode" -eq 1 ]]; then
+        local worktrees_count="0"
+        worktrees_count="$(git_entry worktree list 2>/dev/null | wc -l | tr -d '[:space:]')"
+        log_info "ℹ️ Git env: repo_root=${REPO_ROOT:-<unset>} rama_pre=$(git_entry branch --show-current 2>/dev/null || echo '?') worktrees=${worktrees_count:-0}"
+        log_info "ℹ️ Target=${TARGET_ENV:-?} | Source SHA=${DEVTOOLS_PROMOTE_FROM_SHA:-<unset>}"
+    else
+        log_info "🔎 promote target: ${TARGET_ENV:-?} args: ${TARGET_ENV:-} ${REST_ARGS[*]:-}"
+        log_info "🔎 PWD(wrapper)=$(pwd)"
+        log_info "🔎 REPO_ROOT=${REPO_ROOT:-<unset>}"
+        log_info "🔎 GIT_* en workflow: $(env | grep -E '^GIT_' | tr '\n' ' ' || true)"
+        log_info "🔎 git-dir(entry): $(git_entry rev-parse --git-dir 2>/dev/null || echo '?')"
+        log_info "🔎 rama(entry) PRE: $(git_entry branch --show-current 2>/dev/null || echo '?')"
+        log_info "🔎 worktrees(entry):"
+        git_entry worktree list 2>/dev/null || true
+    fi
 
     # Limpieza defensiva: worktrees temporales huérfanos que bloquean refs/heads/local.
     local wt_path=""
