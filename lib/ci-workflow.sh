@@ -93,16 +93,17 @@ ci_task_list_has_task() {
     [[ -n "${list_text:-}" && -n "${task_name:-}" ]] || return 1
 
     awk -v want="${task_name}" '
+        BEGIN { found=0 }
         /^task:/ {next}
         NF==0 {next}
         {
             name=$1
             if (name ~ /^[*+-]$/) { name=$2 }
             gsub(/^[*+-]+/, "", name)
-            gsub(/:$/, "", name)
-            if (name == want) exit 0
+            sub(/:$/, "", name)
+            if (name == want) { found=1; exit }
         }
-        END {exit 1}
+        END { exit(found ? 0 : 1) }
     ' <<<"${list_text}"
 }
 
@@ -170,6 +171,30 @@ ci_print_task_context_evidence() {
         echo "  - task --list ERROR (rc=${list_rc}, primeras 10 líneas):"
     fi
     printf '%s\n' "${task_list}" | head -n 10 | sed 's/^/      /'
+}
+
+ci_print_task_detection_failure_evidence() {
+    local wanted_task="${1:-app:devbox:ci}"
+    local legacy_check="0"
+    local local_check="0"
+    local grep_hits=""
+
+    task_exists "${wanted_task}" && legacy_check="1"
+    ci_task_exists_here "${wanted_task}" && local_check="1"
+
+    echo "🔎 Detección task fallida:"
+    echo "  - task_exists('${wanted_task}'): ${legacy_check}"
+    echo "  - ci_task_exists_here('${wanted_task}'): ${local_check}"
+
+    if command -v task >/dev/null 2>&1; then
+        grep_hits="$(TASK_COLOR=0 task --list 2>/dev/null | grep -n "${wanted_task}" || true)"
+        if [[ -n "${grep_hits}" ]]; then
+            echo "  - grep task --list '${wanted_task}':"
+            printf '%s\n' "${grep_hits}" | sed 's/^/      /'
+        else
+            echo "  - grep task --list '${wanted_task}': <sin coincidencias>"
+        fi
+    fi
 }
 
 ci_normalize_selection() {
@@ -347,6 +372,7 @@ ci_run_validation_option() {
         native)
             [[ -n "${native_app_cmd:-}" ]] || {
                 ui_error "No se detectó comando CI para devbox-app (probados: task app:devbox:ci, task -d devbox-app ci, task -d devbox-app/backend test)."
+                ci_print_task_detection_failure_evidence "app:devbox:ci"
                 ci_print_task_context_evidence
                 echo "   Ejecuta: task --list | grep app:devbox:ci"
                 return 1
