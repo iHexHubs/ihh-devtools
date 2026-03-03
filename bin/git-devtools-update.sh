@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/bin/git-devtools-update.sh
-# Actualiza EXPLÍCITAMENTE el submódulo .devtools a remoto (opt-in)
-# o aplica snapshot vendorizado por tag desde un upstream local/remoto.....
+# Actualiza explícitamente el vendor dir de devtools (opt-in)
+# o aplica snapshot vendorizado por tag desde un upstream local/remoto.
 set -euo pipefail
 IFS=$'\n\t'
 
@@ -12,10 +11,22 @@ SCRIPT_REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
 # Reusar helpers existentes
 source "${LIB_DIR}/core/utils.sh"
 source "${LIB_DIR}/core/git-ops.sh"
+source "${LIB_DIR}/core/contract.sh"
 
 ROOT="$(detect_workspace_root)"
-TARGET_PATH=".devtools"
-LOCK_FILE="${ROOT}/.devtools.lock"
+devtools_load_contract "$ROOT" || true
+TARGET_PATH="${DEVTOOLS_VENDOR_DIR:-.devtools}"
+TARGET_PATH="${TARGET_PATH#./}"
+if [[ "${TARGET_PATH}" == /* ]]; then
+  if [[ "${TARGET_PATH}" == "${ROOT}/"* ]]; then
+    TARGET_PATH="${TARGET_PATH#${ROOT}/}"
+  else
+    ui_error "paths.vendor_dir fuera del repo no es soportado: ${TARGET_PATH}"
+    exit 1
+  fi
+fi
+LOCK_FILE="${ROOT}/${TARGET_PATH}.lock"
+LEGACY_LOCK_FILE="${ROOT}/.devtools.lock"
 IS_UPSTREAM_REPO=0
 if [[ "${ROOT}" == "${SCRIPT_REPO_ROOT}" ]]; then
   IS_UPSTREAM_REPO=1
@@ -29,13 +40,13 @@ COMMAND="update"   # update|list
 
 DEVTOOLS_SOURCE=""
 DEVTOOLS_VERSION=""
-DEVTOOLS_SUBDIR=".devtools"
+DEVTOOLS_SUBDIR="${TARGET_PATH}"
 DEVTOOLS_REPO=""
 LIST_REMOTE_URL_USED=""
 LIST_REMOTE_TAGS=""
 
 readonly LEGACY_DEVTOOLS_SOURCE="reydem/devtools"
-readonly CANONICAL_DEVTOOLS_SOURCE="iHexHubs/devtools"
+readonly CANONICAL_DEVTOOLS_SOURCE="example/devtools"
 
 OVERRIDE_SOURCE=""
 OVERRIDE_VERSION=""
@@ -46,11 +57,11 @@ usage() {
   cat <<USAGE
 Uso:
   git devtools-update [list] [--repo /ruta/upstream] [--source owner/repo]
-  git devtools-update TAG=vX.Y.Z [--yes] [--repo /ruta/upstream] [--subdir .devtools]
-  git devtools-update --version vX.Y.Z [--yes] [--repo /ruta/upstream] [--subdir .devtools]
+  git devtools-update TAG=vX.Y.Z [--yes] [--repo /ruta/upstream] [--subdir ${TARGET_PATH}]
+  git devtools-update --version vX.Y.Z [--yes] [--repo /ruta/upstream] [--subdir ${TARGET_PATH}]
 
 Compatibilidad legacy:
-  git devtools-update [--init-only] [--merge] [--version vX.Y.Z] [--source owner/repo] [--subdir .devtools] [--write-lock]
+  git devtools-update [--init-only] [--merge] [--version vX.Y.Z] [--source owner/repo] [--subdir ${TARGET_PATH}] [--write-lock]
 
 Opciones:
   list         Lista tags disponibles en el upstream.
@@ -59,10 +70,10 @@ Opciones:
   --repo       Ruta local del repo upstream (default: repo de este script).
   --init-only  Solo asegura que exista (sin --remote).
   --merge      Usa --merge al actualizar remoto (si aplica).
-  --version    Tag de .devtools a aplicar/descargar.
+  --version    Tag del vendor dir a aplicar/descargar.
   --source     Repo origen (owner/repo) para modo legacy tarball.
-  --subdir     Subcarpeta dentro del repo (default: .devtools).
-  --write-lock Actualiza .devtools.lock con los valores finales.
+  --subdir     Subcarpeta dentro del repo upstream (default: ${TARGET_PATH}).
+  --write-lock Actualiza ${TARGET_PATH}.lock con los valores finales.
 USAGE
 }
 
@@ -91,7 +102,7 @@ normalize_devtools_source() {
   local src="${1:-}"
   src="$(trim_ws "$src")"
   if [[ "$src" == "$LEGACY_DEVTOOLS_SOURCE" ]]; then
-    ui_warn "Origen legacy detectado (${LEGACY_DEVTOOLS_SOURCE}); usaré ${CANONICAL_DEVTOOLS_SOURCE}."
+    echo "⚠️  Origen legacy detectado (${LEGACY_DEVTOOLS_SOURCE}); usaré ${CANONICAL_DEVTOOLS_SOURCE}." >&2
     src="$CANONICAL_DEVTOOLS_SOURCE"
   fi
   echo "$src"
@@ -182,22 +193,7 @@ resolve_source_for_list_or_die() {
   src="$(normalize_devtools_source "${DEVTOOLS_SOURCE:-}")"
 
   if [[ -z "${src:-}" || "${src}" == "local/"* ]]; then
-    if [[ -n "${UPSTREAM_REPO:-}" ]] && is_work_tree_dir "${UPSTREAM_REPO}"; then
-      src="$(resolve_source_from_repo "$UPSTREAM_REPO")"
-    fi
-  fi
-
-  if [[ -z "${src:-}" ]] && is_work_tree_dir "${ROOT}"; then
-    src="$(resolve_source_from_repo "$ROOT")"
-  fi
-
-  if [[ -z "${src:-}" ]] && is_work_tree_dir "${SCRIPT_REPO_ROOT}"; then
-    src="$(resolve_source_from_repo "$SCRIPT_REPO_ROOT")"
-  fi
-
-  src="$(normalize_devtools_source "$src")"
-  if [[ -z "${src:-}" || "${src}" == "local/"* ]]; then
-    ui_error "Origen remoto desconocido."
+    ui_error "Origen remoto no definido."
     ui_error "Ejecuta: git devtools-update list --source <owner>/<repo>"
     exit 1
   fi
@@ -250,12 +246,13 @@ confirm_apply_or_abort() {
 
 write_lock_file() {
   cat > "$LOCK_FILE" <<LOCK
-# Lock de .devtools vendorizado
+# Lock de vendor dir devtools
 DEVTOOLS_SOURCE="${DEVTOOLS_SOURCE}"
 DEVTOOLS_VERSION="${DEVTOOLS_VERSION}"
 DEVTOOLS_SUBDIR="${DEVTOOLS_SUBDIR}"
 DEVTOOLS_TAG="${DEVTOOLS_VERSION}"
 DEVTOOLS_REPO="${DEVTOOLS_REPO}"
+DEVTOOLS_VENDOR_DIR="${TARGET_PATH}"
 LOCK
   ui_success "Lock actualizado: ${LOCK_FILE}"
 }
@@ -337,8 +334,8 @@ apply_vendored_snapshot_from_repo_tag() {
   rm -rf "$tmp_dir"
 
   ui_success "Update vendorizado completado desde tag ${tag}."
-  ui_info "RESULT: updated .devtools to tag=${tag} sha=${target_sha} (mode=vendor)"
-  ui_info "Escribí: ${TARGET_PATH}/VENDORED_TAG, ${TARGET_PATH}/VENDORED_SHA y .devtools.lock"
+  ui_info "RESULT: updated ${TARGET_PATH} to tag=${tag} sha=${target_sha} (mode=vendor)"
+  ui_info "Escribí: ${TARGET_PATH}/VENDORED_TAG, ${TARGET_PATH}/VENDORED_SHA y ${LOCK_FILE}"
 }
 
 while [[ "${1:-}" != "" ]]; do
@@ -380,6 +377,9 @@ done
 if [[ -f "$LOCK_FILE" ]]; then
   # shellcheck disable=SC1090
   source "$LOCK_FILE"
+elif [[ -f "$LEGACY_LOCK_FILE" ]]; then
+  # shellcheck disable=SC1090
+  source "$LEGACY_LOCK_FILE"
 fi
 
 # Compatibilidad con lock legacy.
@@ -472,7 +472,7 @@ if [[ "$is_submodule" == "1" ]]; then
     git -C "$local_submodule_path" checkout --quiet "$OVERRIDE_VERSION"
     result_sha="$(git -C "$local_submodule_path" rev-parse HEAD 2>/dev/null || echo unknown)"
     ui_success "Submódulo ${TARGET_PATH} actualizado a ${OVERRIDE_VERSION}."
-    ui_info "RESULT: updated .devtools to tag=${OVERRIDE_VERSION} sha=${result_sha} (mode=submodule)"
+    ui_info "RESULT: updated ${TARGET_PATH} to tag=${OVERRIDE_VERSION} sha=${result_sha} (mode=submodule)"
     ui_info "En el repo padre, revisa 'git status' y commitea el nuevo SHA del submódulo si corresponde."
     exit 0
   fi
@@ -490,7 +490,7 @@ if [[ "$is_submodule" == "1" ]]; then
   exit 0
 fi
 
-ui_info "Modo: vendorizado (.devtools embebido)"
+ui_info "Modo: vendorizado (${TARGET_PATH})"
 ui_info "MODE DETECTED: vendor"
 
 if [[ "$INIT_ONLY" == "1" ]]; then
@@ -609,4 +609,4 @@ fi
 rm -rf "$tmp_dir"
 
 ui_success "Update vendorizado completado."
-ui_info "RESULT: updated .devtools to tag=${DEVTOOLS_VERSION} sha=${target_sha} (mode=vendor)"
+ui_info "RESULT: updated ${TARGET_PATH} to tag=${DEVTOOLS_VERSION} sha=${target_sha} (mode=vendor)"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/core/commit-summary.sh
+# Resumen de commits para flujos release/promote.
 # Utilidades para resumir commits por tipo y scope (Conventional Commits).
 
 # ==============================================================================

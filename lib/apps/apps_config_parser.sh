@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+if ! declare -F die >/dev/null 2>&1; then
+  die() {
+    echo "❌ $*" >&2
+    exit 1
+  }
+fi
+
 strip_quotes() {
   local value="$1"
   value="${value#\"}"
@@ -11,7 +18,7 @@ strip_quotes() {
 
 default_repo_for_app() {
   local app_name="$1"
-  local owner="${DEVTOOLS_APPS_SYNC_OWNER:-iHexHubs}"
+  local owner="${DEVTOOLS_APPS_SYNC_OWNER:-example-org}"
   echo "git@github.com:${owner}/${app_name}.git"
 }
 
@@ -157,7 +164,7 @@ parse_apps_config_or_die() {
 
   finalize_item_or_die
 
-  [[ "${#entries[@]}" -gt 0 ]] || die "Config invalida en ${config_file}: no se encontraron apps. Formas soportadas: apps/repos/repositories/projects como lista (name|id + repo opcional), mapa (clave -> repo) o lista top-level."
-
-  printf '%s\n' "${entries[@]}"
+  if [[ "${#entries[@]}" -gt 0 ]]; then
+    printf '%s\n' "${entries[@]}"
+  fi
 }

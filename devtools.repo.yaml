@@ -2,3 +2,7 @@ schema_version: 1
 registries:
   build: config/apps.yaml
   deploy: config/services.yaml
+paths:
+  vendor_dir: .devtools
+config:
+  profile_file: .git-acprc

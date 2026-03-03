@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/wizard/step-01-auth.sh
+# Paso de wizard: autenticación y validación de cuenta.
 
 # Variable de Scopes (Mínimo Privilegio + Firma SSH)
 # admin:public_key / write:public_key -> Para subir llaves SSH

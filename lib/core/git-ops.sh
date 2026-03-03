@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/core/git-ops.sh
+# Operaciones y guardas Git compartidas.
 
 # ==============================================================================
 # 0. HELPERS DE CONFIGURACIÓN

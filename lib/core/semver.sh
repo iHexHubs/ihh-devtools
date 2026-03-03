@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/core/semver.sh
+# Helpers semver compartidos.
 # Utilidades SemVer reutilizables (parseo, validacion y ayudas de incremento)
 
 # ==============================================================================

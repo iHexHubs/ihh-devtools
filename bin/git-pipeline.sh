@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/bin/git-pipeline.sh
+# Ejecuta el pipeline local detectado para el repo actual.
 set -euo pipefail
 
 # Bootstrap

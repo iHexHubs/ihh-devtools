@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/ci/detection.sh
+# Detección de herramientas CI y runtime.
 
 __devtools_ci_detection_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../core/contract.sh

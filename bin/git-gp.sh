@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/bin/git-gp.sh
+# Push helper con guardas de flujo.
 set -euo pipefail
 IFS=$'\n\t'
 #  "El bug es este"

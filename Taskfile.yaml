@@ -2,67 +2,34 @@ version: "3"
 
 tasks:
   ci:
-    desc: "Gate nativo base para el repo devtools"
+    desc: "Validaciones base del repositorio devtools"
     cmds:
-      - bash -euo pipefail -c 'bash -n bin/devtools bin/git-ci.sh bin/git-promote.sh'
+      - task lint:shell
+      - task lint:contamination
       - bash -euo pipefail -c './scripts/gh-policy-check.sh'
 
+  lint:shell:
+    desc: "Chequea sintaxis bash en bin/ y lib/"
+    cmds:
+      - bash -euo pipefail -c 'mapfile -t files < <(find bin lib -type f | sort); [ "${#files[@]}" -gt 0 ] || exit 0; bash -n "${files[@]}"'
+
+  lint:contamination:
+    desc: "Evita acoplamiento del core a programas/rutas específicas"
+    cmds:
+      - bash -euo pipefail -c 'if rg -ni "(/webapps/ihh-ecosystem|pmbok|\\berd\\b|el-rincon|detective|\\bihexhubs\\b)" bin lib/core lib/apps lib/ci/detection.sh config/apps.yaml README.md; then echo "contaminacion detectada"; exit 1; fi'
+
   ci:act:
-    desc: "Ejecuta workflow de CI usando Act"
+    desc: "Ejecuta CI local usando Act"
     cmds:
-      - bash -euo pipefail -c 'command -v act >/dev/null 2>&1 || { echo "act no está instalado"; exit 1; }'
-      - bash -euo pipefail -c 'command -v docker >/dev/null 2>&1 || { echo "docker no está instalado"; exit 1; }; ACT_IMAGE="${DEVTOOLS_ACT_IMAGE:-catthehacker/ubuntu:full-latest}"; if ! docker image inspect "${ACT_IMAGE}" >/dev/null 2>&1; then echo "🐳 Preparando imagen para Act ${ACT_IMAGE} (primera vez puede tardar)"; if ! docker pull "${ACT_IMAGE}"; then echo "❌ No se pudo descargar la imagen. Prueba docker pull ${ACT_IMAGE}"; exit 1; fi; fi; act -W .github/workflows/ci.yaml -j ci --pull=false'
+      - bash -euo pipefail -c 'command -v act >/dev/null 2>&1 || { echo "act no esta instalado"; exit 1; }'
+      - bash -euo pipefail -c 'command -v docker >/dev/null 2>&1 || { echo "docker no esta instalado"; exit 1; }; ACT_IMAGE="${DEVTOOLS_ACT_IMAGE:-catthehacker/ubuntu:full-latest}"; if ! docker image inspect "${ACT_IMAGE}" >/dev/null 2>&1; then docker pull "${ACT_IMAGE}"; fi; act -W .github/workflows/ci.yaml -j ci --pull=false'
 
-  ui:local:
-    desc: "Abre K9s si está disponible"
+  apps:sync:
+    desc: "Sincroniza apps declaradas en el registry de build"
     cmds:
-      - bash -euo pipefail -c 'if command -v k9s >/dev/null 2>&1; then exec k9s; else echo "k9s no está instalado"; exit 1; fi'
+      - bash -euo pipefail -c 'bin/devtools apps sync'
 
-  local:check:
-    desc: "Pipeline local mínimo"
+  apps:sync:dry:
+    desc: "Dry run de sincronización de apps"
     cmds:
-      - task ci
-
-  app:devbox:ci:
-    desc: "CI de devbox-app (backend pytest + frontend build)"
-    cmds:
-      - bash -euo pipefail -c 'cd devbox-app/backend && python3 -m venv .venv && . .venv/bin/activate && pip install --upgrade pip >/dev/null && pip install -r requirements.txt >/dev/null && pytest -q'
-      - bash -euo pipefail -c 'cd devbox-app/frontend && npm install && npm run build'
-
-  app:devbox:docker:up:
-    desc: "Levanta devbox-app con Docker Compose"
-    cmds:
-      - bash -euo pipefail -c 'cd devbox-app && [ -f .env ] || cp .env.example .env'
-      - bash -euo pipefail -c 'cd devbox-app && docker compose up -d --build'
-
-  app:devbox:docker:down:
-    desc: "Baja devbox-app en Docker Compose"
-    cmds:
-      - bash -euo pipefail -c 'cd devbox-app && docker compose down -v'
-
-  app:devbox:images:build:
-    desc: "Build de imagenes backend/frontend con mismo TAG"
-    cmds:
-      - bash -euo pipefail -c 'RAW_TAG="{{.TAG}}"; [ -n "${RAW_TAG}" ] || RAW_TAG="local"; IMAGE_TAG="${RAW_TAG}"; source ./lib/core/semver.sh; if declare -F semver_to_image_tag >/dev/null 2>&1; then IMAGE_TAG="$(semver_to_image_tag "${RAW_TAG}")"; fi; docker build -t ghcr.io/ihexhubs/devbox-app-backend:${IMAGE_TAG} devbox-app/backend; echo "backend image tag -> ${RAW_TAG} -> ${IMAGE_TAG}"'
-      - bash -euo pipefail -c 'RAW_TAG="{{.TAG}}"; [ -n "${RAW_TAG}" ] || RAW_TAG="local"; IMAGE_TAG="${RAW_TAG}"; source ./lib/core/semver.sh; if declare -F semver_to_image_tag >/dev/null 2>&1; then IMAGE_TAG="$(semver_to_image_tag "${RAW_TAG}")"; fi; docker build -t ghcr.io/ihexhubs/devbox-app-frontend:${IMAGE_TAG} devbox-app/frontend; echo "frontend image tag -> ${RAW_TAG} -> ${IMAGE_TAG}"'
-
-  app:devbox:gitops:pin-tag:
-    desc: "Pin de tag compartido en overlay minikube usando toolset (sin scripts duplicados)"
-    cmds:
-      - bash -euo pipefail -c 'TAG="{{.TAG}}"; [ -n "${TAG}" ] || TAG="local"; IMAGE_TAG="${TAG}"; source ./lib/core/utils.sh; source ./lib/core/semver.sh; source ./lib/promote/workflows/to-local/10-utils.sh; source ./lib/promote/workflows/to-local/50-k8s.sh; if declare -F semver_to_image_tag >/dev/null 2>&1; then IMAGE_TAG="$(semver_to_image_tag "${TAG}")"; fi; promote_local_update_kustomize_tag "devbox-app/gitops/overlays/minikube/kustomization.yaml" "${IMAGE_TAG}"; uniq_count="$(awk "/^[[:space:]]*newTag:[[:space:]]*/ {print \\$2}" devbox-app/gitops/overlays/minikube/kustomization.yaml | sort -u | wc -l | tr -d "[:space:]")"; [ "${uniq_count}" = "1" ] || die "newTag desalineados en overlay minikube"; echo "Pinned overlay tag -> ${TAG} -> ${IMAGE_TAG}"'
-
-  app:devbox:minikube:deploy:
-    desc: "Build + load + pin tag + apply overlay minikube"
-    cmds:
-      - bash -euo pipefail -c 'TAG="{{.TAG}}"; [ -n "${TAG}" ] || TAG="local"; task app:devbox:images:build TAG=${TAG}'
-      - bash -euo pipefail -c 'RAW_TAG="{{.TAG}}"; [ -n "${RAW_TAG}" ] || RAW_TAG="local"; IMAGE_TAG="${RAW_TAG}"; source ./lib/core/semver.sh; if declare -F semver_to_image_tag >/dev/null 2>&1; then IMAGE_TAG="$(semver_to_image_tag "${RAW_TAG}")"; fi; minikube image load ghcr.io/ihexhubs/devbox-app-backend:${IMAGE_TAG}'
-      - bash -euo pipefail -c 'RAW_TAG="{{.TAG}}"; [ -n "${RAW_TAG}" ] || RAW_TAG="local"; IMAGE_TAG="${RAW_TAG}"; source ./lib/core/semver.sh; if declare -F semver_to_image_tag >/dev/null 2>&1; then IMAGE_TAG="$(semver_to_image_tag "${RAW_TAG}")"; fi; minikube image load ghcr.io/ihexhubs/devbox-app-frontend:${IMAGE_TAG}'
-      - bash -euo pipefail -c 'TAG="{{.TAG}}"; [ -n "${TAG}" ] || TAG="local"; task app:devbox:gitops:pin-tag TAG=${TAG}'
-      - bash -euo pipefail -c 'kubectl apply -k devbox-app/gitops/overlays/minikube'
-
-  app:devbox:argocd:deploy:
-    desc: "Set tag compartido + aplicar Application + sync opcional por argocd CLI"
-    cmds:
-      - bash -euo pipefail -c 'REV="{{.REV}}"; [ -n "${REV}" ] || REV="local"; task app:devbox:gitops:pin-tag TAG=${REV}'
-      - bash -euo pipefail -c 'kubectl apply -f devbox-app/gitops/argocd/application.yaml'
-      - bash -euo pipefail -c 'REV="{{.REV}}"; [ -n "${REV}" ] || REV="local"; if command -v argocd >/dev/null 2>&1; then argocd app set devbox-app --revision ${REV} && argocd app sync devbox-app; else echo "argocd CLI no instalado; cambia revision manualmente a ${REV}"; fi'
+      - bash -euo pipefail -c 'DEVTOOLS_DRY_RUN=1 bin/devtools apps sync'

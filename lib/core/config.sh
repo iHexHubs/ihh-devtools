@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/core/config.sh
+# Configuración central de runtime.
 
 # ==============================================================================
 # 1. DETECCIÓN DEL ENTORNO
 # ==============================================================================
 
 # --- FIX: DETECCIÓN ROBUSTA DE ROOT (Submódulos vs Superproyecto) ---
-# Intentamos obtener la raíz del superproyecto (si esto es un submódulo .devtools).
+# Intentamos obtener la raíz del superproyecto.
 # Si no, caemos al toplevel normal o al directorio actual.
 PROJECT_ROOT="$(git rev-parse --show-superproject-working-tree 2>/dev/null || echo "")"
 if [ -z "$PROJECT_ROOT" ]; then
@@ -19,26 +19,41 @@ fi
 # - WORKSPACE_ROOT: raíz del superproyecto (si existe); si no, vacío.
 # - PROJECT_ROOT (compat): se mantiene como “workspace” cuando hay superproyecto, o repo root si no.
 #
-# Esto permite que los scripts de versionado NO lean VERSION desde .devtools embebido por error,
-# y en su lugar usen siempre $REPO_ROOT/VERSION como fuente de verdad del repo actual.
+# Esto permite que los scripts de versionado usen siempre $REPO_ROOT/VERSION.
 export REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 export WORKSPACE_ROOT="$(git rev-parse --show-superproject-working-tree 2>/dev/null || echo "")"
 export PROJECT_ROOT
 
+# Cargar contrato (si está disponible) para resolver rutas dinámicas.
+__devtools_core_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./contract.sh
+source "${__devtools_core_dir}/contract.sh"
+devtools_load_contract "${REPO_ROOT}" || true
+
 # Rutas de configuración con prioridad:
-# 1. Específica del toolset (.devtools)
-# 2. Local del repositorio (raíz)
-# 3. Global de usuario (home)
-DEVTOOLS_CONFIG="${PROJECT_ROOT}/.devtools/.git-acprc"
-LOCAL_CONFIG="${PROJECT_ROOT}/.git-acprc"
+# 1. Contrato: config.profile_file
+# 2. Compat: <repo>/<vendor_dir>/.git-acprc
+# 3. Compat: <repo>/.git-acprc
+# 4. Compat: <home>/scripts/.git-acprc
+CONTRACT_CONFIG="${DEVTOOLS_PROFILE_CONFIG:-}"
+VENDOR_DIR="${DEVTOOLS_VENDOR_DIR:-.devtools}"
+if [[ "$VENDOR_DIR" == /* ]]; then
+  LEGACY_VENDOR_CONFIG="${VENDOR_DIR}/.git-acprc"
+else
+  LEGACY_VENDOR_CONFIG="${REPO_ROOT}/${VENDOR_DIR}/.git-acprc"
+fi
+LOCAL_CONFIG="${REPO_ROOT}/.git-acprc"
 USER_CONFIG="${HOME}/scripts/.git-acprc"
 
 # ==============================================================================
 # 2. CARGA DE CONFIGURACIÓN
 # ==============================================================================
-if [ -f "$DEVTOOLS_CONFIG" ]; then
+if [ -n "${CONTRACT_CONFIG:-}" ] && [ -f "$CONTRACT_CONFIG" ]; then
   # shellcheck disable=SC1090
-  source "$DEVTOOLS_CONFIG"
+  source "$CONTRACT_CONFIG"
+elif [ -f "$LEGACY_VENDOR_CONFIG" ]; then
+  # shellcheck disable=SC1090
+  source "$LEGACY_VENDOR_CONFIG"
 elif [ -f "$LOCAL_CONFIG" ]; then
   # shellcheck disable=SC1090
   source "$LOCAL_CONFIG"
@@ -204,4 +219,3 @@ normalize_profiles_v1() {
 
 # Ejecutamos normalización al cargar config (para todo el runtime)
 normalize_profiles_v1
-

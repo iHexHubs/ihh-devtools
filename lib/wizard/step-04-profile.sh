@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/wizard/step-04-profile.sh
+# Paso final del wizard: perfil y marcadores.
 
 run_step_profile_registration() {
     ui_step_header "6. Finalización y Registro"
 
-    local rc_file=".devtools/.git-acprc"
-    local marker_file=".devtools/.setup_completed"
+    local rc_file="${DEVTOOLS_WIZARD_RC_FILE:-.git-acprc}"
+    local marker_file="${DEVTOOLS_WIZARD_MARKER_FILE:-.setup_completed}"
 
-    # --- FIX (Modelo de Identidades): Asegurar carpeta .devtools ---
+    # --- FIX (Modelo de Identidades): Asegurar carpeta de configuración ---
     mkdir -p "$(dirname "$rc_file")"
     mkdir -p "$(dirname "$marker_file")"
 

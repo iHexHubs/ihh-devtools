@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/bin/git-rp.sh
+# Renombra push target y protege ramas críticas.
 set -euo pipefail
 IFS=$'\n\t'
 

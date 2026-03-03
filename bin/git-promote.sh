@@ -1,52 +1,17 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/bin/git-promote.sh
-#
 # Punto de entrada principal para promociones de código.
-# Orquesta la carga de librerías, validaciones de entorno y ejecución de workflows...
+#
+# Orquesta la carga de librerías, validaciones de entorno y ejecución de workflows.
 
 set -e
 
 # ==============================================================================
-# DISPATCHER DE CONTEXTO (repo raíz -> script correcto)
-# ------------------------------------------------------------------------------
-# Soporta ejecución desde aliases hardcodeados y evita mezclar runtime de otro repo.
+# DISPATCH DE CONTEXTO (repo raíz -> script correcto)
 # ==============================================================================
-if [[ "${DEVTOOLS_DISPATCH_DONE:-0}" != "1" ]]; then
-    __self_path="${BASH_SOURCE[0]}"
-    __self_real="$(cd "$(dirname "${__self_path}")" && pwd)/$(basename "${__self_path}")"
-    __repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-    __script_name="$(basename "${__self_path}")"
-
-    __dispatch_target=""
-    for __candidate in \
-        "${__repo_root}/bin/${__script_name}" \
-        "${__repo_root}/.devtools/bin/${__script_name}"
-    do
-        [[ -f "${__candidate}" ]] || continue
-        __candidate_real="$(cd "$(dirname "${__candidate}")" && pwd)/$(basename "${__candidate}")"
-        if [[ "${__candidate_real}" != "${__self_real}" ]]; then
-            __dispatch_target="${__candidate}"
-            break
-        fi
-        __dispatch_target="${__candidate}"
-        break
-    done
-
-    if [[ -z "${__dispatch_target:-}" ]]; then
-        echo "❌ No encontré ${__script_name} para dispatch (REPO_ROOT=${__repo_root})." >&2
-        exit 127
-    fi
-
-    export DEVTOOLS_DISPATCH_REPO_ROOT="${__repo_root}"
-    export DEVTOOLS_DISPATCH_TO="${__dispatch_target}"
-
-    if [[ "${__dispatch_target}" != "${__self_real}" ]]; then
-        echo "ℹ️  DISPATCH_REPO_ROOT=${DEVTOOLS_DISPATCH_REPO_ROOT}"
-        echo "ℹ️  DISPATCH_TO=${DEVTOOLS_DISPATCH_TO}"
-        export DEVTOOLS_DISPATCH_DONE=1
-        exec bash "${__dispatch_target}" "$@"
-    fi
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="${SCRIPT_DIR}/../lib"
+source "${LIB_DIR}/core/dispatch.sh"
+devtools_dispatch_if_needed "$@"
 
 # ==============================================================================
 # 0.0 DEFAULTS (set -u safe)
@@ -475,7 +440,7 @@ case "$TARGET_ENV" in
 
         if [[ "$local_ok" -eq 1 ]]; then
             if [[ -f "${LIB_DIR}/ci-workflow.sh" ]]; then
-                # Reusar el mismo flujo post-push (Entornos + Rincón del Detective)
+                # Reusar el mismo flujo post-push de verificación de entorno.
                 # Usa base 'local' para evitar PRs accidentales a ramas protegidas.
                 source "${LIB_DIR}/ci-workflow.sh"
 

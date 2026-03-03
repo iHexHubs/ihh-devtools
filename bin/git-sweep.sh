@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/bin/git-sweep.sh
+# Limpieza de ramas y tags.
 set -euo pipefail
 
 REMOTE="origin"

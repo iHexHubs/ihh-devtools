@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/bin/git-acp.sh
+# Add/commit/push con asistente de flujo.
 set -euo pipefail
 IFS=$'\n\t'
 

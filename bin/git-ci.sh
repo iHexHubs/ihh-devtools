@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/bin/git-ci.sh
+# Ejecuta el menú de CI detectado para el repo actual.
 set -euo pipefail
 
 # 1. Bootstrap

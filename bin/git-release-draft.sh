@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/bin/git-release-draft.sh
+# Crea o actualiza release draft para un tag existente.
 set -euo pipefail
 
 # Crea o actualiza un Release draft en GitHub para un tag existente.
 # Uso:
 #   git-release-draft.sh TAG=v1.2.3 [--notes archivo.md]
-#   git-release-draft.sh TAG=pmbok-v1.2.3 --notes notes.md
 
 TAG=""
 NOTES_FILE=""

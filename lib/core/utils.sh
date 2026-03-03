@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/utils.sh
+# Utilidades base de CLI.
 set -u
 
 # ==============================================================================

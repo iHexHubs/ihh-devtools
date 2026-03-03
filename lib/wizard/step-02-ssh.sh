@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/wizard/step-02-ssh.sh
+# Paso de wizard: gestión de llaves SSH.
 
 # --- FIX: INTEGRACIÓN CON RUNTIME ---
 # Importamos ssh-ident.sh para usar la misma lógica de agente que el resto del toolset

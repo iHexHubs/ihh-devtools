@@ -1,3 +1,7 @@
 includes:
-  - .devtools/bin/**
-  - .devtools/lib/**
+  - bin/**
+  - lib/**
+  - config/**
+  - scripts/**
+  - VERSION
+  - README.md

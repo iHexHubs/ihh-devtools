@@ -17,10 +17,15 @@ devtools_trim() {
 devtools_clean_yaml_value() {
     local raw="$1"
     local value=""
+
     value="$(devtools_trim "$raw")"
     value="${value%%[[:space:]]#*}"
     value="$(devtools_trim "$value")"
     value="$(devtools_strip_quotes "$value")"
+    if [[ "$value" == "null" ]]; then
+        value=""
+    fi
+
     printf '%s\n' "$value"
 }
 
@@ -72,12 +77,34 @@ devtools_find_contract_file() {
     printf '\n'
 }
 
-devtools_parse_contract_registries() {
+devtools_parse_contract_with_yq() {
+    local contract_file="$1"
+    local build_registry=""
+    local deploy_registry=""
+    local vendor_dir=""
+    local profile_file=""
+
+    command -v yq >/dev/null 2>&1 || return 1
+
+    build_registry="$(yq -r '.registries.build // .registries.apps // .build_registry // .apps_registry // ""' "$contract_file" 2>/dev/null || true)"
+    deploy_registry="$(yq -r '.registries.deploy // .registries.services // .deploy_registry // .services_registry // ""' "$contract_file" 2>/dev/null || true)"
+    vendor_dir="$(yq -r '.paths.vendor_dir // .vendor_dir // ""' "$contract_file" 2>/dev/null || true)"
+    profile_file="$(yq -r '.config.profile_file // .profile_file // ""' "$contract_file" 2>/dev/null || true)"
+
+    printf '%s\n' "$(devtools_clean_yaml_value "$build_registry")"
+    printf '%s\n' "$(devtools_clean_yaml_value "$deploy_registry")"
+    printf '%s\n' "$(devtools_clean_yaml_value "$vendor_dir")"
+    printf '%s\n' "$(devtools_clean_yaml_value "$profile_file")"
+}
+
+devtools_parse_contract_fallback() {
     local contract_file="$1"
     local build_registry_raw=""
     local deploy_registry_raw=""
-    local in_registries=0
-    local registries_indent=-1
+    local vendor_dir_raw=""
+    local profile_file_raw=""
+    local section=""
+    local section_indent=-1
 
     while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
         local line="${raw_line%$'\r'}"
@@ -92,42 +119,72 @@ devtools_parse_contract_registries() {
         indent_prefix="${line%%[![:space:]]*}"
         indent_len="${#indent_prefix}"
 
-        if [[ "$trimmed" =~ ^registries:[[:space:]]*$ ]]; then
-            in_registries=1
-            registries_indent="$indent_len"
+        if [[ "$trimmed" =~ ^(registries|paths|config):[[:space:]]*$ ]]; then
+            section="${BASH_REMATCH[1]}"
+            section_indent="$indent_len"
             continue
         fi
 
-        if [[ "$in_registries" -eq 1 && "$indent_len" -le "$registries_indent" ]]; then
-            in_registries=0
-            registries_indent=-1
+        if [[ -n "$section" && "$indent_len" -le "$section_indent" ]]; then
+            section=""
+            section_indent=-1
         fi
 
         if [[ "$trimmed" =~ ^(build_registry|apps_registry):[[:space:]]*(.*)$ ]]; then
             build_registry_raw="${BASH_REMATCH[2]}"
             continue
         fi
-
         if [[ "$trimmed" =~ ^(deploy_registry|services_registry):[[:space:]]*(.*)$ ]]; then
             deploy_registry_raw="${BASH_REMATCH[2]}"
             continue
         fi
-
-        if [[ "$in_registries" -eq 1 ]]; then
-            if [[ "$trimmed" =~ ^(build|apps):[[:space:]]*(.*)$ ]]; then
-                build_registry_raw="${BASH_REMATCH[2]}"
-                continue
-            fi
-
-            if [[ "$trimmed" =~ ^(deploy|services):[[:space:]]*(.*)$ ]]; then
-                deploy_registry_raw="${BASH_REMATCH[2]}"
-                continue
-            fi
+        if [[ "$trimmed" =~ ^(vendor_dir):[[:space:]]*(.*)$ ]]; then
+            vendor_dir_raw="${BASH_REMATCH[2]}"
+            continue
         fi
+        if [[ "$trimmed" =~ ^(profile_file):[[:space:]]*(.*)$ ]]; then
+            profile_file_raw="${BASH_REMATCH[2]}"
+            continue
+        fi
+
+        case "$section" in
+            registries)
+                if [[ "$trimmed" =~ ^(build|apps):[[:space:]]*(.*)$ ]]; then
+                    build_registry_raw="${BASH_REMATCH[2]}"
+                    continue
+                fi
+                if [[ "$trimmed" =~ ^(deploy|services):[[:space:]]*(.*)$ ]]; then
+                    deploy_registry_raw="${BASH_REMATCH[2]}"
+                    continue
+                fi
+                ;;
+            paths)
+                if [[ "$trimmed" =~ ^vendor_dir:[[:space:]]*(.*)$ ]]; then
+                    vendor_dir_raw="${BASH_REMATCH[1]}"
+                    continue
+                fi
+                ;;
+            config)
+                if [[ "$trimmed" =~ ^profile_file:[[:space:]]*(.*)$ ]]; then
+                    profile_file_raw="${BASH_REMATCH[1]}"
+                    continue
+                fi
+                ;;
+        esac
     done < "$contract_file"
 
     printf '%s\n' "$(devtools_clean_yaml_value "$build_registry_raw")"
     printf '%s\n' "$(devtools_clean_yaml_value "$deploy_registry_raw")"
+    printf '%s\n' "$(devtools_clean_yaml_value "$vendor_dir_raw")"
+    printf '%s\n' "$(devtools_clean_yaml_value "$profile_file_raw")"
+}
+
+devtools_parse_contract_fields() {
+    local contract_file="$1"
+
+    if ! devtools_parse_contract_with_yq "$contract_file"; then
+        devtools_parse_contract_fallback "$contract_file"
+    fi
 }
 
 devtools_load_contract() {
@@ -135,9 +192,13 @@ devtools_load_contract() {
     local contract_file=""
     local build_registry="${DEVTOOLS_BUILD_REGISTRY:-}"
     local deploy_registry="${DEVTOOLS_DEPLOY_REGISTRY:-}"
+    local vendor_dir="${DEVTOOLS_VENDOR_DIR:-}"
+    local profile_config="${DEVTOOLS_PROFILE_CONFIG:-}"
+    local parsed_lines=()
     local parsed_build=""
     local parsed_deploy=""
-    local parsed_lines=()
+    local parsed_vendor=""
+    local parsed_profile=""
 
     if [[ -z "$repo_root" ]]; then
         repo_root="$(devtools_repo_root)"
@@ -146,47 +207,89 @@ devtools_load_contract() {
     if [[ -n "$build_registry" ]]; then
         build_registry="$(devtools_resolve_path "$repo_root" "$build_registry")"
     fi
-
     if [[ -n "$deploy_registry" ]]; then
         deploy_registry="$(devtools_resolve_path "$repo_root" "$deploy_registry")"
+    fi
+    if [[ -n "$profile_config" ]]; then
+        profile_config="$(devtools_resolve_path "$repo_root" "$profile_config")"
     fi
 
     contract_file="$(devtools_find_contract_file "$repo_root")"
     if [[ -f "$contract_file" ]]; then
-        mapfile -t parsed_lines < <(devtools_parse_contract_registries "$contract_file")
+        mapfile -t parsed_lines < <(devtools_parse_contract_fields "$contract_file")
         parsed_build="${parsed_lines[0]:-}"
         parsed_deploy="${parsed_lines[1]:-}"
+        parsed_vendor="${parsed_lines[2]:-}"
+        parsed_profile="${parsed_lines[3]:-}"
+    fi
+
+    if [[ -z "$vendor_dir" ]]; then
+        vendor_dir="${parsed_vendor:-.devtools}"
+    fi
+    vendor_dir="$(devtools_clean_yaml_value "$vendor_dir")"
+    vendor_dir="${vendor_dir#./}"
+    vendor_dir="${vendor_dir%/}"
+    if [[ -z "$vendor_dir" ]]; then
+        vendor_dir=".devtools"
     fi
 
     if [[ -z "$build_registry" && -n "$parsed_build" ]]; then
         build_registry="$(devtools_resolve_path "$repo_root" "$parsed_build")"
     fi
-
     if [[ -z "$deploy_registry" && -n "$parsed_deploy" ]]; then
         deploy_registry="$(devtools_resolve_path "$repo_root" "$parsed_deploy")"
+    fi
+    if [[ -z "$profile_config" && -n "$parsed_profile" ]]; then
+        profile_config="$(devtools_resolve_path "$repo_root" "$parsed_profile")"
     fi
 
     if [[ -z "$build_registry" && -f "${repo_root}/config/apps.yaml" ]]; then
         build_registry="${repo_root}/config/apps.yaml"
     fi
-
     if [[ -z "$deploy_registry" && -f "${repo_root}/config/services.yaml" ]]; then
         deploy_registry="${repo_root}/config/services.yaml"
     fi
 
-    # Compatibilidad temporal con repos vendoreados en .devtools/.
-    if [[ -z "$build_registry" && -f "${repo_root}/.devtools/config/apps.yaml" ]]; then
-        build_registry="${repo_root}/.devtools/config/apps.yaml"
+    # Compatibilidad con layout vendorizado.
+    if [[ -z "$build_registry" && -f "${repo_root}/${vendor_dir}/config/apps.yaml" ]]; then
+        build_registry="${repo_root}/${vendor_dir}/config/apps.yaml"
     fi
-
-    if [[ -z "$deploy_registry" && -f "${repo_root}/.devtools/config/services.yaml" ]]; then
-        deploy_registry="${repo_root}/.devtools/config/services.yaml"
+    if [[ -z "$deploy_registry" && -f "${repo_root}/${vendor_dir}/config/services.yaml" ]]; then
+        deploy_registry="${repo_root}/${vendor_dir}/config/services.yaml"
     fi
 
     export DEVTOOLS_REPO_ROOT="$repo_root"
     export DEVTOOLS_CONTRACT_FILE_RESOLVED="$contract_file"
     export DEVTOOLS_BUILD_REGISTRY="$build_registry"
     export DEVTOOLS_DEPLOY_REGISTRY="$deploy_registry"
+    export DEVTOOLS_VENDOR_DIR="$vendor_dir"
+    export DEVTOOLS_PROFILE_CONFIG="$profile_config"
+}
+
+devtools_vendor_dir() {
+    local repo_root="${1:-}"
+    devtools_load_contract "$repo_root"
+    printf '%s\n' "${DEVTOOLS_VENDOR_DIR:-.devtools}"
+}
+
+devtools_vendor_dir_path() {
+    local repo_root="${1:-}"
+    local vendor_dir=""
+    devtools_load_contract "$repo_root"
+    vendor_dir="${DEVTOOLS_VENDOR_DIR:-.devtools}"
+
+    if [[ "$vendor_dir" == /* ]]; then
+        printf '%s\n' "$vendor_dir"
+        return 0
+    fi
+
+    printf '%s/%s\n' "${DEVTOOLS_REPO_ROOT:-$(devtools_repo_root)}" "$vendor_dir"
+}
+
+devtools_profile_config_file() {
+    local repo_root="${1:-}"
+    devtools_load_contract "$repo_root"
+    printf '%s\n' "${DEVTOOLS_PROFILE_CONFIG:-}"
 }
 
 devtools_require_build_registry() {

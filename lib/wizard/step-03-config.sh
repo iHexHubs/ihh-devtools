@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/wizard/step-03-config.sh
+# Paso de wizard: identidad Git y firma SSH.
 
 run_step_git_config() {
     ui_step_header "5. Configuración de Identidad Local"

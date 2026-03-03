@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/bin/setup-wizard.sh
+# Wizard de setup local para herramientas de desarrollo.
 set -e
 
 # --- FIX: TRAP DE ERRORES (P2) ---
@@ -19,6 +19,7 @@ LIB_BASE="${SCRIPT_DIR}/../lib"
 # 1.1 Cargar Utils y Git-Ops primero (para tener detect_workspace_root)
 source "${LIB_BASE}/core/utils.sh"
 source "${LIB_BASE}/core/git-ops.sh"
+source "${LIB_BASE}/core/contract.sh"
 
 # 1.2 Resolver Root Real (Superproyecto) ANTES de cargar config
 # Esto evita que config.sh calcule mal PROJECT_ROOT si estamos dentro del submódulo
@@ -26,6 +27,22 @@ REAL_ROOT="$(detect_workspace_root)"
 if [ -d "$REAL_ROOT" ]; then
     cd "$REAL_ROOT"
 fi
+
+# Resolver contrato para vendor_dir/profile_file del repo actual.
+devtools_load_contract "$REAL_ROOT" || true
+VENDOR_DIR="${DEVTOOLS_VENDOR_DIR:-.devtools}"
+if [[ "$VENDOR_DIR" == /* ]]; then
+    VENDOR_DIR_ABS="$VENDOR_DIR"
+else
+    VENDOR_DIR_ABS="${REAL_ROOT}/${VENDOR_DIR}"
+fi
+PROFILE_CONFIG_FILE="$(devtools_profile_config_file "$REAL_ROOT" || true)"
+if [[ -z "${PROFILE_CONFIG_FILE:-}" ]]; then
+    PROFILE_CONFIG_FILE="${VENDOR_DIR_ABS}/.git-acprc"
+fi
+MARKER_FILE="${VENDOR_DIR_ABS}/.setup_completed"
+export DEVTOOLS_WIZARD_RC_FILE="${PROFILE_CONFIG_FILE}"
+export DEVTOOLS_WIZARD_MARKER_FILE="${MARKER_FILE}"
 
 # 1.3 Ahora sí, cargar Configuración y UI (con el PWD correcto)
 source "${LIB_BASE}/core/config.sh"
@@ -45,7 +62,6 @@ source "${WIZARD_DIR}/step-04-profile.sh"
 # Parseo de argumentos (Movido arriba para decidir dependencias)
 FORCE=false
 VERIFY_ONLY=false
-MARKER_FILE=".devtools/.setup_completed"
 
 for arg in "$@"; do
     case "$arg" in
@@ -113,9 +129,9 @@ if [ "$VERIFY_ONLY" = true ]; then
     # Check rápido de SSH (Realista)
     # Intentamos leer el host configurado en .git-acprc para no probar github.com si usan alias
     TEST_HOST="github.com"
-    if [ -f ".devtools/.git-acprc" ]; then
+    if [ -f "${PROFILE_CONFIG_FILE}" ]; then
         # Extraer primer host de PROFILES (posición 6 en schema V1: display;git;email;sign;push;HOST;...)
-        FIRST_HOST_IN_PROFILE=$(grep "PROFILES+=" .devtools/.git-acprc | head -n1 | awk -F';' '{print $6}')
+        FIRST_HOST_IN_PROFILE=$(grep "PROFILES+=" "${PROFILE_CONFIG_FILE}" | head -n1 | awk -F';' '{print $6}')
         if [ -n "$FIRST_HOST_IN_PROFILE" ]; then
              TEST_HOST="$FIRST_HOST_IN_PROFILE"
         fi
@@ -146,7 +162,7 @@ fi
 # ==============================================================================
 # 4. EJECUCIÓN DEL WIZARD (FULL PATH)
 # ==============================================================================
-show_detective_banner
+show_setup_banner
 
 # PASO 1: Auth & 2FA
 run_step_auth

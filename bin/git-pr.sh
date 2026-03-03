@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# /webapps/ihh-ecosystem/.devtools/git-pr.sh
+# Crea o abre PR de la rama actual.
 BASE="${BASE_BRANCH:-dev}"
 
 branch="$(git branch --show-current)"
