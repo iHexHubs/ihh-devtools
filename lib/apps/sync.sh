@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+__devtools_apps_sync_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../core/contract.sh
+source "${__devtools_apps_sync_dir}/../core/contract.sh"
+
 is_dry_run() {
   [[ "${DEVTOOLS_DRY_RUN:-0}" == "1" ]]
 }
@@ -67,7 +71,11 @@ apps_sync() {
   local repo_root
   repo_root="$(resolve_repo_root_or_die)"
 
-  local config_file="${repo_root}/.devtools/config/apps.yaml"
+  local config_file=""
+  if ! config_file="$(devtools_require_build_registry "$repo_root")"; then
+    die "No se pudo resolver el registro de apps para ${repo_root}. Revisa devtools.repo.yaml."
+  fi
+
   local -a app_entries=()
   local parsed_entries_raw=""
 

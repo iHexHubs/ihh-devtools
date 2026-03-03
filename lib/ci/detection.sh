@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # /webapps/ihh-ecosystem/.devtools/lib/ci/detection.sh
 
+__devtools_ci_detection_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../core/contract.sh
+source "${__devtools_ci_detection_dir}/../core/contract.sh"
+
 # ==============================================================================
 # LÓGICA DE DETECCIÓN (Auto-Discovery Robusto)
 # ==============================================================================
@@ -70,8 +74,6 @@ detect_ci_tools() {
             export NATIVE_CI_CMD="task test"
         elif [[ "${has_taskfile}" == "1" ]]; then
             export NATIVE_CI_CMD="task ci"
-        elif [[ -f "${root}/apps/pmbok/Taskfile.yaml" ]]; then
-            export NATIVE_CI_CMD="task -d apps/pmbok test"
         fi
     fi
 
@@ -123,7 +125,14 @@ detect_ci_tools() {
 apps_registry_file() {
     local root
     root="$(git rev-parse --show-toplevel 2>/dev/null || echo ".")"
-    echo "${root}/.devtools/config/apps.yaml"
+
+    devtools_load_contract "$root"
+    if [[ -n "${DEVTOOLS_BUILD_REGISTRY:-}" ]]; then
+        echo "${DEVTOOLS_BUILD_REGISTRY}"
+        return 0
+    fi
+
+    echo "${root}/config/apps.yaml"
 }
 
 require_apps_registry() {
@@ -230,7 +239,7 @@ detect_compose_active() {
     command -v docker >/dev/null || return 1
     # Indicador principal del stack: traefik (gateway único)
     # MODIFICADO (1.4): Usar variable configurable en lugar de hardcode
-    local gateway="${COMPOSE_GATEWAY_CONTAINER:-pmbok-traefik}"
+    local gateway="${COMPOSE_GATEWAY_CONTAINER:-traefik}"
     docker ps --format '{{.Names}}' 2>/dev/null | grep -Fxq "$gateway"
 }
 

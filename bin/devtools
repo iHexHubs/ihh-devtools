@@ -2,13 +2,18 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="${SCRIPT_DIR}/../lib"
+# shellcheck source=../lib/core/contract.sh
+source "${LIB_DIR}/core/contract.sh"
+
 usage() {
   cat <<'EOF'
 Uso:
   devtools apps sync [--only <app>]
 
 Comandos:
-  apps sync   Sincroniza repos de apps en <repo-root>/apps leyendo <repo-root>/.devtools/config/apps.yaml
+  apps sync   Sincroniza repos de apps en <repo-root>/apps leyendo el registry de build del contrato
 
 Opciones:
   --only <app>   Sincroniza solo una app por nombre
@@ -72,7 +77,7 @@ derive_name_from_path() {
 # Pobla arreglo global APPS_ENTRIES con elementos "name|repo"
 parse_apps_config_or_die() {
   local config_file="$1"
-  [[ -f "$config_file" ]] || die "Falta .devtools/config/apps.yaml (ruta esperada: ${config_file})"
+  [[ -f "$config_file" ]] || die "Falta el registro de apps (ruta esperada: ${config_file})"
 
   APPS_ENTRIES=()
 
@@ -262,7 +267,11 @@ apps_sync() {
   local repo_root
   repo_root="$(resolve_repo_root_or_die)"
 
-  local config_file="${repo_root}/.devtools/config/apps.yaml"
+  local config_file=""
+  if ! config_file="$(devtools_require_build_registry "$repo_root")"; then
+    die "No se pudo resolver el registro de apps para ${repo_root}. Revisa devtools.repo.yaml."
+  fi
+
   parse_apps_config_or_die "$config_file"
 
   log_info "Repo raíz: ${repo_root}"

@@ -36,7 +36,7 @@ derive_name_from_path() {
 # Prints one line per app using format: name|repo
 parse_apps_config_or_die() {
   local config_file="$1"
-  [[ -f "$config_file" ]] || die "Falta .devtools/config/apps.yaml (ruta esperada: ${config_file})"
+  [[ -f "$config_file" ]] || die "Falta el registro de apps (ruta esperada: ${config_file})"
 
   local -a entries=()
 

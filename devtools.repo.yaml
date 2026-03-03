@@ -1,0 +1,4 @@
+schema_version: 1
+registries:
+  build: config/apps.yaml
+  deploy: config/services.yaml
