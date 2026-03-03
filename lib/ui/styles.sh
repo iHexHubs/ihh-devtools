@@ -80,17 +80,21 @@ ui_step_header() {
 # Cajas de Alerta (Ej: "ACCESO DENEGADO" o "LISTO")
 # Uso: ui_alert_box "TÍTULO" "Mensaje línea 1" "Mensaje línea 2" ...
 ui_alert_box() {
+    local color="$COLOR_PRIMARY"
     local title="$1"
     shift
-    local color="${1:-$COLOR_PRIMARY}" # Si el primer argumento es un código de color, úsalo, si no, default
     
     # Fallback colors map
     local ansi_color="$ANSI_MAGENTA"
 
-    # Detección inteligente: si el primer argumento parece un color (número), lo extraemos
+    # Soporta: ui_alert_box "196" "TITULO" ...  (color primero)
     if [[ "$title" =~ ^[0-9]+$ ]]; then
         color="$title"
-        title="$1"
+        title="${1:-}"
+        shift || true
+    # Soporta: ui_alert_box "TITULO" "196" ...  (color segundo)
+    elif [[ "${1:-}" =~ ^[0-9]+$ ]]; then
+        color="$1"
         shift
     else
         # Si es un error/alerta crítica (detectado por palabras clave), usamos rojo

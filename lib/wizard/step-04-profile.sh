@@ -23,7 +23,8 @@ run_step_profile_registration() {
     # --- FIX: ESCRITURA ATÓMICA (Evita corrupción si se corta el proceso) ---
     append_profile_entry_atomically() {
         local entry="$1"
-        local tmp_rc="${rc_file}.tmp"
+        local tmp_rc=""
+        tmp_rc="$(mktemp "${rc_file}.tmp.XXXXXX")"
 
         # Si por algún motivo no existe, lo creamos vacío para poder cp/mv
         [[ -f "$rc_file" ]] || : > "$rc_file"
@@ -146,7 +147,9 @@ EOF
     # --- FIX: Usar variable de host en vez de hardcode ---
     ui_spinner "Validando conexión SSH final ($safe_ssh_host)..." sleep 1
 
-    if ssh -T "git@$safe_ssh_host" -o StrictHostKeyChecking=accept-new 2>&1 | grep -qE "(successfully authenticated|Hi)"; then
+    if ssh -T "git@$safe_ssh_host" \
+        -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new 2>&1 | \
+        grep -qE "(successfully authenticated|Hi)"; then
         ui_success "Conexión SSH verificada: Acceso Correcto."
     else
         ui_warn "No pudimos validar la conexión automáticamente a $safe_ssh_host."

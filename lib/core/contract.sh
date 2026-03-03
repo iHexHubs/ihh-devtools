@@ -223,9 +223,13 @@ devtools_load_contract() {
         parsed_profile="${parsed_lines[3]:-}"
     fi
 
-    if [[ -z "$vendor_dir" ]]; then
-        vendor_dir="${parsed_vendor:-.devtools}"
+    # vendor_dir: contrato gana salvo override explicito.
+    if [[ -n "$parsed_vendor" ]]; then
+        if [[ -z "${vendor_dir:-}" || "$vendor_dir" == ".devtools" || "$vendor_dir" == "./.devtools" ]]; then
+            vendor_dir="$parsed_vendor"
+        fi
     fi
+
     vendor_dir="$(devtools_clean_yaml_value "$vendor_dir")"
     vendor_dir="${vendor_dir#./}"
     vendor_dir="${vendor_dir%/}"
@@ -239,8 +243,15 @@ devtools_load_contract() {
     if [[ -z "$deploy_registry" && -n "$parsed_deploy" ]]; then
         deploy_registry="$(devtools_resolve_path "$repo_root" "$parsed_deploy")"
     fi
-    if [[ -z "$profile_config" && -n "$parsed_profile" ]]; then
-        profile_config="$(devtools_resolve_path "$repo_root" "$parsed_profile")"
+    # profile_file: contrato gana cuando el valor previo esta vacio o en defaults legacy.
+    if [[ -n "$parsed_profile" ]]; then
+        if [[ -z "${profile_config:-}" \
+            || "$profile_config" == ".git-acprc" \
+            || "$profile_config" == "./.git-acprc" \
+            || "$profile_config" == "${repo_root}/.git-acprc" \
+            || "$profile_config" == "${repo_root}/.devtools/.git-acprc" ]]; then
+            profile_config="$(devtools_resolve_path "$repo_root" "$parsed_profile")"
+        fi
     fi
 
     if [[ -z "$build_registry" && -f "${repo_root}/config/apps.yaml" ]]; then

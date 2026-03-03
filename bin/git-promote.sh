@@ -182,6 +182,14 @@ cleanup_on_exit() {
     local exit_code=$?
     trap - EXIT INT TERM
 
+    git_safe() {
+        if declare -F git_entry >/dev/null 2>&1; then
+            git_entry "$@"
+        else
+            git "$@"
+        fi
+    }
+
     # Doctor no debe intentar borrar ramas ni aterrizar raro
     if [[ "${TARGET_ENV:-}" == "doctor" ]]; then
         exit "$exit_code"
@@ -196,13 +204,13 @@ cleanup_on_exit() {
         # 1) aterrizar en rama destino si aplica
         if [[ -n "${DEVTOOLS_LAND_ON_SUCCESS_BRANCH:-}" ]]; then
             ui_info "🛬 Finalizando flujo (éxito): quedando en '${DEVTOOLS_LAND_ON_SUCCESS_BRANCH}'..."
-            if ! git checkout "${DEVTOOLS_LAND_ON_SUCCESS_BRANCH}" >/dev/null 2>&1; then
+            if ! git_safe checkout "${DEVTOOLS_LAND_ON_SUCCESS_BRANCH}" >/dev/null 2>&1; then
                 # Intentar tracking si existe en origin
                 ensure_local_branch_tracks_remote "${DEVTOOLS_LAND_ON_SUCCESS_BRANCH}" "origin" >/dev/null 2>&1 || true
-                git checkout "${DEVTOOLS_LAND_ON_SUCCESS_BRANCH}" >/dev/null 2>&1 || true
+                git_safe checkout "${DEVTOOLS_LAND_ON_SUCCESS_BRANCH}" >/dev/null 2>&1 || true
             fi
             local cur_branch
-            cur_branch="$(git branch --show-current 2>/dev/null || echo "")"
+            cur_branch="$(git_safe branch --show-current 2>/dev/null || echo "")"
             if [[ "$cur_branch" == "${DEVTOOLS_LAND_ON_SUCCESS_BRANCH}" ]]; then
                 landed_ok=1
             else
@@ -227,7 +235,7 @@ cleanup_on_exit() {
         git_restore_branch_safely "${DEVTOOLS_PROMOTE_FROM_BRANCH:-}"
     else
         ui_warn "Finalizando script. Volviendo a ${DEVTOOLS_PROMOTE_FROM_BRANCH:-}..."
-        git checkout "${DEVTOOLS_PROMOTE_FROM_BRANCH:-}" >/dev/null 2>&1 || true
+        git_safe checkout "${DEVTOOLS_PROMOTE_FROM_BRANCH:-}" >/dev/null 2>&1 || true
     fi
 
     exit "$exit_code"

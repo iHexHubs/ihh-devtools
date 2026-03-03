@@ -399,7 +399,8 @@ promote_to_local() {
                 # 🚪 Salir: salida limpia antes de tags/overlay/commit/push.
                 if [[ "${selected}" == "${CI_OPT_SKIP:-}" ]]; then
                     echo "👌 Omitido."
-                    return 0
+                    # Señal estándar al entrypoint para "salir sin promover".
+                    return 42
                 fi
 
                 # Guard de permisos solo si la opción usa CI nativo.

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Wizard de setup local para herramientas de desarrollo.
-set -e
+set -Eeuo pipefail
 
 # --- FIX: TRAP DE ERRORES (P2) ---
 # Si falla algo inesperado, muestra la línea y el comando
-trap 'echo "❌ ERROR FATAL en línea $LINENO. Código de salida: $?" >&2' ERR
+trap 'rc=$?; echo "❌ ERROR en ${BASH_SOURCE[0]}:${LINENO}: ${BASH_COMMAND} (rc=$rc)" >&2' ERR
 
 # --- FIX: ACTIVA MODO WIZARD ---
 # Esto avisa a lib/core/config.sh que no debe abortar si falta configuración.
@@ -140,7 +140,9 @@ if [ "$VERIFY_ONLY" = true ]; then
     # Usamos ui_spinner solo visualmente
     ui_spinner "Verificando conexión SSH ($TEST_HOST)..." sleep 1
     
-    if ssh -T "git@$TEST_HOST" -o StrictHostKeyChecking=accept-new 2>&1 | grep -qE "(successfully authenticated|Hi)"; then
+    if ssh -T "git@$TEST_HOST" \
+        -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new 2>&1 | \
+        grep -qE "(successfully authenticated|Hi)"; then
         ui_success "Conexión a GitHub (SSH): OK ($TEST_HOST)"
     else
         ui_error "Conexión a GitHub (SSH): FALLÓ para $TEST_HOST"
