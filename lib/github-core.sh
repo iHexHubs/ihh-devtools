@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/github-core.sh
+# Librería de soporte (devtools)
 
 # ==============================================================================
 # 1. VALIDACIONES DE HERRAMIENTAS (GH CLI)
@@ -8,7 +8,7 @@
 ensure_gh_cli() {
     if ! command -v gh >/dev/null 2>&1; then
         log_error "No se encontró 'gh' (GitHub CLI)."
-        log_info "Instálalo para continuar: https://cli.github.com/"
+        log_info "Instala 'gh' (GitHub CLI) para continuar."
         exit 1
     fi
 

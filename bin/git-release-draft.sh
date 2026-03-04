@@ -53,7 +53,7 @@ if ! command -v gh >/dev/null 2>&1; then
 fi
 
 if ! GH_PAGER=cat gh auth status -t >/dev/null 2>&1; then
-  echo "❌ GitHub CLI sin sesion. Ejecuta: gh auth login"
+  echo "❌ gh no autenticado. Ejecuta 'gh auth login' y reintenta."
   exit 1
 fi
 

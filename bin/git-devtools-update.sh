@@ -14,10 +14,31 @@ source "${LIB_DIR}/core/git-ops.sh"
 source "${LIB_DIR}/core/contract.sh"
 
 ROOT="$(detect_workspace_root)"
+IS_UPSTREAM_REPO=0
+if [[ "${ROOT}" == "${SCRIPT_REPO_ROOT}" ]]; then
+  IS_UPSTREAM_REPO=1
+fi
+
 devtools_load_contract "$ROOT" || true
-TARGET_PATH="${DEVTOOLS_VENDOR_DIR:-.devtools}"
-TARGET_PATH="${TARGET_PATH#./}"
-if [[ "${TARGET_PATH}" == /* ]]; then
+CONTRACT_FILE="$(devtools_find_contract_file "$ROOT" 2>/dev/null || true)"
+TARGET_PATH=""
+if [[ -f "${CONTRACT_FILE:-}" ]]; then
+  mapfile -t __contract_fields < <(devtools_parse_contract_fields "$CONTRACT_FILE")
+  TARGET_PATH="$(devtools_clean_yaml_value "${__contract_fields[2]:-}")"
+  TARGET_PATH="${TARGET_PATH#./}"
+  TARGET_PATH="${TARGET_PATH%/}"
+fi
+
+if [[ -z "${TARGET_PATH:-}" ]]; then
+  if [[ "$IS_UPSTREAM_REPO" == "1" ]]; then
+    TARGET_PATH="."
+  else
+    ui_error "No se encontró paths.vendor_dir en devtools.repo.yaml. Configura el contrato para usar devtools-update."
+    exit 1
+  fi
+fi
+
+if [[ "${TARGET_PATH}" != "." && "${TARGET_PATH}" == /* ]]; then
   if [[ "${TARGET_PATH}" == "${ROOT}/"* ]]; then
     TARGET_PATH="${TARGET_PATH#${ROOT}/}"
   else
@@ -25,12 +46,13 @@ if [[ "${TARGET_PATH}" == /* ]]; then
     exit 1
   fi
 fi
-LOCK_FILE="${ROOT}/${TARGET_PATH}.lock"
-LEGACY_LOCK_FILE="${ROOT}/.devtools.lock"
-IS_UPSTREAM_REPO=0
-if [[ "${ROOT}" == "${SCRIPT_REPO_ROOT}" ]]; then
-  IS_UPSTREAM_REPO=1
+
+if [[ "${TARGET_PATH}" == "." ]]; then
+  LOCK_FILE="${ROOT}/vendor.lock"
+else
+  LOCK_FILE="${ROOT}/${TARGET_PATH}.lock"
 fi
+LEGACY_LOCK_FILE="${ROOT}/.devtools.lock"
 
 MODE="checkout"   # checkout|merge
 INIT_ONLY=0
@@ -44,9 +66,6 @@ DEVTOOLS_SUBDIR="${TARGET_PATH}"
 DEVTOOLS_REPO=""
 LIST_REMOTE_URL_USED=""
 LIST_REMOTE_TAGS=""
-
-readonly LEGACY_DEVTOOLS_SOURCE="reydem/devtools"
-readonly CANONICAL_DEVTOOLS_SOURCE="example/devtools"
 
 OVERRIDE_SOURCE=""
 OVERRIDE_VERSION=""
@@ -101,10 +120,6 @@ ensure_repo_dir_or_die() {
 normalize_devtools_source() {
   local src="${1:-}"
   src="$(trim_ws "$src")"
-  if [[ "$src" == "$LEGACY_DEVTOOLS_SOURCE" ]]; then
-    echo "⚠️  Origen legacy detectado (${LEGACY_DEVTOOLS_SOURCE}); usaré ${CANONICAL_DEVTOOLS_SOURCE}." >&2
-    src="$CANONICAL_DEVTOOLS_SOURCE"
-  fi
   echo "$src"
 }
 
@@ -116,6 +131,33 @@ build_github_ssh_url() {
 build_github_https_url() {
   local source_repo="$1"
   echo "https://github.com/${source_repo}.git"
+}
+
+build_remote_candidates() {
+  local source_repo="$1"
+  local repo_hint="${2:-}"
+  local -a candidates=()
+  local remote_url=""
+  local -A seen=()
+
+  if [[ -n "${repo_hint:-}" ]] && git -C "$repo_hint" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    remote_url="$(git -C "$repo_hint" config --get remote.origin.url 2>/dev/null || true)"
+    [[ -n "${remote_url:-}" ]] && candidates+=("$remote_url")
+  fi
+
+  if [[ -n "${source_repo:-}" ]]; then
+    candidates+=("$(build_github_ssh_url "$source_repo")")
+    candidates+=("$(build_github_https_url "$source_repo")")
+  fi
+
+  for remote_url in "${candidates[@]}"; do
+    [[ -n "${remote_url:-}" ]] || continue
+    if [[ -n "${seen[$remote_url]:-}" ]]; then
+      continue
+    fi
+    seen["$remote_url"]=1
+    printf '%s\n' "$remote_url"
+  done
 }
 
 is_gitlink_submodule_path() {
@@ -133,13 +175,21 @@ is_work_tree_dir() {
 
 list_remote_tags_or_die() {
   local source_repo="$1"
+  local repo_hint="${2:-}"
+  local -a remote_candidates=()
   local tags
   local remote_url
 
   LIST_REMOTE_URL_USED=""
   LIST_REMOTE_TAGS=""
 
-  for remote_url in "$(build_github_ssh_url "$source_repo")" "$(build_github_https_url "$source_repo")"; do
+  mapfile -t remote_candidates < <(build_remote_candidates "$source_repo" "$repo_hint")
+  if [[ "${#remote_candidates[@]}" -eq 0 ]]; then
+    ui_error "Origen remoto no definido. Usa --source owner/repo o --repo /ruta/upstream."
+    exit 1
+  fi
+
+  for remote_url in "${remote_candidates[@]}"; do
     tags="$(GIT_TERMINAL_PROMPT=0 git ls-remote --tags --refs "$remote_url" 'v*' 2>/dev/null | awk -F/ '{print $3}' | sort -V || true)"
     if [[ -n "${tags:-}" ]]; then
       LIST_REMOTE_URL_USED="$remote_url"
@@ -148,7 +198,7 @@ list_remote_tags_or_die() {
     fi
   done
 
-  ui_error "No pude listar tags remotos en $(build_github_ssh_url "$source_repo") ni por HTTPS."
+  ui_error "No pude listar tags remotos en los candidatos configurados."
   exit 1
 }
 
@@ -179,7 +229,7 @@ resolve_source_from_repo() {
   remote_url="$(git -C "$repo" config --get remote.origin.url 2>/dev/null || true)"
 
   # Soporta https, ssh://git@host/... y git@host:owner/repo(.git),
-  # incluyendo aliases SSH tipo github.com-reydem.
+  # incluyendo aliases SSH personalizados.
   if [[ "$remote_url" =~ ^(https?://[^/]+/|ssh://git@[^/]+/|git@[^:]+:)([^/]+/[^/.]+)(\.git)?$ ]]; then
     echo "${BASH_REMATCH[2]}"
     return 0
@@ -188,14 +238,12 @@ resolve_source_from_repo() {
   echo ""
 }
 
-resolve_source_for_list_or_die() {
+resolve_source_for_list() {
   local src=""
   src="$(normalize_devtools_source "${DEVTOOLS_SOURCE:-}")"
 
-  if [[ -z "${src:-}" || "${src}" == "local/"* ]]; then
-    ui_error "Origen remoto no definido."
-    ui_error "Ejecuta: git devtools-update list --source <owner>/<repo>"
-    exit 1
+  if [[ -z "${src:-}" && -n "${UPSTREAM_REPO:-}" ]] && is_work_tree_dir "${UPSTREAM_REPO}"; then
+    src="$(resolve_source_from_repo "$UPSTREAM_REPO")"
   fi
 
   echo "$src"
@@ -407,10 +455,14 @@ fi
 
 if [[ "$COMMAND" == "list" ]]; then
   ui_header "📦 devtools tags (Remote)"
-  DEVTOOLS_SOURCE="$(resolve_source_for_list_or_die)"
-  list_remote_tags_or_die "$DEVTOOLS_SOURCE"
-  remote_url="${LIST_REMOTE_URL_USED:-$(build_github_ssh_url "$DEVTOOLS_SOURCE")}"
-  ui_info "Consultando upstream oficial: ${remote_url}"
+  list_repo_hint="${UPSTREAM_REPO:-}"
+  if [[ -z "${list_repo_hint:-}" && "$IS_UPSTREAM_REPO" == "1" ]]; then
+    list_repo_hint="$SCRIPT_REPO_ROOT"
+  fi
+  DEVTOOLS_SOURCE="$(resolve_source_for_list)"
+  list_remote_tags_or_die "$DEVTOOLS_SOURCE" "$list_repo_hint"
+  remote_url="${LIST_REMOTE_URL_USED:-desconocido}"
+  ui_info "Consultando remoto: ${remote_url}"
   if [[ -z "${LIST_REMOTE_TAGS:-}" ]]; then
     ui_warn "No encontré tags v* en el upstream."
     exit 0
@@ -538,8 +590,12 @@ if [[ -n "${OVERRIDE_VERSION:-}" ]]; then
   DEVTOOLS_VERSION="$OVERRIDE_VERSION"
   DEVTOOLS_SOURCE="$(normalize_devtools_source "${DEVTOOLS_SOURCE:-}")"
   if [[ -z "${DEVTOOLS_SOURCE:-}" || "${DEVTOOLS_SOURCE:-}" == "local/"* ]]; then
-    ui_error "Origen remoto desconocido."
-    ui_error "Ejecuta el comando usando '--source owner/repo' para configurarlo."
+    if [[ -n "${UPSTREAM_REPO:-}" ]] && is_work_tree_dir "${UPSTREAM_REPO}"; then
+      DEVTOOLS_SOURCE="$(resolve_source_from_repo "$UPSTREAM_REPO")"
+    fi
+  fi
+  if [[ -z "${DEVTOOLS_SOURCE:-}" || "${DEVTOOLS_SOURCE:-}" == "local/"* ]]; then
+    ui_error "Origen remoto no definido. Usa --source owner/repo o --repo /ruta/upstream."
     exit 1
   fi
   ui_info "UPSTREAM: remoto=${DEVTOOLS_SOURCE} tag=${OVERRIDE_VERSION}"
@@ -554,8 +610,12 @@ fi
 # ---------- Compatibilidad legacy (sin cambios de hábito) ----------
 DEVTOOLS_SOURCE="$(normalize_devtools_source "${DEVTOOLS_SOURCE:-}")"
 if [[ -z "${DEVTOOLS_SOURCE:-}" || "${DEVTOOLS_SOURCE:-}" == "local/"* ]]; then
-  ui_error "Origen remoto desconocido."
-  ui_error "Ejecuta el comando usando '--source owner/repo' para configurarlo."
+  if [[ -n "${UPSTREAM_REPO:-}" ]] && is_work_tree_dir "${UPSTREAM_REPO}"; then
+    DEVTOOLS_SOURCE="$(resolve_source_from_repo "$UPSTREAM_REPO")"
+  fi
+fi
+if [[ -z "${DEVTOOLS_SOURCE:-}" || "${DEVTOOLS_SOURCE:-}" == "local/"* ]]; then
+  ui_error "Origen remoto no definido. Usa --source owner/repo o --repo /ruta/upstream."
   exit 1
 fi
 if [[ -z "${DEVTOOLS_VERSION:-}" ]]; then
@@ -563,23 +623,27 @@ if [[ -z "${DEVTOOLS_VERSION:-}" ]]; then
   exit 1
 fi
 
-ssh_remote_url="$(build_github_ssh_url "$DEVTOOLS_SOURCE")"
-https_remote_url="$(build_github_https_url "$DEVTOOLS_SOURCE")"
 clone_remote_url=""
 tmp_dir="$(mktemp -d)"
 clone_dir="${tmp_dir}/devtools"
+mapfile -t clone_remote_candidates < <(build_remote_candidates "$DEVTOOLS_SOURCE" "${UPSTREAM_REPO:-}")
+if [[ "${#clone_remote_candidates[@]}" -eq 0 ]]; then
+  ui_error "Origen remoto no definido. Usa --source owner/repo o --repo /ruta/upstream."
+  exit 1
+fi
 
-ui_info "Clonando upstream oficial: ${ssh_remote_url} (tag=${DEVTOOLS_VERSION})"
-if GIT_TERMINAL_PROMPT=0 git clone --depth 1 --branch "$DEVTOOLS_VERSION" "$ssh_remote_url" "$clone_dir" >/dev/null 2>&1; then
-  clone_remote_url="$ssh_remote_url"
-else
-  ui_warn "No pude clonar por SSH. Intentando HTTPS sin prompts interactivos."
-  if GIT_TERMINAL_PROMPT=0 git clone --depth 1 --branch "$DEVTOOLS_VERSION" "$https_remote_url" "$clone_dir" >/dev/null 2>&1; then
-    clone_remote_url="$https_remote_url"
-  else
-    ui_error "No pude clonar el upstream para ${DEVTOOLS_SOURCE} en el tag ${DEVTOOLS_VERSION}."
-    exit 1
+ui_info "Clonando remoto (tag=${DEVTOOLS_VERSION})"
+for remote_candidate in "${clone_remote_candidates[@]}"; do
+  rm -rf "$clone_dir"
+  if GIT_TERMINAL_PROMPT=0 git clone --depth 1 --branch "$DEVTOOLS_VERSION" "$remote_candidate" "$clone_dir" >/dev/null 2>&1; then
+    clone_remote_url="$remote_candidate"
+    break
   fi
+  ui_warn "No pude clonar desde ${remote_candidate}. Probando siguiente remoto."
+done
+if [[ -z "${clone_remote_url:-}" ]]; then
+  ui_error "No pude clonar el remoto para ${DEVTOOLS_SOURCE} en el tag ${DEVTOOLS_VERSION}."
+  exit 1
 fi
 
 src_dir="${clone_dir}/${DEVTOOLS_SUBDIR}"

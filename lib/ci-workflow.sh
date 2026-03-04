@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/ci-workflow.sh
+# Librería de soporte (devtools)
 
 # ==============================================================================
 # 0. IMPORTS & BOOTSTRAP
@@ -278,7 +278,7 @@ ci_render_validation_menu_header() {
     fi
 
     echo
-    ui_step_header "🕵️  RINCÓN DEL DETECTIVE: Calidad de Código"
+    ui_step_header "🕵️  Panel de Calidad de Código"
     echo "   Rama actual: $head"
     echo
 }
@@ -371,16 +371,16 @@ ci_run_validation_option() {
 
         native)
             [[ -n "${native_app_cmd:-}" ]] || {
-                ui_error "No se detectó comando CI para devbox-app (probados: task app:devbox:ci, task -d devbox-app ci, task -d devbox-app/backend test)."
+                ui_error "No se detectó comando CI nativo para el proyecto."
                 ci_print_task_detection_failure_evidence "app:devbox:ci"
                 ci_print_task_context_evidence
-                echo "   Ejecuta: task --list | grep app:devbox:ci"
+                echo "   Revisa tareas disponibles con: task --list"
                 return 1
             }
             echo "▶️  Ejecutando Solo Nativo..."
             ci_trace "about_to_run='${native_app_cmd}'"
             if ! ci_run_command_with_evidence "$native_app_cmd"; then
-                ui_error "Falló Solo Nativo (app:devbox:ci)."
+                ui_error "Falló Solo Nativo."
                 return 1
             fi
             if [[ "$mode" == "post" && "$include_devtools_checks" == "1" ]]; then
@@ -603,7 +603,7 @@ run_post_push_flow() {
     ci_acp_native_include_devtools_checks && include_devtools_checks="1"
     native_app_cmd="$(ci_resolve_native_app_ci_cmd || true)"
     if [[ -z "${native_app_cmd:-}" ]]; then
-        native_app_cmd="<no detectado: app:devbox ci/test>"
+        native_app_cmd="<no detectado>"
     fi
     native_effective_cmd="${native_app_cmd}"
     if [[ "$include_devtools_checks" == "1" ]]; then

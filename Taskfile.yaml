@@ -16,12 +16,12 @@ tasks:
   lint:contamination:
     desc: "Detecta rutas hardcodeadas y referencias legacy no portables"
     cmds:
-      - bash -euo pipefail -c 'PATTERN="(/webapps/|/home/|/Users/|\\.devtools/|github\\.com/|git@github\\.com:)"; TARGETS=(README.md CHANGELOG.md scripts devtools.repo.yaml); if grep -RniE "$PATTERN" "${TARGETS[@]}"; then echo "contaminacion detectada"; exit 1; fi'
+      - bash -euo pipefail -c 'PATTERN="(/webapps\\/|/home/|/Users/|\\.devtools\\/|github\\.com/|git@github\\.com:)"; TARGETS=(README.md CHANGELOG.md scripts devtools.repo.yaml); if grep -RniE "$PATTERN" "${TARGETS[@]}"; then echo "contaminacion detectada"; exit 1; fi'
 
   ci:act:
     desc: "Ejecuta CI local usando Act"
     cmds:
-      - bash -euo pipefail -c 'WF=".github/workflows/ci.yaml"; if [ ! -f "$WF" ]; then echo "skip: $WF no existe"; exit 0; fi; if [ -z "${DEVTOOLS_ACT_IMAGE:-}" ]; then echo "skip: DEVTOOLS_ACT_IMAGE no definido"; exit 0; fi; command -v act >/dev/null 2>&1 || { echo "act no esta instalado"; exit 1; }; command -v docker >/dev/null 2>&1 || { echo "docker no esta instalado"; exit 1; }; if ! docker image inspect "${DEVTOOLS_ACT_IMAGE}" >/dev/null 2>&1; then echo "skip: imagen no disponible localmente (${DEVTOOLS_ACT_IMAGE})"; exit 0; fi; act -W "$WF" -j ci --pull=false -P ubuntu-latest="${DEVTOOLS_ACT_IMAGE}"'
+      - bash -euo pipefail -c 'WF=".github/workflows/ci.yaml"; DEFAULT_IMAGE="catthehacker/ubuntu:full-latest"; ACT_IMAGE="${DEVTOOLS_ACT_IMAGE:-$DEFAULT_IMAGE}"; if [ ! -f "$WF" ]; then echo "skip: $WF no existe"; exit 0; fi; command -v act >/dev/null 2>&1 || { echo "act no esta instalado"; exit 1; }; command -v docker >/dev/null 2>&1 || { echo "docker no esta instalado"; exit 1; }; if ! docker image inspect "$ACT_IMAGE" >/dev/null 2>&1; then echo "Este comando necesita la imagen Docker: $ACT_IMAGE"; echo "No esta disponible localmente."; if [ ! -t 0 ]; then echo "skip: stdin no interactivo; imagen requerida no disponible"; exit 0; fi; ask_pull(){ local answer; printf "Deseas descargarla ahora? [Y/n]: "; read -r answer; answer="${answer:-Y}"; case "$answer" in [Yy]|[Yy][Ee][Ss]) return 0 ;; [Nn]|[Nn][Oo]) return 1 ;; *) return 2 ;; esac; }; if ask_pull; then rc=0; else rc=$?; fi; if [ "$rc" -eq 2 ]; then echo "Respuesta no valida. Responde Y o N."; if ask_pull; then rc=0; else rc=$?; fi; if [ "$rc" -eq 2 ]; then rc=0; fi; fi; if [ "$rc" -eq 1 ]; then echo "skip: imagen requerida no disponible"; exit 0; fi; if ! docker pull "$ACT_IMAGE"; then echo "error: no se pudo descargar $ACT_IMAGE"; exit 1; fi; fi; act -W "$WF" -j ci --pull=false -P ubuntu-latest="$ACT_IMAGE"'
 
   apps:sync:
     desc: "Sincroniza apps declaradas en el registry de build"

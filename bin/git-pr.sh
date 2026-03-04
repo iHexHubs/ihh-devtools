@@ -11,7 +11,7 @@ fi
 
 # CAMBIO FASE 1.3: Permitir fix/ y hotfix/ además de feature/
 if [[ "$branch" != feature/* && "$branch" != fix/* && "$branch" != hotfix/* ]]; then
-  echo "❌ Política IHH: PRs solo desde feature/**, fix/** o hotfix/**"
+  echo "❌ Política de PR: solo desde feature/**, fix/** o hotfix/**"
   echo "   Rama actual: $branch"
   exit 1
 fi

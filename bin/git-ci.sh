@@ -14,7 +14,8 @@ source "${LIB_DIR}/ci-workflow.sh"  # Aquí es donde ocurre la magia
 # 2. Diagnóstico (Para que veas qué detectamos).
 ui_step_header "🔍 Diagnóstico de Herramientas CI"
 
-echo "Proyecto raíz: $(git rev-parse --show-toplevel)"
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+echo "Proyecto raíz: $ROOT"
 echo "---------------------------------------------------"
 echo " NATIVE_CI_CMD     : ${NATIVE_CI_CMD:-❌ No detectado}"
 echo " ACT_CI_CMD        : ${ACT_CI_CMD:-❌ No detectado}"

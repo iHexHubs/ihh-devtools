@@ -21,7 +21,7 @@ if [[ -n "${K8S_FULL_CMD:-}" ]]; then
   # Usamos eval para permitir comandos compuestos (ej. "task build && task deploy")
   eval "$K8S_FULL_CMD"
 else
-  log_error "No se detectó un contrato de pipeline local (task pipeline:local)."
-  echo "   Asegúrate de tener un Taskfile.yaml con la tarea 'pipeline:local'."
+  log_error "No se detectó un comando de pipeline local."
+  echo "   Define una tarea 'pipeline:local' (si usas Taskfile) o configura el contrato de CI."
   exit 1
 fi

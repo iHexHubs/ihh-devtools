@@ -7,8 +7,12 @@ LIB_DIR="${SCRIPT_DIR}/../lib"
 
 # shellcheck source=../lib/core/utils.sh
 source "${LIB_DIR}/core/utils.sh"
-# shellcheck source=../lib/apps/sync.sh
-source "${LIB_DIR}/apps/sync.sh"
+APPS_SYNC_AVAILABLE=0
+if [[ -f "${LIB_DIR}/apps/sync.sh" ]]; then
+  # shellcheck source=../lib/apps/sync.sh
+  source "${LIB_DIR}/apps/sync.sh"
+  APPS_SYNC_AVAILABLE=1
+fi
 
 usage() {
   cat <<'EOF'
@@ -34,6 +38,10 @@ main() {
     apps)
       case "$subcmd" in
         sync)
+          if [[ "${APPS_SYNC_AVAILABLE}" != "1" ]]; then
+            echo "Este build de devtools no incluye apps sync." >&2
+            exit 1
+          fi
           shift 2
           apps_sync "$@"
           ;;
