@@ -2,9 +2,9 @@
 
 Toolset Bash para flujos de desarrollo, CI local y utilidades Git.
 
-## Contrato del repositorio consumidor
+## Contrato del repositorio
 
-Devtools se configura por contrato en `devtools.repo.yaml`:
+Devtools se configura con `devtools.repo.yaml` en la raiz del repositorio:
 
 ```yaml
 schema_version: 1
@@ -20,7 +20,7 @@ config:
 Campos clave:
 - `registries.build`: catálogo de apps/componentes para build/sync.
 - `registries.deploy`: catálogo de servicios para deploy.
-- `paths.vendor_dir`: directorio de vendor en repos consumidores (default `.devtools`).
+- `paths.vendor_dir`: directorio vendorizado (default `.devtools`).
 - `config.profile_file`: archivo de perfiles Git (`.git-acprc` o equivalente).
 
 Compatibilidad:

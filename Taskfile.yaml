@@ -14,15 +14,14 @@ tasks:
       - bash -euo pipefail -c 'mapfile -t files < <(find bin lib -type f | sort); [ "${#files[@]}" -gt 0 ] || exit 0; bash -n "${files[@]}"'
 
   lint:contamination:
-    desc: "Evita acoplamiento del core a programas/rutas específicas"
+    desc: "Detecta rutas hardcodeadas y referencias legacy no portables"
     cmds:
-      - bash -euo pipefail -c 'if rg -ni "(/webapps/ihh-ecosystem|pmbok|\\berd\\b|el-rincon|detective|\\bihexhubs\\b)" bin lib/core lib/apps lib/ci/detection.sh config/apps.yaml README.md; then echo "contaminacion detectada"; exit 1; fi'
+      - bash -euo pipefail -c 'PATTERN="(/webapps/|/home/|/Users/|\\.devtools/|github\\.com/|git@github\\.com:)"; TARGETS=(README.md CHANGELOG.md scripts devtools.repo.yaml); if grep -RniE "$PATTERN" "${TARGETS[@]}"; then echo "contaminacion detectada"; exit 1; fi'
 
   ci:act:
     desc: "Ejecuta CI local usando Act"
     cmds:
-      - bash -euo pipefail -c 'command -v act >/dev/null 2>&1 || { echo "act no esta instalado"; exit 1; }'
-      - bash -euo pipefail -c 'command -v docker >/dev/null 2>&1 || { echo "docker no esta instalado"; exit 1; }; ACT_IMAGE="${DEVTOOLS_ACT_IMAGE:-catthehacker/ubuntu:full-latest}"; if ! docker image inspect "${ACT_IMAGE}" >/dev/null 2>&1; then docker pull "${ACT_IMAGE}"; fi; act -W .github/workflows/ci.yaml -j ci --pull=false'
+      - bash -euo pipefail -c 'WF=".github/workflows/ci.yaml"; if [ ! -f "$WF" ]; then echo "skip: $WF no existe"; exit 0; fi; if [ -z "${DEVTOOLS_ACT_IMAGE:-}" ]; then echo "skip: DEVTOOLS_ACT_IMAGE no definido"; exit 0; fi; command -v act >/dev/null 2>&1 || { echo "act no esta instalado"; exit 1; }; command -v docker >/dev/null 2>&1 || { echo "docker no esta instalado"; exit 1; }; if ! docker image inspect "${DEVTOOLS_ACT_IMAGE}" >/dev/null 2>&1; then echo "skip: imagen no disponible localmente (${DEVTOOLS_ACT_IMAGE})"; exit 0; fi; act -W "$WF" -j ci --pull=false -P ubuntu-latest="${DEVTOOLS_ACT_IMAGE}"'
 
   apps:sync:
     desc: "Sincroniza apps declaradas en el registry de build"

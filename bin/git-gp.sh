@@ -7,17 +7,52 @@ IFS=$'\n\t'
 # DISPATCHER DE CONTEXTO (repo raíz -> script correcto)......
 # ==============================================================================
 if [[ "${DEVTOOLS_DISPATCH_DONE:-0}" != "1" ]]; then
+    __read_vendor_dir_from_contract() {
+        local contract_file="$1"
+        [[ -f "$contract_file" ]] || return 0
+        awk '
+            function clean(v) {
+                gsub(/["\047]/, "", v)
+                sub(/[[:space:]]+#.*/, "", v)
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", v)
+                return v
+            }
+            /^[[:space:]]*#/ { next }
+            /^[[:space:]]*paths:[[:space:]]*$/ { in_paths=1; next }
+            in_paths && /^[^[:space:]]/ { in_paths=0 }
+            in_paths && /^[[:space:]]*vendor_dir:[[:space:]]*/ {
+                line=$0
+                sub(/^[[:space:]]*vendor_dir:[[:space:]]*/, "", line)
+                print clean(line)
+                exit
+            }
+            /^[[:space:]]*vendor_dir:[[:space:]]*/ {
+                line=$0
+                sub(/^[[:space:]]*vendor_dir:[[:space:]]*/, "", line)
+                print clean(line)
+                exit
+            }
+        ' "$contract_file" 2>/dev/null || true
+    }
+
     __self_path="${BASH_SOURCE[0]}"
     __self_real="$(cd "$(dirname "${__self_path}")" && pwd)/$(basename "${__self_path}")"
     __repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
     __script_name="$(basename "${__self_path}")"
     __dispatch_target=""
+    __vendor_dir="$(__read_vendor_dir_from_contract "${__repo_root}/devtools.repo.yaml")"
 
-    for __candidate in \
-        "${__repo_root}/bin/${__script_name}" \
-        "${__repo_root}/.devtools/bin/${__script_name}" \
-        "/webapps/ihh-devtools/bin/${__script_name}"
-    do
+    if [[ -n "${__vendor_dir:-}" ]]; then
+        __vendor_dir="${__vendor_dir#./}"
+        __vendor_dir="${__vendor_dir%/}"
+    fi
+
+    __candidates=("${__repo_root}/bin/${__script_name}")
+    if [[ -n "${__vendor_dir:-}" ]]; then
+        __candidates+=("${__repo_root}/${__vendor_dir}/bin/${__script_name}")
+    fi
+
+    for __candidate in "${__candidates[@]}"; do
         [[ -f "${__candidate}" ]] || continue
         __candidate_real="$(cd "$(dirname "${__candidate}")" && pwd)/$(basename "${__candidate}")"
         if [[ "${__candidate_real}" != "${__self_real}" ]]; then
@@ -32,8 +67,10 @@ if [[ "${DEVTOOLS_DISPATCH_DONE:-0}" != "1" ]]; then
     export DEVTOOLS_DISPATCH_REPO_ROOT="${__repo_root}"
     export DEVTOOLS_DISPATCH_TO="${__dispatch_target}"
     if [[ "${__dispatch_target}" != "${__self_real}" ]]; then
-        echo "ℹ️  DISPATCH_REPO_ROOT=${DEVTOOLS_DISPATCH_REPO_ROOT}"
-        echo "ℹ️  DISPATCH_TO=${DEVTOOLS_DISPATCH_TO}"
+        if [[ "${DEVTOOLS_DEBUG_DISPATCH:-0}" == "1" ]]; then
+            echo "ℹ️  DISPATCH_REPO_ROOT=${DEVTOOLS_DISPATCH_REPO_ROOT}"
+            echo "ℹ️  DISPATCH_TO=${DEVTOOLS_DISPATCH_TO}"
+        fi
         export DEVTOOLS_DISPATCH_DONE=1
         exec bash "${__dispatch_target}" "$@"
     fi

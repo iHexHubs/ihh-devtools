@@ -26,10 +26,10 @@ run_step_git_config() {
     # ==========================================================================
     # Prioridad: Local > Global
     # Usamos el helper git_get para evitar errores si las llaves no existen
-    local local_name="$(git_get local user.name)"
-    local local_email="$(git_get local user.email)"
-    local global_name="$(git_get global user.name)"
-    local global_email="$(git_get global user.email)"
+    local local_name="$(git_get local user.name 2>/dev/null || true)"
+    local local_email="$(git_get local user.email 2>/dev/null || true)"
+    local global_name="$(git_get global user.name 2>/dev/null || true)"
+    local global_email="$(git_get global user.email 2>/dev/null || true)"
 
     # Variables que exportaremos para el Step 04
     export GIT_NAME=""
@@ -125,7 +125,7 @@ run_step_git_config() {
     if [ -n "$SSH_KEY_FINAL" ]; then
         # --- FIX: CONFIRMACIÓN ANTES DE PISAR (P2) ---
         local current_key
-        current_key=$(git_get global user.signingkey)
+        current_key="$(git_get global user.signingkey 2>/dev/null || true)"
         local do_configure=true
 
         # Si ya existe una llave y es distinta a la nueva, preguntamos.
@@ -179,7 +179,7 @@ run_step_git_config() {
     else
         # Fallback por si este script se corre aislado (sin paso 2)
         local current_key
-        current_key=$(git_get global user.signingkey)
+        current_key="$(git_get global user.signingkey 2>/dev/null || true)"
         if [ -n "$current_key" ]; then
             ui_success "Firma SSH ya configurada previamente (Key: $current_key)."
             SIGNING_KEY="$current_key"
