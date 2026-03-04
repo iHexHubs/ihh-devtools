@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 # Crea o abre PR de la rama actual.
-BASE="${BASE_BRANCH:-dev}"
+BASE="${BASE_BRANCH:-${PR_BASE_BRANCH:-dev}}"
 
-branch="$(git branch --show-current)"
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "❌ Debes ejecutar esto dentro de un repositorio Git."; exit 1; }
+
+branch="$(git branch --show-current 2>/dev/null || true)"
 if [[ -z "$branch" ]]; then
   echo "❌ HEAD desacoplado. No puedo abrir PR."
   exit 1
@@ -16,8 +18,8 @@ if [[ "$branch" != feature/* && "$branch" != fix/* && "$branch" != hotfix/* ]]; 
   exit 1
 fi
 
-command -v gh >/dev/null 2>&1 || { echo "❌ Falta gh CLI"; exit 1; }
-gh auth status >/dev/null 2>&1 || { echo "❌ gh no autenticado. Ejecuta: gh auth login"; exit 1; }
+command -v gh >/dev/null 2>&1 || { echo "❌ Falta 'gh' (CLI) para crear/listar PRs."; exit 1; }
+gh auth status >/dev/null 2>&1 || { echo "❌ 'gh' no autenticado. Ejecuta: gh auth login"; exit 1; }
 
 # Si no hay PR abierto, créalo; si existe, muéstralo
 count="$(GH_PAGER=cat gh pr list --state open --head "$branch" --base "$BASE" --json number --jq 'length' 2>/dev/null || echo 0)"

@@ -48,6 +48,17 @@ export DEVTOOLS_WIZARD_MARKER_FILE="${MARKER_FILE}"
 source "${LIB_BASE}/core/config.sh"
 source "${LIB_BASE}/ui/styles.sh"
 
+wizard_spinner_or_info() {
+    local msg="$1"
+    shift || true
+    if declare -F ui_spinner >/dev/null 2>&1; then
+        ui_spinner "$msg" "$@"
+        return 0
+    fi
+    echo "ℹ️  $msg"
+    "$@" >/dev/null 2>&1 || true
+}
+
 # 1.4 Cargar Módulos del Wizard
 WIZARD_DIR="${LIB_BASE}/wizard"
 source "${WIZARD_DIR}/step-01-auth.sh"
@@ -117,8 +128,8 @@ if [ "$VERIFY_ONLY" = true ]; then
     if [ -z "$CURRENT_NAME" ]; then CURRENT_NAME="$(git_get local user.name 2>/dev/null || true)"; fi
     
     # --- FIX: VERIFICAR TAMBIÉN GH AUTH (P2) ---
-    ui_spinner "Verificando sesión GH CLI..." sleep 1
-    if ! gh auth status --hostname github.com >/dev/null 2>&1; then
+    wizard_spinner_or_info "Verificando sesión GH CLI..." sleep 1
+    if ! GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh auth status --hostname github.com >/dev/null 2>&1; then
         ui_error "GH CLI no autenticado."
         ui_info "Ejecuta './bin/setup-wizard.sh --force' para loguearte."
         exit 1
@@ -139,8 +150,7 @@ if [ "$VERIFY_ONLY" = true ]; then
         fi
     fi
 
-    # Usamos ui_spinner solo visualmente
-    ui_spinner "Verificando conexión SSH ($TEST_HOST)..." sleep 1
+    wizard_spinner_or_info "Verificando conexión SSH ($TEST_HOST)..." sleep 1
     
     if ssh -T "git@$TEST_HOST" \
         -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new 2>&1 | \

@@ -106,7 +106,7 @@ ensure_promote_preflight_or_die() {
     local source_ref="${1:-}"
     ensure_repo_or_die
     ensure_clean_git
-    ensure_origin_is_github_com_or_die
+    ensure_origin_exists_or_die
     ensure_commit_ref_exists_local_or_die "$source_ref"
 }
 
@@ -423,28 +423,38 @@ remote_health_check() {
 
     local out rc
     if declare -F try_cmd >/dev/null 2>&1; then
-        out="$(try_cmd git ls-remote --exit-code --heads "$remote" "$branch" 2>/dev/null)"
+        out="$(try_cmd env GIT_TERMINAL_PROMPT=0 git ls-remote --exit-code --heads "$remote" "$branch" 2>/dev/null)"
         rc=$?
     else
-        out="$(git ls-remote --exit-code --heads "$remote" "$branch" 2>/dev/null)"
+        out="$(GIT_TERMINAL_PROMPT=0 git ls-remote --exit-code --heads "$remote" "$branch" 2>/dev/null)"
         rc=$?
     fi
 
     if [[ "$rc" -ne 0 || -z "${out:-}" ]]; then
-        if declare -F log_error >/dev/null 2>&1; then
-            log_error "GitHub no accesible o ref no encontrada: ${remote}/${branch}"
-        else
-            echo "❌ GitHub no accesible o ref no encontrada: ${remote}/${branch}" >&2
+        # Por defecto NO bloqueamos por red/permisos al verificar remoto.
+        # Modo estricto: DEVTOOLS_STRICT_REMOTE_HEALTH=1.
+        if [[ "${DEVTOOLS_STRICT_REMOTE_HEALTH:-0}" == "1" ]]; then
+            if declare -F log_error >/dev/null 2>&1; then
+                log_error "No se pudo verificar remoto: ${remote}/${branch}"
+            else
+                echo "❌ No se pudo verificar remoto: ${remote}/${branch}" >&2
+            fi
+            return 1
         fi
-        return 1
+        if declare -F log_warn >/dev/null 2>&1; then
+            log_warn "No se pudo verificar remoto (skip): ${remote}/${branch}"
+        else
+            echo "⚠️  No se pudo verificar remoto (skip): ${remote}/${branch}" >&2
+        fi
+        return 0
     fi
 
     local sha
     sha="$(echo "$out" | awk '{print $1}' | head -n 1)"
     if declare -F log_success >/dev/null 2>&1; then
-        log_success "GitHub accesible: ${remote}/${branch} @${sha:0:7}"
+        log_success "Remoto accesible: ${remote}/${branch} @${sha:0:7}"
     else
-        echo "✅ GitHub accesible: ${remote}/${branch} @${sha:0:7}"
+        echo "✅ Remoto accesible: ${remote}/${branch} @${sha:0:7}"
     fi
     return 0
 }
@@ -537,6 +547,12 @@ __resolve_ssh_hostname() {
 }
 
 ensure_origin_is_github_com_or_die() {
+    # Compatibilidad:
+    # - Por defecto solo exigimos que exista origin.
+    # - Modo estricto GitHub: DEVTOOLS_REQUIRE_GITHUB=1.
+    ensure_origin_exists_or_die
+    [[ "${DEVTOOLS_REQUIRE_GITHUB:-0}" == "1" ]] || return 0
+
     local url host resolved=""
     url="$(git_remote_url origin)"
 
@@ -571,4 +587,16 @@ ensure_origin_is_github_com_or_die() {
     echo "   git remote set-url origin git@github.com:OWNER/REPO.git" >&2
     echo >&2
     exit 1
+}
+
+ensure_origin_exists_or_die() {
+    local url=""
+    url="$(git_remote_url origin)"
+    if [[ -z "${url:-}" ]]; then
+        if declare -F die >/dev/null 2>&1; then
+            die "❌ Error: no existe el remoto 'origin'. Configúralo antes de continuar."
+        fi
+        echo "❌ Error: no existe el remoto 'origin'." >&2
+        exit 1
+    fi
 }

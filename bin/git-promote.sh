@@ -3,7 +3,7 @@
 #
 # Orquesta la carga de librerías, validaciones de entorno y ejecución de workflows.
 
-set -e
+set -euo pipefail
 
 # ==============================================================================
 # DISPATCH DE CONTEXTO (repo raíz -> script correcto)
@@ -118,7 +118,7 @@ ensure_local_checkout() {
     fi
 
     if [[ "${sync_to_origin}" == "1" ]]; then
-        git_entry fetch origin "${local_branch}" >/dev/null 2>&1 || true
+        GIT_TERMINAL_PROMPT=0 git_entry fetch origin "${local_branch}" >/dev/null 2>&1 || true
         if git_entry reset --hard "origin/${local_branch}" >/dev/null 2>&1; then
             log_info "🔄 '${local_branch}' quedó alineada a origin/${local_branch}."
         else
@@ -247,7 +247,7 @@ trap 'cleanup_on_exit' EXIT INT TERM
 # 2. PARSEO DE ARGUMENTOS
 # ==============================================================================
 # Soporte simple para flags globales antes del comando
-while [[ "$1" == -* ]]; do
+while [[ "${1:-}" == -* ]]; do
     case "$1" in
         -y|--yes)
             export DEVTOOLS_ASSUME_YES=1
@@ -314,7 +314,7 @@ fi
 # Regla: "Primero seguridad, luego el menú".
 # Este bloque corre SIEMPRE (excepto en doctor/diagnóstico) antes de tocar ramas.
 # - Valida que estamos en un repo.
-# - Valida que origin existe y apunta a github.com.
+# - Valida que origin exista. Si DEVTOOLS_REQUIRE_GITHUB=1, exige github.com.
 # - (Opcional/recomendado) hace fetch estricto para no operar con refs viejas.
 # Luego muestra el 🧯 MENÚ DE SEGURIDAD y define DEVTOOLS_PROMOTE_STRATEGY.
 
@@ -347,7 +347,7 @@ if [[ "${TARGET_ENV:-}" != "doctor" ]]; then
         else
             # Fetch preferido (si falla por red, degradamos de forma explícita según target).
             fetch_rc=0
-            git fetch origin --prune || fetch_rc=$?
+            GIT_TERMINAL_PROMPT=0 git fetch origin --prune || fetch_rc=$?
             if [[ "$fetch_rc" -ne 0 ]]; then
                 log_warn "FETCH FAILED: remote=origin rc=${fetch_rc} target=${TARGET_ENV:-?}"
                 if [[ "${TARGET_ENV:-}" == "local" ]]; then

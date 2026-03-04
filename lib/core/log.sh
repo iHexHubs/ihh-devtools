@@ -13,7 +13,7 @@ log_success() {
 }
 
 log_warn() {
-  echo "WARN: $*"
+  echo "WARN: $*" >&2
 }
 
 log_error() {

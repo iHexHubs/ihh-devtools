@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Utilidades base de CLI.
-set -u
 
 # ==============================================================================
 # 1. CONSTANTES Y COLORES
@@ -396,10 +395,8 @@ check_superrepo_guard() {
         echo "🛑 SUPERREPO (NO ACP)"
         echo "🔴 Aquí NO se usa este comando (marcado con .no-acp-here)."
         echo
-        echo "✅ Usa en su lugar:"
-        echo "   • make rel"
-        echo "   • make rel-auto"
-        echo "   • git rel"
+        echo "💡 Sugerencia: ejecuta este comando en el subdirectorio correcto,"
+        echo "   o fuerza el bypass (solo si sabes lo que haces)."
         echo
         
         if is_tty; then
@@ -407,16 +404,13 @@ check_superrepo_guard() {
             echo "¿Qué quieres hacer ahora?"
             export COLUMNS=1
             PS3="Elige opción: "
-            select opt in "make rel" "make rel-auto" "git rel" "Continuar (forzar)" "Salir"; do
+            select opt in "Continuar (forzar)" "Salir"; do
                 case "$REPLY" in
-                    1) exec make rel ;;
-                    2) exec make rel-auto ;;
-                    3) exec git rel ;;
-                    4) 
+                    1)
                         # Relanzamos el script actual con una flag de entorno para saltar el guard
                         exec env DISABLE_NO_ACP_GUARD=1 "$script_path" "${original_args[@]}" 
                         ;;
-                    5) echo "✋ Cancelado."; exit 2 ;;
+                    2) echo "✋ Cancelado."; exit 2 ;;
                     *) echo "Opción inválida."; continue ;;
                 esac
             done

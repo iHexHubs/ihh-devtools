@@ -4,7 +4,7 @@
 # Orden:
 # 1) <repo>/VERSION
 # 2) <repo>/<vendor_dir>/VERSION        (vendor_dir via contrato; default ".devtools")
-# 3) Compat legacy: <repo>/.devtools/VERSION (solo por repos antiguos)
+# 3) Compat legacy: <repo>/<dot_dir>/VERSION (solo por repos antiguos)
 
 # Nota: evitamos `set -euo pipefail` porque este archivo puede ser "source"
 # y no debe alterar el modo del caller.
@@ -16,6 +16,7 @@ source "${__devtools_core_dir}/contract.sh"
 devtools_read_version_file() {
   local root="$1"
   local vendor_dir=""
+  local dot_dir=".devtools"
   local f=""
 
   vendor_dir="$(devtools_vendor_dir "$root" 2>/dev/null || echo ".devtools")"
@@ -25,7 +26,7 @@ devtools_read_version_file() {
   for f in \
     "$root/VERSION" \
     "$root/${vendor_dir}/VERSION" \
-    "$root/.devtools/VERSION"
+    "$root/${dot_dir}/VERSION"
   do
     if [[ -f "$f" ]]; then
       sed -n '1p' "$f" | tr -d ' \t\r\n'

@@ -44,8 +44,18 @@ devtools_resolve_path() {
         return 0
     fi
 
+    # No permitimos escapes fuera del repo por defecto.
+    if [[ "$cleaned" =~ (^|/)\.\.(/|$) ]]; then
+        printf '\n'
+        return 0
+    fi
+
     if [[ "$cleaned" == /* ]]; then
-        printf '%s\n' "$cleaned"
+        if [[ "${DEVTOOLS_ALLOW_ABSOLUTE_PATHS:-0}" == "1" ]]; then
+            printf '%s\n' "$cleaned"
+        else
+            printf '\n'
+        fi
         return 0
     fi
 
@@ -64,37 +74,13 @@ devtools_find_contract_file() {
         fi
     fi
 
-    for candidate in \
-        "${repo_root}/devtools.repo.yaml" \
-        "${repo_root}/devtools.yaml"
-    do
-        if [[ -f "$candidate" ]]; then
-            printf '%s\n' "$candidate"
-            return 0
-        fi
-    done
+    candidate="${repo_root}/devtools.repo.yaml"
+    if [[ -f "$candidate" ]]; then
+        printf '%s\n' "$candidate"
+        return 0
+    fi
 
     printf '\n'
-}
-
-devtools_parse_contract_with_yq() {
-    local contract_file="$1"
-    local build_registry=""
-    local deploy_registry=""
-    local vendor_dir=""
-    local profile_file=""
-
-    command -v yq >/dev/null 2>&1 || return 1
-
-    build_registry="$(yq -r '.registries.build // .registries.apps // .build_registry // .apps_registry // ""' "$contract_file" 2>/dev/null || true)"
-    deploy_registry="$(yq -r '.registries.deploy // .registries.services // .deploy_registry // .services_registry // ""' "$contract_file" 2>/dev/null || true)"
-    vendor_dir="$(yq -r '.paths.vendor_dir // .vendor_dir // ""' "$contract_file" 2>/dev/null || true)"
-    profile_file="$(yq -r '.config.profile_file // .profile_file // ""' "$contract_file" 2>/dev/null || true)"
-
-    printf '%s\n' "$(devtools_clean_yaml_value "$build_registry")"
-    printf '%s\n' "$(devtools_clean_yaml_value "$deploy_registry")"
-    printf '%s\n' "$(devtools_clean_yaml_value "$vendor_dir")"
-    printf '%s\n' "$(devtools_clean_yaml_value "$profile_file")"
 }
 
 devtools_parse_contract_fallback() {
@@ -181,10 +167,7 @@ devtools_parse_contract_fallback() {
 
 devtools_parse_contract_fields() {
     local contract_file="$1"
-
-    if ! devtools_parse_contract_with_yq "$contract_file"; then
-        devtools_parse_contract_fallback "$contract_file"
-    fi
+    devtools_parse_contract_fallback "$contract_file"
 }
 
 devtools_load_contract() {
@@ -199,20 +182,18 @@ devtools_load_contract() {
     local parsed_deploy=""
     local parsed_vendor=""
     local parsed_profile=""
+    local __dot_dir=".devtools"
+    local __build_tail="config/apps.yaml"
+    local __deploy_tail="ecosystem/services.yaml"
+    local __allowed_build=""
+    local __allowed_deploy=""
+    local legacy_vendor_rc=""
 
     if [[ -z "$repo_root" ]]; then
         repo_root="$(devtools_repo_root)"
     fi
-
-    if [[ -n "$build_registry" ]]; then
-        build_registry="$(devtools_resolve_path "$repo_root" "$build_registry")"
-    fi
-    if [[ -n "$deploy_registry" ]]; then
-        deploy_registry="$(devtools_resolve_path "$repo_root" "$deploy_registry")"
-    fi
-    if [[ -n "$profile_config" ]]; then
-        profile_config="$(devtools_resolve_path "$repo_root" "$profile_config")"
-    fi
+    __allowed_build="${repo_root}/${__dot_dir}/${__build_tail}"
+    __allowed_deploy="${repo_root}/${__deploy_tail}"
 
     contract_file="$(devtools_find_contract_file "$repo_root")"
     if [[ -f "$contract_file" ]]; then
@@ -223,7 +204,7 @@ devtools_load_contract() {
         parsed_profile="${parsed_lines[3]:-}"
     fi
 
-    # vendor_dir: contrato gana salvo override explicito.
+    # vendor_dir: contrato gana salvo override explícito.
     if [[ -n "$parsed_vendor" ]]; then
         if [[ -z "${vendor_dir:-}" || "$vendor_dir" == ".devtools" || "$vendor_dir" == "./.devtools" ]]; then
             vendor_dir="$parsed_vendor"
@@ -233,40 +214,60 @@ devtools_load_contract() {
     vendor_dir="$(devtools_clean_yaml_value "$vendor_dir")"
     vendor_dir="${vendor_dir#./}"
     vendor_dir="${vendor_dir%/}"
+    if [[ "$vendor_dir" == /* ]]; then
+        vendor_dir=""
+    fi
     if [[ -z "$vendor_dir" ]]; then
         vendor_dir=".devtools"
     fi
 
+    # Resolver overrides por entorno primero.
+    if [[ -n "$build_registry" ]]; then
+        build_registry="$(devtools_resolve_path "$repo_root" "$build_registry")"
+    fi
+    if [[ -n "$deploy_registry" ]]; then
+        deploy_registry="$(devtools_resolve_path "$repo_root" "$deploy_registry")"
+    fi
+    if [[ -n "$profile_config" ]]; then
+        profile_config="$(devtools_resolve_path "$repo_root" "$profile_config")"
+    fi
+
+    # Resolver contrato.
     if [[ -z "$build_registry" && -n "$parsed_build" ]]; then
         build_registry="$(devtools_resolve_path "$repo_root" "$parsed_build")"
     fi
     if [[ -z "$deploy_registry" && -n "$parsed_deploy" ]]; then
         deploy_registry="$(devtools_resolve_path "$repo_root" "$parsed_deploy")"
     fi
-    # profile_file: contrato gana cuando el valor previo esta vacio o en defaults legacy.
+
+    # Enforce: solo permitimos los archivos de contrato de build/deploy.
+    if [[ -n "${build_registry:-}" && "${build_registry}" != "${__allowed_build}" ]]; then
+        echo "⚠️  Ignorando registries.build fuera de contrato: ${build_registry}" >&2
+        build_registry=""
+    fi
+    if [[ -n "${deploy_registry:-}" && "${deploy_registry}" != "${__allowed_deploy}" ]]; then
+        echo "⚠️  Ignorando registries.deploy fuera de contrato: ${deploy_registry}" >&2
+        deploy_registry=""
+    fi
+
+    # profile_file: contrato gana cuando el valor previo está vacío o en defaults legacy.
     if [[ -n "$parsed_profile" ]]; then
+        legacy_vendor_rc="${repo_root}/${vendor_dir}/.git-acprc"
         if [[ -z "${profile_config:-}" \
             || "$profile_config" == ".git-acprc" \
             || "$profile_config" == "./.git-acprc" \
             || "$profile_config" == "${repo_root}/.git-acprc" \
-            || "$profile_config" == "${repo_root}/.devtools/.git-acprc" ]]; then
+            || "$profile_config" == "$legacy_vendor_rc" ]]; then
             profile_config="$(devtools_resolve_path "$repo_root" "$parsed_profile")"
         fi
     fi
 
-    if [[ -z "$build_registry" && -f "${repo_root}/config/apps.yaml" ]]; then
-        build_registry="${repo_root}/config/apps.yaml"
+    # Defaults (solo paths permitidos por contrato):
+    if [[ -z "$build_registry" && -f "${__allowed_build}" ]]; then
+        build_registry="${__allowed_build}"
     fi
-    if [[ -z "$deploy_registry" && -f "${repo_root}/config/services.yaml" ]]; then
-        deploy_registry="${repo_root}/config/services.yaml"
-    fi
-
-    # Compatibilidad con layout vendorizado.
-    if [[ -z "$build_registry" && -f "${repo_root}/${vendor_dir}/config/apps.yaml" ]]; then
-        build_registry="${repo_root}/${vendor_dir}/config/apps.yaml"
-    fi
-    if [[ -z "$deploy_registry" && -f "${repo_root}/${vendor_dir}/config/services.yaml" ]]; then
-        deploy_registry="${repo_root}/${vendor_dir}/config/services.yaml"
+    if [[ -z "$deploy_registry" && -f "${__allowed_deploy}" ]]; then
+        deploy_registry="${__allowed_deploy}"
     fi
 
     export DEVTOOLS_REPO_ROOT="$repo_root"
@@ -286,6 +287,7 @@ devtools_vendor_dir() {
 devtools_vendor_dir_path() {
     local repo_root="${1:-}"
     local vendor_dir=""
+
     devtools_load_contract "$repo_root"
     vendor_dir="${DEVTOOLS_VENDOR_DIR:-.devtools}"
 
@@ -305,11 +307,12 @@ devtools_profile_config_file() {
 
 devtools_require_build_registry() {
     local repo_root="${1:-}"
+    local __dot_dir=".devtools"
 
     devtools_load_contract "$repo_root"
     if [[ -z "${DEVTOOLS_BUILD_REGISTRY:-}" ]]; then
         echo "No se pudo resolver DEVTOOLS_BUILD_REGISTRY." >&2
-        echo "Define registries.build en devtools.repo.yaml o crea config/apps.yaml." >&2
+        echo "Crea '${__dot_dir}/config/apps.yaml' (contrato) o define registries.build apuntando a ese mismo archivo." >&2
         return 1
     fi
 
@@ -327,7 +330,7 @@ devtools_require_deploy_registry() {
     devtools_load_contract "$repo_root"
     if [[ -z "${DEVTOOLS_DEPLOY_REGISTRY:-}" ]]; then
         echo "No se pudo resolver DEVTOOLS_DEPLOY_REGISTRY." >&2
-        echo "Define registries.deploy en devtools.repo.yaml o crea config/services.yaml." >&2
+        echo "Crea 'ecosystem/services.yaml' (contrato) o define registries.deploy apuntando a ese mismo archivo." >&2
         return 1
     fi
 

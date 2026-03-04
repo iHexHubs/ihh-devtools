@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/ssh-ident.sh
+# Helper de identidad SSH/Git (autonomo, sin rutas absolutas legacy).
 
 # ==============================================================================
 # 1. GESTIÓN DEL AGENTE SSH
@@ -34,11 +34,13 @@ load_or_start_agent() {
 # ==============================================================================
 
 fingerprint_of() { 
+    command -v ssh-keygen >/dev/null 2>&1 || return 1
     ssh-keygen -lf "$1" 2>/dev/null | awk '{print $2}'; 
 }
 
 ensure_key_added() {
   local key="$1"
+  command -v ssh-add >/dev/null 2>&1 || return 1
   # Expansión de tilde si es necesario
   case "$key" in
      "~/"*) key="${HOME}/${key#~/}" ;;
@@ -61,7 +63,8 @@ ensure_key_added() {
 
 test_github_ssh() {
   local host_alias="$1"
-  ssh -o StrictHostKeyChecking=accept-new -T "git@${host_alias}" 2>&1 || true
+  command -v ssh >/dev/null 2>&1 || return 0
+  ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new -T "git@${host_alias}" 2>&1 || true
 }
 
 # ==============================================================================
@@ -87,14 +90,14 @@ normalize_url_to_alias() {
     return 0
   fi
   repo="${repo%.git}"
-  repo="${repo%.git}"
   echo "git@${alias}:${owner}/${repo}.git"
 }
 
 ensure_remote_exists_and_points_to_alias() {
   local remote="$1" alias="$2" owner="$3"
   local top repo url newurl
-  top="$(git rev-parse --show-toplevel)"
+  top="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  [[ -n "${top:-}" ]] || return 1
   repo="$(basename "$top")"
 
   if git remote | grep -q "^${remote}$"; then
@@ -124,13 +127,13 @@ remote_repo_or_create() {
     return 0
   fi
 
-  echo "ℹ️  No se pudo consultar $remote ($url). ¿Existe el repo? Intentando crear..."
+  echo "ℹ️  No se pudo consultar $remote ($url). Puede ser red/permisos. (skip creacion automatica si offline)."
   
   # Usamos las variables globales GH_AUTO_CREATE y GH_DEFAULT_VISIBILITY definidas en config
   local auto_create="${GH_AUTO_CREATE:-false}"
   local visibility="${GH_DEFAULT_VISIBILITY:-private}"
 
-  if [[ "${auto_create}" == "true" ]] && command -v gh >/dev/null 2>&1; then
+  if [[ "${auto_create}" == "true" ]] && command -v gh >/dev/null 2>&1 && [[ -z "${CI:-}" ]]; then
     if gh repo view "$r" &>/dev/null; then
       echo "🟡 El repo $r ya existe. Probablemente es un tema de permisos o llave."
       return 0
@@ -229,6 +232,12 @@ setup_git_identity() {
   # pero verificamos si hay perfiles.
   
   if [ ${#PROFILES[@]} -eq 0 ]; then
+     return 0
+  fi
+
+  # No-TTY: evitamos bloquear en flujos CI/no interactivos.
+  if [[ ! -t 0 || ! -t 1 ]]; then
+     echo "⚠️  Sin TTY: omitiendo selector interactivo de identidad." >&2
      return 0
   fi
 
