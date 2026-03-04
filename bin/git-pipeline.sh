@@ -13,7 +13,12 @@ source "${LIB_DIR}/ci-workflow.sh"
 echo "🚀 Iniciando Pipeline Local (via Git)..."
 
 # Asegurar detección
-detect_ci_tools
+if declare -F detect_ci_tools >/dev/null 2>&1; then
+  detect_ci_tools
+else
+  log_error "No está disponible detect_ci_tools (revisa ci-workflow.sh)."
+  exit 1
+fi
 
 # CAMBIO FASE 1.1: Usar K8S_FULL_CMD en lugar de LOCAL_PIPELINE_CMD
 if [[ -n "${K8S_FULL_CMD:-}" ]]; then

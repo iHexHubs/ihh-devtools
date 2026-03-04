@@ -91,7 +91,9 @@ source "${LIB_DIR}/ai-prompts.sh"  # Templates de Prompts para la IA
 # ==============================================================================
 log_info "🤖 La IA está analizando tus cambios y archivos nuevos..."
 
-BRANCH_NAME=$(git branch --show-current)
+BRANCH_NAME="$(git branch --show-current 2>/dev/null || echo "(detached)")"
+BRANCH_NAME="$(echo "${BRANCH_NAME:-}" | tr -d '[:space:]')"
+[[ -n "${BRANCH_NAME:-}" ]] || BRANCH_NAME="(detached)"
 
 # Usamos la función de la librería git-context.sh
 CHANGES=$(get_full_context_diff)

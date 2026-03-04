@@ -58,6 +58,7 @@ task_exists() {
 }
 
 detect_ci_tools() {
+    local root
     root="$(git rev-parse --show-toplevel 2>/dev/null || echo ".")"
     local has_taskfile=0
     if [[ -f "${root}/Taskfile.yaml" || -f "${root}/Taskfile.yml" || -f "${root}/taskfile.yml" ]]; then
@@ -126,13 +127,15 @@ apps_registry_file() {
     local root
     root="$(git rev-parse --show-toplevel 2>/dev/null || echo ".")"
 
-    devtools_load_contract "$root"
-    if [[ -n "${DEVTOOLS_BUILD_REGISTRY:-}" ]]; then
-        echo "${DEVTOOLS_BUILD_REGISTRY}"
-        return 0
+    # contrato-first: si contract.sh está cargado, resuelve el path permitido
+    if declare -F devtools_require_build_registry >/dev/null 2>&1; then
+        devtools_require_build_registry "$root"
+        return $?
     fi
 
-    echo "${root}/config/apps.yaml"
+    # fallback ultra-simple (solo path permitido)
+    local dot_dir=".devtools"
+    echo "${root}/${dot_dir}/config/apps.yaml"
 }
 
 require_apps_registry() {
@@ -144,18 +147,101 @@ require_apps_registry() {
     fi
 }
 
-require_yq() {
-    command -v yq >/dev/null 2>&1 || {
-        echo "❌ yq no esta instalado."
-        return 1
-    }
+have_yq() { command -v yq >/dev/null 2>&1; }
+have_jq() { command -v jq >/dev/null 2>&1; }
+
+__apps_list_fallback() {
+    local f="$1"
+    # Parser básico (YAML simple) para extraer id/path de apps y components.
+    awk '
+        function trim(s){ sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); return s }
+        BEGIN{ in_apps=0; in_components=0; cur_id=""; cur_path=""; item_has_id=0; item_has_path=0; }
+        {
+            line=$0
+            sub(/\r$/, "", line)
+            if (line ~ /^[[:space:]]*#/ || line ~ /^[[:space:]]*$/) next
+            if (line ~ /^apps:[[:space:]]*$/) { in_apps=1; in_components=0; next }
+            if (!in_apps) next
+            if (line ~ /^[[:space:]]*components:[[:space:]]*$/) { in_components=1; next }
+            if (line ~ /^[[:space:]]*-[[:space:]]*id:[[:space:]]*/) {
+                cur_id=line
+                sub(/^[[:space:]]*-[[:space:]]*id:[[:space:]]*/, "", cur_id)
+                cur_id=trim(cur_id)
+                item_has_id=1
+                item_has_path=0
+                cur_path=""
+                next
+            }
+            if (item_has_id && line ~ /^[[:space:]]*path:[[:space:]]*/) {
+                cur_path=line
+                sub(/^[[:space:]]*path:[[:space:]]*/, "", cur_path)
+                cur_path=trim(cur_path)
+                if (cur_id != "" && cur_path != "") {
+                    printf "%s\t%s\n", cur_id, cur_path
+                }
+                item_has_path=1
+                next
+            }
+        }
+    ' "$f"
 }
 
-require_jq() {
-    command -v jq >/dev/null 2>&1 || {
-        echo "❌ jq no esta instalado."
-        return 1
-    }
+__app_resolve_fallback() {
+    local needle="$1"
+    local f="$2"
+    local root="$3"
+    local needle_norm
+    needle_norm="$(normalize_app_ref "$needle" "$root")"
+
+    # Fallback: busca primer match por id o path y extrae campos simples si aparecen.
+    awk -v want="$needle_norm" '
+        function trim(s){ sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); return s }
+        BEGIN{ in_apps=0; found=0; id=""; path=""; build_mode=""; build_cmd_local=""; build_cmd_act=""; artifact_paths=""; zip_name_pattern=""; }
+        {
+            line=$0
+            sub(/\r$/, "", line)
+            if (line ~ /^[[:space:]]*#/ || line ~ /^[[:space:]]*$/) next
+            if (line ~ /^apps:[[:space:]]*$/) { in_apps=1; next }
+            if (!in_apps) next
+
+            if (line ~ /^[[:space:]]*-[[:space:]]*id:[[:space:]]*/) {
+                id=line
+                sub(/^[[:space:]]*-[[:space:]]*id:[[:space:]]*/, "", id)
+                id=trim(id)
+                path=""
+                build_mode=""
+                build_cmd_local=""
+                build_cmd_act=""
+                artifact_paths=""
+                zip_name_pattern=""
+                found=0
+                next
+            }
+            if (id != "" && line ~ /^[[:space:]]*path:[[:space:]]*/) {
+                path=line
+                sub(/^[[:space:]]*path:[[:space:]]*/, "", path)
+                path=trim(path)
+                if (id == want || path == want) found=1
+                next
+            }
+            if (!found) next
+
+            if (line ~ /^[[:space:]]*build_mode:[[:space:]]*/) { build_mode=line; sub(/^[[:space:]]*build_mode:[[:space:]]*/, "", build_mode); build_mode=trim(build_mode); next }
+            if (line ~ /^[[:space:]]*build_cmd_local:[[:space:]]*/) { build_cmd_local=line; sub(/^[[:space:]]*build_cmd_local:[[:space:]]*/, "", build_cmd_local); build_cmd_local=trim(build_cmd_local); next }
+            if (line ~ /^[[:space:]]*build_cmd_act:[[:space:]]*/) { build_cmd_act=line; sub(/^[[:space:]]*build_cmd_act:[[:space:]]*/, "", build_cmd_act); build_cmd_act=trim(build_cmd_act); next }
+            if (line ~ /^[[:space:]]*zip_name_pattern:[[:space:]]*/) { zip_name_pattern=line; sub(/^[[:space:]]*zip_name_pattern:[[:space:]]*/, "", zip_name_pattern); zip_name_pattern=trim(zip_name_pattern); next }
+        }
+        END{
+            if (!found) exit 2
+            printf "app_id=%s\n", id
+            printf "app_root=%s\n", path
+            printf "build_mode=%s\n", build_mode
+            printf "build_cmd_local=%s\n", build_cmd_local
+            printf "build_cmd_act=%s\n", build_cmd_act
+            printf "artifact_paths=%s\n", artifact_paths
+            printf "zip_name_pattern=%s\n", zip_name_pattern
+        }
+    ' "$f"
 }
 
 normalize_app_ref() {
@@ -172,20 +258,20 @@ normalize_app_ref() {
 }
 
 apps_list() {
-    require_yq || return 1
     require_apps_registry || return 1
 
     local f
     f="$(apps_registry_file)"
 
-    yq -r '.apps[] | "\(.id)\t\(.path)"' "$f"
-    yq -r '.apps[]?.components[]? | "\(.id)\t\(.path)"' "$f"
+    if have_yq; then
+        yq -r '.apps[] | "\(.id)\t\(.path)"' "$f"
+        yq -r '.apps[]?.components[]? | "\(.id)\t\(.path)"' "$f"
+        return 0
+    fi
+    __apps_list_fallback "$f"
 }
 
 app_resolve() {
-    require_yq || return 1
-    require_jq || return 1
-
     local needle="${1:-}"
     if [[ -z "$needle" ]]; then
         echo "❌ Debes indicar APP=<id|path>."
@@ -199,35 +285,46 @@ app_resolve() {
 
     needle_norm="$(normalize_app_ref "$needle" "$root")"
 
-    app_json="$(NEEDLE="$needle_norm" yq -o=json \
-        '.apps[] | select(.id == strenv(NEEDLE) or .path == strenv(NEEDLE))' "$f")"
-
-    if [[ -z "$app_json" || "$app_json" == "null" ]]; then
+    # Ruta rápida: si hay yq+jq, mantenemos el comportamiento completo.
+    if have_yq && have_jq; then
         app_json="$(NEEDLE="$needle_norm" yq -o=json \
-            '.apps[]?.components[]? | select(.id == strenv(NEEDLE) or .path == strenv(NEEDLE))' "$f")"
+            '.apps[] | select(.id == strenv(NEEDLE) or .path == strenv(NEEDLE))' "$f")"
+
+        if [[ -z "$app_json" || "$app_json" == "null" ]]; then
+            app_json="$(NEEDLE="$needle_norm" yq -o=json \
+                '.apps[]?.components[]? | select(.id == strenv(NEEDLE) or .path == strenv(NEEDLE))' "$f")"
+        fi
+
+        if [[ -z "$app_json" || "$app_json" == "null" ]]; then
+            echo "❌ APP '$needle' no existe en $f."
+            return 1
+        fi
+
+        local app_id app_path build_mode build_cmd_local build_cmd_act artifact_paths zip_name_pattern
+        app_id="$(echo "$app_json" | jq -r '.id // ""')"
+        app_path="$(echo "$app_json" | jq -r '.path // ""')"
+        build_mode="$(echo "$app_json" | jq -r '.build_mode // ""')"
+        build_cmd_local="$(echo "$app_json" | jq -r '.build_cmd_local // ""')"
+        build_cmd_act="$(echo "$app_json" | jq -r '.build_cmd_act // ""')"
+        artifact_paths="$(echo "$app_json" | jq -r '.artifact_paths // [] | join(",")')"
+        zip_name_pattern="$(echo "$app_json" | jq -r '.zip_name_pattern // ""')"
+
+        echo "app_id=$app_id"
+        echo "app_root=$app_path"
+        echo "build_mode=$build_mode"
+        echo "build_cmd_local=$build_cmd_local"
+        echo "build_cmd_act=$build_cmd_act"
+        echo "artifact_paths=$artifact_paths"
+        echo "zip_name_pattern=$zip_name_pattern"
+        return 0
     fi
 
-    if [[ -z "$app_json" || "$app_json" == "null" ]]; then
-        echo "❌ APP '$needle' no existe en $f."
-        return 1
+    # Fallback portable (sin yq/jq): mejor esfuerzo.
+    if __app_resolve_fallback "$needle" "$f" "$root"; then
+        return 0
     fi
-
-    local app_id app_path build_mode build_cmd_local build_cmd_act artifact_paths zip_name_pattern
-    app_id="$(echo "$app_json" | jq -r '.id // ""')"
-    app_path="$(echo "$app_json" | jq -r '.path // ""')"
-    build_mode="$(echo "$app_json" | jq -r '.build_mode // ""')"
-    build_cmd_local="$(echo "$app_json" | jq -r '.build_cmd_local // ""')"
-    build_cmd_act="$(echo "$app_json" | jq -r '.build_cmd_act // ""')"
-    artifact_paths="$(echo "$app_json" | jq -r '.artifact_paths // [] | join(",")')"
-    zip_name_pattern="$(echo "$app_json" | jq -r '.zip_name_pattern // ""')"
-
-    echo "app_id=$app_id"
-    echo "app_root=$app_path"
-    echo "build_mode=$build_mode"
-    echo "build_cmd_local=$build_cmd_local"
-    echo "build_cmd_act=$build_cmd_act"
-    echo "artifact_paths=$artifact_paths"
-    echo "zip_name_pattern=$zip_name_pattern"
+    echo "❌ APP '$needle' no existe en $f." >&2
+    return 1
 }
 
 # ==============================================================================

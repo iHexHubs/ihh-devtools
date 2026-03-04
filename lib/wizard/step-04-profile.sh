@@ -41,7 +41,7 @@ run_step_profile_registration() {
     if [ ! -f "$rc_file" ]; then
         ui_info "Creando archivo de configuración inicial..."
         cat <<EOF > "$rc_file"
-# Configuración generada por IHH Devtools Wizard
+# Configuración generada por Devtools Wizard
 PROFILE_SCHEMA_VERSION=1
 DAY_START="00:00"
 REFS_LABEL="Conteo: commit"
@@ -69,7 +69,11 @@ EOF
     # 2. CONSTRUIR DATOS DEL PERFIL
     # ==========================================================================
     local gh_login
-    gh_login=$(gh api user -q ".login" 2>/dev/null || echo "unknown")
+    if command -v gh >/dev/null 2>&1; then
+        gh_login="$(GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh api user -q ".login" 2>/dev/null || echo "unknown")"
+    else
+        gh_login="unknown"
+    fi
     local gh_owner_default="$gh_login"
     
     # --- FIX: Display Name Personalizado (UX) ---
@@ -125,9 +129,10 @@ EOF
     local current_url
     current_url=$(git remote get-url origin 2>/dev/null || true)
 
-    if [[ "$current_url" == https://github.com/* ]]; then
+    if [[ "$current_url" == *"://github.com/"* ]]; then
         local new_url
-        new_url=$(echo "$current_url" | sed -E 's/https:\/\/github.com\//git@github.com:/')
+        local repo_path="${current_url#*://github.com/}"
+        new_url="git@${ssh_host_target}:${repo_path}"
 
         if ! is_tty; then
             ui_warn "Entorno no interactivo: no se modificó 'origin' a SSH."

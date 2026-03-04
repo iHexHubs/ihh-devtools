@@ -92,6 +92,12 @@ source "${LIB_DIR}/git-flow.sh"         # Políticas de ramas
 source "${LIB_DIR}/ssh-ident.sh"        # Identidad SSH/GPG
 source "${LIB_DIR}/ci-workflow.sh"      # Flujo Post-Push (CI/PR)
 
+# Defaults "set -u safe" (si config/rc no los define)
+: "${SIMPLE_MODE:=false}"
+: "${DAY_START:=00:00}"
+: "${REFS_LABEL:=Conteo: commit}"
+: "${DAILY_GOAL:=10}"
+
 TOOL_NAME="$(basename "${__repo_root}")"
 [[ -n "${TOOL_NAME:-}" ]] || TOOL_NAME="devtools"
 echo "🟢 [${TOOL_NAME}] Ejecutando git-acp..."
@@ -129,6 +135,9 @@ if ! $SIMPLE_MODE; then
 else
     echo "⚡ Modo Estándar (Sin gestión de identidades avanzada)."
 fi
+
+# Si setup_git_identity no exportó push_target, usamos origin.
+: "${push_target:=origin}"
 
 # ==============================================================================
 # 4. PARSEO DE ARGUMENTOS DE COMANDO
@@ -185,6 +194,7 @@ do_push() {
   local remote="$1"
   local branch
   branch="$(git branch --show-current 2>/dev/null || echo "")"
+  [[ -n "${branch:-}" ]] || { log_error "HEAD desacoplado. No puedo pushear."; return 1; }
   
   echo "📡 Enviando a '$remote' (Ref: $branch)..."
 
@@ -192,18 +202,18 @@ do_push() {
   local push_success=false
   
   if ! git rev-parse --abbrev-ref --symbolic-full-name "@{u}" >/dev/null 2>&1; then
-      if git push -u "$remote" "$branch"; then push_success=true; fi
+      if GIT_TERMINAL_PROMPT=0 git push -u "$remote" "$branch"; then push_success=true; fi
   else
-      if git push "$remote" "$branch"; then push_success=true; fi
+      if GIT_TERMINAL_PROMPT=0 git push "$remote" "$branch"; then push_success=true; fi
   fi
 
   # Si falla, intentamos estrategia de rebase (auto-heal)
   if [ "$push_success" = false ]; then
       log_warn "El push fue rechazado. Intentando pull --rebase..."
-      if git pull --rebase "$remote" "$branch"; then
+      if GIT_TERMINAL_PROMPT=0 git pull --rebase "$remote" "$branch"; then
           log_success "Rebase exitoso. Reintentando push..."
-          git fetch --tags --force "$remote"
-          if git push "$remote" "$branch"; then
+          GIT_TERMINAL_PROMPT=0 git fetch --tags --force "$remote" >/dev/null 2>&1 || true
+          if GIT_TERMINAL_PROMPT=0 git push "$remote" "$branch"; then
               push_success=true
           fi
       else

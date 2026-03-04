@@ -270,7 +270,7 @@ cmd_add() {
 
   local default_login=""
   if command -v gh >/dev/null 2>&1; then
-    default_login="$(gh api user -q ".login" 2>/dev/null || echo "")"
+    default_login="$(GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh api user -q ".login" 2>/dev/null || echo "")"
   fi
   [[ -z "$default_login" ]] && default_login="$(git config github.user 2>/dev/null || echo "")"
 
@@ -433,7 +433,7 @@ cmd_doctor() {
   echo ""
 
   if command -v gh >/dev/null 2>&1; then
-    if gh auth status --hostname github.com >/dev/null 2>&1; then
+    if GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh auth status --hostname github.com >/dev/null 2>&1; then
       ui_success "gh auth: OK"
     else
       ui_warn "gh auth: NO autenticado (puede afectar creación de repos/keys)."

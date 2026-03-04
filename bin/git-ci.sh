@@ -31,13 +31,19 @@ echo "(Nota: Esto ejecutará los comandos reales si seleccionas una opción)"
 echo
 
 # Detectar rama actual para pasarla al menú
-CURRENT_BRANCH="$(git branch --show-current)"
+CURRENT_BRANCH="$(git branch --show-current 2>/dev/null || echo "(detached)")"
+CURRENT_BRANCH="$(echo "${CURRENT_BRANCH:-}" | tr -d '[:space:]')"
+[[ -n "${CURRENT_BRANCH:-}" ]] || CURRENT_BRANCH="(detached)"
 BASE_BRANCH="${PR_BASE_BRANCH:-dev}"
 
 # Forzamos ejecución incluso si no es feature/* para probar,
 # pero avisamos.
 if [[ "$CURRENT_BRANCH" != feature/* ]]; then
     ui_warn "Estás en '$CURRENT_BRANCH', normalmente el menú solo sale en feature/**."
+    if ! is_tty; then
+        ui_warn "Sin TTY: omitiendo prompt interactivo."
+        exit 0
+    fi
     if ! ask_yes_no "¿Quieres forzar la prueba del menú?"; then
         exit 0
     fi

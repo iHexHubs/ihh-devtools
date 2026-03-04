@@ -10,12 +10,15 @@
 run_step_auth() {
     ui_step_header "1. Autenticación con GitHub"
 
+    command -v gh >/dev/null 2>&1 || { ui_error "Falta 'gh' (CLI)."; exit 1; }
+    command -v gum >/dev/null 2>&1 || { ui_error "Falta 'gum' para el wizard interactivo. Usa --verify-only o instala gum."; exit 1; }
+
     local needs_login=true
 
     # 1. Verificar estado actual (FIX: Host explícito para evitar ambigüedad)
-    if gh auth status --hostname github.com >/dev/null 2>&1; then
+    if GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh auth status --hostname github.com >/dev/null 2>&1; then
         local current_user
-        current_user=$(gh api user -q ".login")
+        current_user=$(GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh api user -q ".login")
         ui_success "Sesión activa detectada: $current_user"
         
         # Ofrecer opciones al usuario
@@ -31,18 +34,18 @@ run_step_auth() {
         elif [[ "$action" == "Refrescar"* ]]; then
             # --- FIX: INTENTO DE REFRESH REAL (SAFE CON set -e) ---
             if ui_spinner "Refrescando credenciales y scopes..." \
-                gh auth refresh --hostname github.com -s "$DEVTOOLS_GH_SCOPES"; then
+                GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh auth refresh --hostname github.com -s "$DEVTOOLS_GH_SCOPES"; then
                 ui_success "Credenciales refrescadas correctamente."
                 needs_login=false
             else
                 ui_warn "No se pudo refrescar la sesión (posiblemente falta soporte en tu versión de gh)."
                 ui_info "Procediendo a re-autenticación completa..."
-                gh auth logout --hostname github.com >/dev/null 2>&1 || true
+                GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh auth logout --hostname github.com >/dev/null 2>&1 || true
                 needs_login=true
             fi
         else
             # Logout forzado para limpiar estado (FIX: Host explícito)
-            gh auth logout --hostname github.com >/dev/null 2>&1 || true
+            GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh auth logout --hostname github.com >/dev/null 2>&1 || true
             needs_login=true
         fi
     fi
@@ -54,9 +57,9 @@ run_step_auth() {
         
         if gum confirm "Presiona Enter para abrir el navegador y autorizar"; then
             # Login con scopes configurables
-            if gh auth login --hostname github.com --git-protocol ssh --web --skip-ssh-key -s "$DEVTOOLS_GH_SCOPES"; then
+            if GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh auth login --hostname github.com --git-protocol ssh --web --skip-ssh-key -s "$DEVTOOLS_GH_SCOPES"; then
                 local new_user
-                new_user=$(gh api user -q ".login")
+                new_user=$(GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh api user -q ".login")
                 ui_success "Login exitoso. Conectado como: $new_user"
             else
                 ui_error "Falló el login. Inténtalo de nuevo."
@@ -78,7 +81,7 @@ verify_2fa_enforcement() {
     while true; do
         local is_2fa_enabled
         # FIX: Capturamos error para no romper script con set -e y manejamos nulos
-        is_2fa_enabled=$(gh api user -q ".two_factor_authentication" 2>/dev/null || echo "null")
+        is_2fa_enabled=$(GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh api user -q ".two_factor_authentication" 2>/dev/null || echo "null")
 
         if [ "$is_2fa_enabled" == "true" ]; then
             ui_success "Autenticación de Dos Factores (2FA) detectada."
@@ -88,7 +91,7 @@ verify_2fa_enforcement() {
             ui_warn "⚠️ No pudimos verificar automáticamente el estado de 2FA."
             ui_info "Esto a veces pasa con ciertos tokens o redes corporativas."
             echo ""
-            ui_info "Por favor, verifica manualmente en: https://github.com/settings/security"
+            ui_info "Por favor, verifica manualmente en GitHub Settings > Security (2FA)."
             
             if gum confirm "¿Confirmas que tienes 2FA activado y quieres continuar?"; then
                 ui_success "Continuando bajo responsabilidad del usuario."
@@ -104,7 +107,7 @@ verify_2fa_enforcement() {
                 "Es obligatorio para trabajar en este ecosistema."
 
             echo ""
-            ui_info "1. Ve a: https://github.com/settings/security"
+            ui_info "1. Ve a GitHub Settings > Security"
             ui_info "2. Activa 'Two-factor authentication'."
             echo ""
             

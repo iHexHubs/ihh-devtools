@@ -52,7 +52,7 @@ if ! command -v gh >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! GH_PAGER=cat gh auth status -t >/dev/null 2>&1; then
+if ! GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh auth status --hostname github.com >/dev/null 2>&1; then
   echo "❌ gh no autenticado. Ejecuta 'gh auth login' y reintenta."
   exit 1
 fi
@@ -69,12 +69,12 @@ else
 fi
 
 # Si existe, lo actualizamos como draft. Si no, lo creamos como draft.
-if GH_PAGER=cat gh release view "$TAG" >/dev/null 2>&1; then
+if GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh release view "$TAG" >/dev/null 2>&1; then
   echo "ℹ️  Release existe. Actualizando como draft: $TAG"
-  GH_PAGER=cat gh release edit "$TAG" --draft "${notes_args[@]}" >/dev/null
+  GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh release edit "$TAG" --draft "${notes_args[@]}" >/dev/null
 else
   echo "✅ Creando release draft: $TAG"
-  GH_PAGER=cat gh release create "$TAG" --draft --title "$TAG" "${notes_args[@]}" >/dev/null
+  GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh release create "$TAG" --draft --title "$TAG" "${notes_args[@]}" >/dev/null
 fi
 
 echo "✅ Release draft listo: $TAG"

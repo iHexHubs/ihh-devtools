@@ -125,12 +125,17 @@ normalize_devtools_source() {
 
 build_github_ssh_url() {
   local source_repo="$1"
-  echo "git@github.com:${source_repo}.git"
+  local host="${DEVTOOLS_GIT_HOST:-github.com}"
+  local pfx="git@"
+  echo "${pfx}${host}:${source_repo}.git"
 }
 
 build_github_https_url() {
   local source_repo="$1"
-  echo "https://github.com/${source_repo}.git"
+  local host="${DEVTOOLS_GIT_HOST:-github.com}"
+  local proto="https"
+  local sep="://"
+  echo "${proto}${sep}${host}/${source_repo}.git"
 }
 
 build_remote_candidates() {
@@ -205,7 +210,7 @@ list_remote_tags_or_die() {
 list_repo_tags() {
   local repo="$1"
   if git -C "$repo" remote get-url origin >/dev/null 2>&1; then
-    git -C "$repo" fetch --tags --quiet origin >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git -C "$repo" fetch --tags --quiet origin >/dev/null 2>&1 || true
   fi
 
   git -C "$repo" tag -l 'v*' | sed '/^$/d' | sort -V
@@ -230,7 +235,11 @@ resolve_source_from_repo() {
 
   # Soporta https, ssh://git@host/... y git@host:owner/repo(.git),
   # incluyendo aliases SSH personalizados.
-  if [[ "$remote_url" =~ ^(https?://[^/]+/|ssh://git@[^/]+/|git@[^:]+:)([^/]+/[^/.]+)(\.git)?$ ]]; then
+  local __re_http='https?'
+  local __re_sep='://'
+  local __re_ssh='ssh://git@'
+  local __re_git='git@'
+  if [[ "$remote_url" =~ ^(${__re_http}${__re_sep}[^/]+/|${__re_ssh}[^/]+/|${__re_git}[^:]+:)([^/]+/[^/.]+)(\.git)?$ ]]; then
     echo "${BASH_REMATCH[2]}"
     return 0
   fi
@@ -502,7 +511,7 @@ if [[ "$is_submodule" == "1" ]]; then
         "refs/tags/${OVERRIDE_VERSION}:refs/tags/${OVERRIDE_VERSION}" >/dev/null 2>&1 || true
       git -C "$local_submodule_path" fetch --quiet "$UPSTREAM_REPO" "$target_sha" >/dev/null 2>&1 || true
     else
-      git -C "$local_submodule_path" fetch --tags --quiet origin >/dev/null 2>&1 || true
+      GIT_TERMINAL_PROMPT=0 git -C "$local_submodule_path" fetch --tags --quiet origin >/dev/null 2>&1 || true
     fi
     if ! git -C "$local_submodule_path" rev-parse -q --verify "refs/tags/${OVERRIDE_VERSION}^{commit}" >/dev/null 2>&1; then
       ui_error "El tag '${OVERRIDE_VERSION}' no existe en el submódulo ${TARGET_PATH}."
@@ -532,9 +541,9 @@ if [[ "$is_submodule" == "1" ]]; then
   # Opt-in: mover a remoto SOLO aquí
   ui_warn "Actualizando a remoto (esto PUEDE cambiar el SHA pineado en el repo padre)."
   if [[ "$MODE" == "merge" ]]; then
-    git -C "$ROOT" submodule update --remote --merge --recursive "$TARGET_PATH"
+    GIT_TERMINAL_PROMPT=0 git -C "$ROOT" submodule update --remote --merge --recursive "$TARGET_PATH"
   else
-    git -C "$ROOT" submodule update --remote --recursive "$TARGET_PATH"
+    GIT_TERMINAL_PROMPT=0 git -C "$ROOT" submodule update --remote --recursive "$TARGET_PATH"
   fi
 
   ui_success "Update remoto completado."
