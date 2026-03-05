@@ -151,6 +151,7 @@ resolve_promote_component() {
 generate_changelog_for_component() {
     local component="${1:-}"
     local tag="${2:-}"
+    local range="${3:-}"
     local dot_dir=".devtools"
     local repo_root
     repo_root="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
@@ -160,6 +161,7 @@ generate_changelog_for_component() {
 
     local output_file=""
     local -a scope_opts=()
+    local -a range_opts=()
     case "$component" in
         ihh)
             output_file="${repo_root}/apps/ihh/CHANGELOG.md"
@@ -188,24 +190,108 @@ generate_changelog_for_component() {
 
     mkdir -p "$(dirname "$output_file")"
 
+    if [[ -n "${range:-}" ]]; then
+        range_opts+=("$range")
+    fi
+
     local tag_pattern="^([A-Za-z0-9._-]+-)?v[0-9]+\\.[0-9]+\\.[0-9]+(-rc\\.[0-9]+(\\+build\\.[0-9]+)?)?$"
+
+    local tmp_full=""
+    local tmp_section=""
+    local tmp_dedup=""
+    local tmp_merged=""
+    tmp_full="$(mktemp)" || die "No pude crear temporal para changelog."
+    tmp_section="$(mktemp)" || die "No pude crear temporal para sección de changelog."
+    tmp_dedup="$(mktemp)" || die "No pude crear temporal para deduplicación de changelog."
+    tmp_merged="$(mktemp)" || die "No pude crear temporal para merge de changelog."
 
     if command -v git-cliff >/dev/null 2>&1; then
         git-cliff --config "$config_file" \
             "${scope_opts[@]}" \
             --tag-pattern "$tag_pattern" \
             --tag "$tag" \
-            -o "$output_file"
+            "${range_opts[@]}" \
+            -o "$tmp_full"
     elif command -v devbox >/dev/null 2>&1; then
-        devbox run git-cliff --config "$config_file" \
-            "${scope_opts[@]}" \
-            --tag-pattern "$tag_pattern" \
-            --tag "$tag" \
-            -o "$output_file"
+        local devbox_env=""
+        devbox_env="$(devbox shell --print-env 2>/dev/null)" \
+            || die "No pude obtener entorno de Devbox para ejecutar git-cliff."
+        (
+            eval "$devbox_env"
+            git-cliff --config "$config_file" \
+                "${scope_opts[@]}" \
+                --tag-pattern "$tag_pattern" \
+                --tag "$tag" \
+                "${range_opts[@]}" \
+                -o "$tmp_full"
+        ) || die "Falló git-cliff usando entorno de Devbox."
     else
         die "No se encontró git-cliff ni devbox para ejecutarlo."
     fi
 
+    local tag_header="## ${tag}"
+    if ! awk -v tag_header="$tag_header" '
+        BEGIN { capture=0; found=0 }
+        $0 == tag_header {
+            capture=1
+            found=1
+        }
+        capture {
+            if ($0 ~ /^## / && $0 != tag_header && found == 1) {
+                exit
+            }
+            print
+        }
+        END {
+            if (found == 0) {
+                exit 3
+            }
+        }
+    ' "$tmp_full" > "$tmp_section"; then
+        local awk_rc=$?
+        if [[ "$awk_rc" -eq 3 ]]; then
+            die "No encontré sección '${tag_header}' en salida de git-cliff."
+        fi
+        die "No pude extraer sección '${tag_header}' del changelog generado."
+    fi
+
+    # Dedup exacto de bullets para evitar repetidos por commits con cuerpo largo.
+    awk '
+        /^- / {
+            if (seen[$0]++) {
+                next
+            }
+        }
+        { print }
+    ' "$tmp_section" > "$tmp_dedup"
+
+    if [[ ! -f "$output_file" || ! -s "$output_file" ]]; then
+        printf '# Changelog\n\n' > "$output_file"
+    fi
+    if ! grep -Eq '^# Changelog' "$output_file"; then
+        {
+            printf '# Changelog\n\n'
+            cat "$output_file"
+        } > "$tmp_merged"
+        mv "$tmp_merged" "$output_file"
+    fi
+
+    if grep -Fq "$tag_header" "$output_file"; then
+        rm -f "$tmp_full" "$tmp_section" "$tmp_dedup" "$tmp_merged"
+        echo "$output_file"
+        return 0
+    fi
+
+    {
+        head -n 1 "$output_file"
+        printf '\n'
+        cat "$tmp_dedup"
+        printf '\n'
+        tail -n +2 "$output_file"
+    } > "$tmp_merged"
+    mv "$tmp_merged" "$output_file"
+
+    rm -f "$tmp_full" "$tmp_section" "$tmp_dedup" "$tmp_merged"
     echo "$output_file"
 }
 
@@ -232,17 +318,29 @@ prepare_changelog_commit() {
     log_info "🧾 Generando changelog (componente=${component}, tag=${tag})"
 
     local output_file
-    output_file="$(generate_changelog_for_component "$component" "$tag")"
+    output_file="$(generate_changelog_for_component "$component" "$tag" "$range")"
     [[ -n "${output_file:-}" ]] || die "No pude resolver el archivo de changelog."
+    export DEVTOOLS_CHANGELOG_FILE="${output_file}"
+    export DEVTOOLS_CHANGELOG_UPDATED="0"
+
+    local contamination_pattern=""
+    contamination_pattern='(/webapps/|/home/|/Users/|\.devtools/|github\.com/|git@github\.com:)'
+    local contamination_matches=""
+    local contamination_filtered=""
+    contamination_matches="$(grep -nE "$contamination_pattern" "$output_file" || true)"
+    contamination_filtered="$(printf '%s\n' "$contamination_matches" | grep -vE '^[0-9]+:.*\.devtools/releases/(prod|staging)\.md' || true)"
+    if [[ -n "$contamination_filtered" ]]; then
+        printf '%s\n' "$contamination_filtered"
+        die "CHANGELOG contaminado: se detectó patrón prohibido en ${output_file}"
+    fi
 
     if git diff --quiet -- "$output_file"; then
         log_warn "El changelog no cambió (${output_file}). Omitiendo commit."
         return 0
     fi
 
-    git add "$output_file" || die "No pude agregar ${output_file}."
-    git commit -m "chore(release): actualizar changelog ${tag}" \
-        || die "No pude crear el commit del changelog."
+    export DEVTOOLS_CHANGELOG_UPDATED="1"
+    log_info "📝 Changelog actualizado en ${output_file} (se integrará en commit final)."
 }
 
 # ==============================================================================

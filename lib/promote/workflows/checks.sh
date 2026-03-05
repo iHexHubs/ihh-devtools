@@ -197,20 +197,37 @@ wait_for_workflow_success_on_ref_or_sha_or_die() {
     local run_id=""
 
     while true; do
+        local list_out=""
+        local list_rc=0
+        local list_err=""
         if [[ -n "${ref:-}" ]]; then
-            run_id="$(
+            list_out="$(
                 GH_PAGER=cat gh run list --workflow "$wf_file" --branch "$ref" -L 30 \
                 --json databaseId,headSha,status,conclusion \
-                --jq ".[] | select(.headSha==\"$sha_full\") | .databaseId" 2>/dev/null | head -n 1
+                --jq ".[] | select(.headSha==\"$sha_full\") | .databaseId" 2>&1
             )"
+            list_rc=$?
+            if [[ "$list_rc" -ne 0 ]]; then
+                list_err="$(printf '%s\n' "${list_out}" | head -n 2 | tr '\n' ' ')"
+                log_error "No pude consultar runs de ${wf_file} en ref=${ref} (rc=${list_rc}): ${list_err}"
+                return 1
+            fi
+            run_id="$(printf '%s\n' "${list_out}" | head -n 1)"
         fi
 
         if [[ -z "${run_id:-}" ]]; then
-            run_id="$(
+            list_out="$(
                 GH_PAGER=cat gh run list --workflow "$wf_file" -L 30 \
                 --json databaseId,headSha,status,conclusion \
-                --jq ".[] | select(.headSha==\"$sha_full\") | .databaseId" 2>/dev/null | head -n 1
+                --jq ".[] | select(.headSha==\"$sha_full\") | .databaseId" 2>&1
             )"
+            list_rc=$?
+            if [[ "$list_rc" -ne 0 ]]; then
+                list_err="$(printf '%s\n' "${list_out}" | head -n 2 | tr '\n' ' ')"
+                log_error "No pude consultar runs de ${wf_file} (rc=${list_rc}): ${list_err}"
+                return 1
+            fi
+            run_id="$(printf '%s\n' "${list_out}" | head -n 1)"
         fi
 
         if [[ -n "${run_id:-}" ]]; then
@@ -386,22 +403,32 @@ __wf_meta_for_sha_once() {
     [[ -n "${wf_file:-}" && -n "${sha_full:-}" ]] || return 1
 
     local line=""
+    local raw=""
+    local query_rc=0
     if [[ -n "${ref:-}" ]]; then
-        line="$(
+        raw="$(
             GH_PAGER=cat gh run list --workflow "$wf_file" --branch "$ref" -L 50 \
             --json databaseId,headSha,status,conclusion \
             --jq ".[] | select(.headSha==\"$sha_full\") | \"\(.databaseId)|\(.status)|\(.conclusion // \"\")\"" \
-            2>/dev/null | head -n 1 || true
+            2>&1
         )"
+        query_rc=$?
     else
-        line="$(
+        raw="$(
             GH_PAGER=cat gh run list --workflow "$wf_file" -L 50 \
             --json databaseId,headSha,status,conclusion \
             --jq ".[] | select(.headSha==\"$sha_full\") | \"\(.databaseId)|\(.status)|\(.conclusion // \"\")\"" \
-            2>/dev/null | head -n 1 || true
+            2>&1
         )"
+        query_rc=$?
     fi
 
+    if [[ "$query_rc" -ne 0 ]]; then
+        DEVTOOLS_GATE_LAST_GH_ERROR="$(printf '%s\n' "${raw}" | head -n 2 | tr '\n' ' ')"
+        return 2
+    fi
+
+    line="$(printf '%s\n' "${raw}" | head -n 1)"
     [[ -n "${line:-}" ]] || return 1
     echo "$line"
     return 0
@@ -420,6 +447,7 @@ DEVTOOLS_GATE_TOTAL_COUNT=0
 DEVTOOLS_GATE_IN_PROGRESS_COUNT=0
 DEVTOOLS_GATE_FAILED_COUNT=0
 DEVTOOLS_GATE_MISSING_WORKFLOWS=()
+DEVTOOLS_GATE_LAST_GH_ERROR=""
 
 gate_fail_on_annotations_enabled() {
     local value="${GATE_FAIL_ON_ANNOTATIONS:-${DEVTOOLS_GATE_FAIL_ON_ANNOTATIONS:-0}}"
@@ -448,14 +476,20 @@ gate_try_dispatch_missing_workflows_once() {
 
     local wf=""
     local dispatched=0
+    local dispatch_out=""
+    local dispatch_rc=0
+    local dispatch_err=""
     for wf in "${workflows[@]}"; do
         [[ -n "${wf:-}" ]] || continue
         log_warn "⏳ Auto-disparo: workflow faltante ${wf} en ref ${ref}."
-        if GH_PAGER=cat gh workflow run "${wf}" --ref "${ref}" >/dev/null 2>&1; then
+        dispatch_out="$(GH_PAGER=cat gh workflow run "${wf}" --ref "${ref}" 2>&1)"
+        dispatch_rc=$?
+        if [[ "$dispatch_rc" -eq 0 ]]; then
             log_info "✅ Workflow disparado: ${wf} (ref=${ref})."
             dispatched=1
         else
-            log_warn "No pude disparar ${wf}. Continúo con gate fail-fast."
+            dispatch_err="$(printf '%s\n' "${dispatch_out}" | head -n 2 | tr '\n' ' ')"
+            log_warn "No pude disparar ${wf} (rc=${dispatch_rc}): ${dispatch_err}"
         fi
     done
 
@@ -511,17 +545,31 @@ gate_required_workflows_on_sha() {
     local wf
     for wf in "${workflows[@]}"; do
         local meta=""
+        local meta_rc=1
         local i=0
         while (( i < tries )); do
-            meta="$(__wf_meta_for_sha_once "$wf" "$sha_full" "$ref" 2>/dev/null || true)"
-            [[ -n "${meta:-}" ]] && break
+            meta="$(__wf_meta_for_sha_once "$wf" "$sha_full" "$ref" 2>/dev/null)"
+            meta_rc=$?
+            if [[ "$meta_rc" -eq 0 && -n "${meta:-}" ]]; then
+                break
+            fi
+            if [[ "$meta_rc" -eq 2 ]]; then
+                break
+            fi
             i=$((i+1))
             (( i < tries )) && sleep "$interval"
         done
 
         local run_id="" status="" conclusion="" state_icon="" state_txt=""
 
-        if [[ -z "${meta:-}" ]]; then
+        if [[ "$meta_rc" -eq 2 ]]; then
+            state_icon="❌"
+            status="ERROR"
+            conclusion="gh api"
+            all_ok=0
+            DEVTOOLS_GATE_FAILED_COUNT=$((DEVTOOLS_GATE_FAILED_COUNT + 1))
+            log_error "No pude consultar runs de ${wf} (ref=${ref:-n/a}): ${DEVTOOLS_GATE_LAST_GH_ERROR:-error desconocido}"
+        elif [[ -z "${meta:-}" ]]; then
             # No run todavía: PENDING (bloquea)
             state_icon="⏳"
             status="PENDING"
