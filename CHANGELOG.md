@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.0-rc.3+build.1
+
+
+### Fixes
+
+
+- prod no aborta si no existe devops/k8s/overlays/main (repo usa devbox-app/gitops) (9cfd742)
+
+
+
+
+
 ## v0.1.0-rc.2+build.1
 
 

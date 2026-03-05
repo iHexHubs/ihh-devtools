@@ -210,27 +210,30 @@ promote_to_prod() {
     fi
 
     local main_overlay_file="devops/k8s/overlays/main/kustomization.yaml"
-    [[ -f "${main_overlay_file}" ]] || die "No existe overlay de main: ${main_overlay_file}"
-    local main_unqualified_images=""
-    local main_line_no=0
-    while IFS= read -r line; do
-        main_line_no=$((main_line_no + 1))
-        [[ "$line" =~ ^[[:space:]]*newName:[[:space:]]*([^[:space:]#]+) ]] || continue
-        local image_name="${BASH_REMATCH[1]}"
-        image_name="${image_name%\"}"
-        image_name="${image_name#\"}"
-        image_name="${image_name%\'}"
-        image_name="${image_name#\'}"
-        local first_segment="$image_name"
-        if [[ "$image_name" == */* ]]; then
-            first_segment="${image_name%%/*}"
-        fi
-        if [[ "$first_segment" != *.* && "$first_segment" != *:* ]]; then
-            main_unqualified_images+="${image_name}@L${main_line_no} "
-        fi
-    done < "${main_overlay_file}"
-    [[ -z "${main_unqualified_images:-}" ]] \
-        || die "Policy registry (prod): imágenes sin registry en ${main_overlay_file}: ${main_unqualified_images}"
+    if [[ -f "${main_overlay_file}" ]]; then
+        local main_unqualified_images=""
+        local main_line_no=0
+        while IFS= read -r line; do
+            main_line_no=$((main_line_no + 1))
+            [[ "$line" =~ ^[[:space:]]*newName:[[:space:]]*([^[:space:]#]+) ]] || continue
+            local image_name="${BASH_REMATCH[1]}"
+            image_name="${image_name%\"}"
+            image_name="${image_name#\"}"
+            image_name="${image_name%\'}"
+            image_name="${image_name#\'}"
+            local first_segment="$image_name"
+            if [[ "$image_name" == */* ]]; then
+                first_segment="${image_name%%/*}"
+            fi
+            if [[ "$first_segment" != *.* && "$first_segment" != *:* ]]; then
+                main_unqualified_images+="${image_name}@L${main_line_no} "
+            fi
+        done < "${main_overlay_file}"
+        [[ -z "${main_unqualified_images:-}" ]] \
+            || die "Policy registry (prod): imágenes sin registry en ${main_overlay_file}: ${main_unqualified_images}"
+    else
+        log_warn "No existe overlay de main en este repo. Omitiendo validación de registry para prod."
+    fi
 
     if ! declare -F gate_required_workflows_on_sha_or_die >/dev/null 2>&1; then
         die "No se encontró gate_required_workflows_on_sha_or_die (faltó source de workflows/checks.sh)."
