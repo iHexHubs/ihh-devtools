@@ -46,6 +46,40 @@ git_entry() {
         command git -C "${PROMOTE_ENTRY_DIR:-${REPO_ROOT:-$PWD}}" "$@"
 }
 
+promote_git_env_summary() {
+    local git_exec_path="${GIT_EXEC_PATH:-<unset>}"
+    local git_prefix="${GIT_PREFIX:-}"
+    local config_count_raw="${GIT_CONFIG_COUNT:-0}"
+    local config_count=0
+    local git_env_count="0"
+    local aliases=()
+    local alias_list="<none>"
+    local i=0
+    local key_var=""
+    local key_val=""
+
+    [[ -n "${git_prefix}" ]] || git_prefix="<vacio>"
+    git_env_count="$(env | grep -cE '^GIT_' || true)"
+
+    if [[ "${config_count_raw}" =~ ^[0-9]+$ ]]; then
+        config_count="${config_count_raw}"
+    fi
+
+    for ((i=0; i<config_count; i++)); do
+        key_var="GIT_CONFIG_KEY_${i}"
+        key_val="${!key_var:-}"
+        if [[ "${key_val}" == alias.* ]]; then
+            aliases+=("${key_val#alias.}")
+        fi
+    done
+
+    if [[ "${#aliases[@]}" -gt 0 ]]; then
+        alias_list="$(IFS=,; echo "${aliases[*]}")"
+    fi
+
+    printf '%s' "GIT env resumido: vars=${git_env_count} exec_path=${git_exec_path} prefix=${git_prefix} aliases=${#aliases[@]} [${alias_list}]"
+}
+
 ensure_local_checkout() {
     local local_branch="local"
     local current_root=""
@@ -66,7 +100,7 @@ ensure_local_checkout() {
         log_info "🔎 promote target: ${TARGET_ENV:-?} args: ${TARGET_ENV:-} ${REST_ARGS[*]:-}"
         log_info "🔎 PWD(wrapper)=$(pwd)"
         log_info "🔎 REPO_ROOT=${REPO_ROOT:-<unset>}"
-        log_info "🔎 GIT_* en workflow: $(env | grep -E '^GIT_' | tr '\n' ' ' || true)"
+        log_info "🔎 $(promote_git_env_summary)"
         log_info "🔎 git-dir(entry): $(git_entry rev-parse --git-dir 2>/dev/null || echo '?')"
         log_info "🔎 rama(entry) PRE: $(git_entry branch --show-current 2>/dev/null || echo '?')"
         log_info "🔎 worktrees(entry):"
