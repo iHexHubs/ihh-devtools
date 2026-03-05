@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/core/semver.sh
+# Helpers semver compartidos.
 # Utilidades SemVer reutilizables (parseo, validacion y ayudas de incremento)
 
 # ==============================================================================
@@ -180,10 +180,10 @@ get_remote_tags() {
     local pattern="$1"
     local remote="${2:-origin}"
 
-    git fetch --tags "$remote" >/dev/null 2>&1 || return 1
+    GIT_TERMINAL_PROMPT=0 git fetch --tags "$remote" >/dev/null 2>&1 || return 1
 
     local refs
-    refs="$(git ls-remote --tags "$remote" "refs/tags/${pattern}*" 2>/dev/null)" || return 1
+    refs="$(GIT_TERMINAL_PROMPT=0 git ls-remote --tags "$remote" "refs/tags/${pattern}*" 2>/dev/null)" || return 1
 
     if [[ -z "${refs:-}" ]]; then
         echo ""
@@ -204,26 +204,38 @@ semver_get_tags() {
     local remote="${2:-origin}"
 
     local tags
+    # Si el caller declara modo offline, evitamos intentos remotos.
+    if [[ "${DEVTOOLS_PROMOTE_OFFLINE_OK:-0}" == "1" || "${DEVTOOLS_PROMOTE_OFFLINE:-0}" == "1" ]]; then
+        SEMVER_TAG_SOURCE="local"
+        if declare -F log_warn >/dev/null 2>&1; then
+            log_warn "Modo OFFLINE: usando tags locales (sin verificacion remota)." >&2
+        else
+            echo "⚠️  Modo OFFLINE: usando tags locales (sin verificacion remota)." >&2
+        fi
+        git tag -l "${pattern}*"
+        return 0
+    fi
+
     if tags="$(get_remote_tags "$pattern" "$remote")"; then
         SEMVER_TAG_SOURCE="remote"
         echo "$tags"
         return 0
     fi
 
-    if [[ "${DEVTOOLS_PROMOTE_OFFLINE_OK:-0}" != "1" && "${DEVTOOLS_PROMOTE_OFFLINE:-0}" != "1" ]]; then
+    SEMVER_TAG_SOURCE="local"
+    if [[ "${DEVTOOLS_SEMVER_REQUIRE_REMOTE:-0}" == "1" ]]; then
         if declare -F log_error >/dev/null 2>&1; then
-            log_error "No pude leer tags de ${remote}. Usa DEVTOOLS_PROMOTE_OFFLINE_OK=1 para continuar offline." >&2
+            log_error "No pude leer tags del remoto '${remote}' (modo estricto)." >&2
         else
-            echo "❌ No pude leer tags de ${remote}. Usa DEVTOOLS_PROMOTE_OFFLINE_OK=1 para continuar offline." >&2
+            echo "❌ No pude leer tags del remoto '${remote}' (modo estricto)." >&2
         fi
         return 1
     fi
 
-    SEMVER_TAG_SOURCE="local"
     if declare -F log_warn >/dev/null 2>&1; then
-        log_warn "Modo OFFLINE: usando tags locales (sin verificacion remota)." >&2
+        log_warn "No pude leer tags del remoto '${remote}'; usando tags locales (skip red)." >&2
     else
-        echo "⚠️  Modo OFFLINE: usando tags locales (sin verificacion remota)." >&2
+        echo "⚠️  No pude leer tags del remoto '${remote}'; usando tags locales (skip red)." >&2
     fi
     git tag -l "${pattern}*"
 }

@@ -1,2 +1,3 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/ui/banner.sh
+# Helpers de banner UI.
+# Nota: intencionalmente mínimo; estilos viven en lib/ui/styles.sh.

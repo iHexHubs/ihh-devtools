@@ -1,5 +1,32 @@
 #!/usr/bin/env bash
 
+__devtools_apps_sync_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../core/utils.sh
+source "${__devtools_apps_sync_dir}/../core/utils.sh"
+# shellcheck source=../core/contract.sh
+source "${__devtools_apps_sync_dir}/../core/contract.sh"
+# shellcheck source=./apps_config_parser.sh
+source "${__devtools_apps_sync_dir}/apps_config_parser.sh"
+
+if ! declare -F resolve_repo_root_or_die >/dev/null 2>&1; then
+  resolve_repo_root_or_die() {
+    git rev-parse --show-toplevel 2>/dev/null || die "Debes ejecutar este comando dentro de un repositorio Git."
+  }
+fi
+
+apps_sync_usage() {
+  cat <<'EOF'
+Uso:
+  devtools apps sync [--only <app>]
+
+Opciones:
+  --only <app>   Sincroniza solo una app por nombre
+
+Notas:
+  - DEVTOOLS_DRY_RUN=1: solo imprime acciones (sin clone/fetch/pull)
+EOF
+}
+
 is_dry_run() {
   [[ "${DEVTOOLS_DRY_RUN:-0}" == "1" ]]
 }
@@ -67,7 +94,11 @@ apps_sync() {
   local repo_root
   repo_root="$(resolve_repo_root_or_die)"
 
-  local config_file="${repo_root}/.devtools/config/apps.yaml"
+  local config_file=""
+  if ! config_file="$(devtools_require_build_registry "$repo_root")"; then
+    die "No se pudo resolver el registro de apps para ${repo_root}. Revisa devtools.repo.yaml."
+  fi
+
   local -a app_entries=()
   local parsed_entries_raw=""
 

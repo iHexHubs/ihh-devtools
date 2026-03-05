@@ -79,7 +79,7 @@ Esta entrega es una **actualización grande de la plataforma de promoción (`git
 
 ### Higiene del repo
 
-* `chore(gitignore)`: se ignora `.devtools/run/tunnels.pids`.
+* `chore(gitignore)`: se ignora `<vendor_dir>/run/tunnels.pids`.
 * Actualizaciones de vendorizado/pins de `.devtools` y normalización de toolchain (incluyendo cambios relacionados con ArgoCD y utilidades CI).
 
 ---

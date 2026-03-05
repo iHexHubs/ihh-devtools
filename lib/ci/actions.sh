@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/ci/actions.sh
+# Acciones CI (helpers no críticos, deben degradar si faltan herramientas/red).
 
 # ==============================================================================
 # LÓGICA DE ACCIONES (Creación de PRs, Pipelines complejos, etc.)
@@ -16,9 +16,14 @@ wait_and_watch_workflow() {
     local workflow_name="${2:-}" # Opcional: filtrar por nombre de workflow
 
     # Verificación de dependencia
-    if ! command -v gh &> /dev/null; then
+    if ! command -v gh >/dev/null 2>&1; then
         echo "⚠️  GitHub CLI (gh) no instalado. No puedo mostrar logs en vivo."
         # No bloqueamos el flujo si falta la herramienta visual, pero avisamos.
+        return 0
+    fi
+    # Si no hay auth, no bloqueamos (solo es visualización).
+    if ! GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh auth status >/dev/null 2>&1; then
+        echo "⚠️  'gh' no autenticado. (skip logs en vivo)"
         return 0
     fi
 
@@ -33,9 +38,9 @@ wait_and_watch_workflow() {
     
     while [[ $retries -gt 0 ]]; do
         if [[ -n "$workflow_name" ]]; then
-            run_id="$(gh run list --branch "$branch" --workflow "$workflow_name" --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)"
+            run_id="$(GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh run list --branch "$branch" --workflow "$workflow_name" --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)"
         else
-            run_id="$(gh run list --branch "$branch" --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)"
+            run_id="$(GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh run list --branch "$branch" --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)"
         fi
         
         if [[ -n "$run_id" ]]; then
@@ -69,7 +74,7 @@ wait_and_watch_workflow() {
     fi
 
     # Fallback legacy si el helper unificado no está disponible.
-    if gh run watch "$run_id" --exit-status; then
+    if GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh run watch "$run_id" --exit-status; then
         echo "════════════════════════════════════════════════════"
         echo "✅ Workflow finalizado exitosamente."
         return 0
@@ -86,26 +91,18 @@ do_create_pr_flow() {
     local head="$1"
     local base="$2"
     
-    # Obtenemos el directorio donde reside ESTE script (.devtools/lib/ci)
-    local current_dir
-    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    
-    # Calculamos la ruta absoluta hacia git-pr.sh (.devtools/bin/git-pr.sh)
-    # Subimos 2 niveles: lib/ci -> lib -> .devtools -> bin
-    local pr_script="${current_dir}/../../bin/git-pr.sh"
+    local repo_root pr_script
+    repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+    pr_script="${repo_root}/bin/git-pr.sh"
 
     if [[ -f "$pr_script" ]]; then
-        # MODIFICADO (1.2): Exportamos BASE_BRANCH para que git-pr.sh sepa a dónde apuntar
-        BASE_BRANCH="$base" "$pr_script"
-        if [ $? -eq 0 ]; then
+        # Exportamos BASE_BRANCH para que git-pr.sh sepa a dónde apuntar
+        if BASE_BRANCH="$base" bash "$pr_script"; then
             echo "Gracias por el trabajo, en breve se revisa."
             return 0
         fi
-    elif command -v git-pr >/dev/null; then
-        # Fallback por si git-pr está en el PATH global
-        if git-pr; then return 0; fi
     else
-        echo "❌ No encuentro el script git-pr.sh en $pr_script ni en el PATH."
+        echo "❌ No encuentro el script git-pr.sh en $pr_script."
         return 1
     fi
     

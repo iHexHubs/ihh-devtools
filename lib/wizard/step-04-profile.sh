@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/wizard/step-04-profile.sh
+# Paso final del wizard: perfil y marcadores.
 
 run_step_profile_registration() {
     ui_step_header "6. Finalización y Registro"
 
-    local rc_file=".devtools/.git-acprc"
-    local marker_file=".devtools/.setup_completed"
+    local rc_file="${DEVTOOLS_WIZARD_RC_FILE:-.git-acprc}"
+    local marker_file="${DEVTOOLS_WIZARD_MARKER_FILE:-.setup_completed}"
 
-    # --- FIX (Modelo de Identidades): Asegurar carpeta .devtools ---
+    # --- FIX (Modelo de Identidades): Asegurar carpeta de configuración ---
     mkdir -p "$(dirname "$rc_file")"
     mkdir -p "$(dirname "$marker_file")"
 
@@ -23,7 +23,8 @@ run_step_profile_registration() {
     # --- FIX: ESCRITURA ATÓMICA (Evita corrupción si se corta el proceso) ---
     append_profile_entry_atomically() {
         local entry="$1"
-        local tmp_rc="${rc_file}.tmp"
+        local tmp_rc=""
+        tmp_rc="$(mktemp "${rc_file}.tmp.XXXXXX")"
 
         # Si por algún motivo no existe, lo creamos vacío para poder cp/mv
         [[ -f "$rc_file" ]] || : > "$rc_file"
@@ -40,7 +41,7 @@ run_step_profile_registration() {
     if [ ! -f "$rc_file" ]; then
         ui_info "Creando archivo de configuración inicial..."
         cat <<EOF > "$rc_file"
-# Configuración generada por IHH Devtools Wizard
+# Configuración generada por Devtools Wizard
 PROFILE_SCHEMA_VERSION=1
 DAY_START="00:00"
 REFS_LABEL="Conteo: commit"
@@ -68,7 +69,11 @@ EOF
     # 2. CONSTRUIR DATOS DEL PERFIL
     # ==========================================================================
     local gh_login
-    gh_login=$(gh api user -q ".login" 2>/dev/null || echo "unknown")
+    if command -v gh >/dev/null 2>&1; then
+        gh_login="$(GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh api user -q ".login" 2>/dev/null || echo "unknown")"
+    else
+        gh_login="unknown"
+    fi
     local gh_owner_default="$gh_login"
     
     # --- FIX: Display Name Personalizado (UX) ---
@@ -124,9 +129,10 @@ EOF
     local current_url
     current_url=$(git remote get-url origin 2>/dev/null || true)
 
-    if [[ "$current_url" == https://github.com/* ]]; then
+    if [[ "$current_url" == *"://github.com/"* ]]; then
         local new_url
-        new_url=$(echo "$current_url" | sed -E 's/https:\/\/github.com\//git@github.com:/')
+        local repo_path="${current_url#*://github.com/}"
+        new_url="git@${ssh_host_target}:${repo_path}"
 
         if ! is_tty; then
             ui_warn "Entorno no interactivo: no se modificó 'origin' a SSH."
@@ -146,10 +152,19 @@ EOF
     # --- FIX: Usar variable de host en vez de hardcode ---
     ui_spinner "Validando conexión SSH final ($safe_ssh_host)..." sleep 1
 
-    if ssh -T "git@$safe_ssh_host" -o StrictHostKeyChecking=accept-new 2>&1 | grep -qE "(successfully authenticated|Hi)"; then
+    # GitHub retorna rc=1 en ssh -T aunque autentique correctamente.
+    # Validamos por output para evitar falsos negativos con pipefail.
+    local ssh_check_out=""
+    ssh_check_out="$(
+      ssh -T "git@$safe_ssh_host" \
+        -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new 2>&1 || true
+    )"
+
+    if printf '%s\n' "$ssh_check_out" | grep -qiE "(successfully authenticated|^Hi )"; then
         ui_success "Conexión SSH verificada: Acceso Correcto."
     else
         ui_warn "No pudimos validar la conexión automáticamente a $safe_ssh_host."
+        ui_info "Salida SSH (resumen): $(printf '%s\n' "$ssh_check_out" | head -n 2 | tr '\n' ' ')"
         ui_info "Prueba manual: ssh -T git@$safe_ssh_host"
     fi
 

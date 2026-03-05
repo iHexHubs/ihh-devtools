@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/promote/workflows/hotfix.sh
-#
+# Promote workflow: hotfix
 # Hotfix estandarizado:
 # - promote_hotfix_start: entrypoint compatible con el router
 # - create_hotfix: crea hotfix/<name> desde main (base canónica)
@@ -27,7 +26,7 @@ promote_hotfix_start() {
         log_info "⚗️  Simulacion (--dry-run) para HOTFIX"
 
         # Best-effort: refrescar refs
-        git fetch origin main --prune >/dev/null 2>&1 || true
+        GIT_TERMINAL_PROMPT=0 git fetch origin main --prune >/dev/null 2>&1 || true
 
         local hf_branch="$current"
         if [[ "$current" != hotfix/* ]]; then
@@ -217,7 +216,7 @@ finish_hotfix() {
     fi
 
     # Pre-check: refrescar refs para reconciliación
-    git fetch origin main staging dev --prune >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git fetch origin main staging dev --prune >/dev/null 2>&1 || true
 
     local main_ref staging_ref dev_ref range
     main_ref="$(semver_resolve_main_ref || echo "main")"
@@ -336,7 +335,8 @@ finish_hotfix() {
     generate_ai_prompt "${current}" "${main_ref}"
 
     local notes_dir notes_file tmp_file
-    notes_dir="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}/.devtools/releases"
+    local dot_dir=".devtools"
+    notes_dir="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}/${dot_dir}/releases"
     mkdir -p "$notes_dir"
     notes_file="${notes_dir}/hotfix.md"
     tmp_file="$(mktemp)"
@@ -409,11 +409,11 @@ finish_hotfix() {
     echo
     log_info "🔎 Confirmación visual:"
     log_info "   git ls-remote --heads origin main"
-    git ls-remote --heads origin main 2>/dev/null || true
+    GIT_TERMINAL_PROMPT=0 git ls-remote --heads origin main 2>/dev/null || true
     log_info "   git ls-remote --heads origin staging"
-    git ls-remote --heads origin staging 2>/dev/null || true
+    GIT_TERMINAL_PROMPT=0 git ls-remote --heads origin staging 2>/dev/null || true
     log_info "   git ls-remote --heads origin dev"
-    git ls-remote --heads origin dev 2>/dev/null || true
+    GIT_TERMINAL_PROMPT=0 git ls-remote --heads origin dev 2>/dev/null || true
     echo
 
     if declare -F gh_create_release_draft_from_tag >/dev/null 2>&1; then

@@ -84,6 +84,79 @@ promote_local_pin_gitops_release_or_die() {
 
 
 
+promote_local_run_tag_step_with_progress() {
+    local final_tag="$1"
+    local out_sha_var="$2"
+    local tag_log=""
+    local new_sha=""
+
+    tag_log="$(promote_local_ui_log_path "tag" 2>/dev/null || true)"
+    [[ -n "${tag_log:-}" ]] || tag_log="$(mktemp "/tmp/promote-local-tag.XXXXXX.log")"
+    : >"$tag_log"
+
+    if [[ "${PROMOTE_LOCAL_UI_PROGRESS_ACTIVE:-0}" == "1" ]] && declare -F promote_local_ui_set_state >/dev/null 2>&1; then
+        promote_local_ui_set_state "tag" "running" "0" "tag_start" || true
+    fi
+
+    local pin_cmd=""
+    printf -v pin_cmd 'promote_local_pin_gitops_release_or_die %q' "$final_tag"
+    if declare -F promote_local_ui_run_cmd_for_step >/dev/null 2>&1 && [[ "${PROMOTE_LOCAL_UI_PROGRESS_ACTIVE:-0}" == "1" ]]; then
+        if ! promote_local_ui_run_cmd_for_step "tag" "$pin_cmd" "$tag_log" "time" "0" "55"; then
+            if declare -F promote_local_ui_print_failure_summary >/dev/null 2>&1; then
+                promote_local_ui_print_failure_summary "tag (pin GitOps)" "$tag_log"
+            fi
+            return 1
+        fi
+    elif ! (promote_local_pin_gitops_release_or_die "$final_tag") >>"$tag_log" 2>&1; then
+        if [[ "${PROMOTE_LOCAL_UI_PROGRESS_ACTIVE:-0}" == "1" ]] && declare -F promote_local_ui_set_state >/dev/null 2>&1; then
+            promote_local_ui_set_state "tag" "failed" || true
+        fi
+        if declare -F promote_local_ui_print_failure_summary >/dev/null 2>&1; then
+            promote_local_ui_print_failure_summary "tag (pin GitOps)" "$tag_log"
+        fi
+        return 1
+    fi
+
+    new_sha="$(git rev-parse HEAD 2>/dev/null || true)"
+    if [[ -z "${new_sha:-}" ]]; then
+        if [[ "${PROMOTE_LOCAL_UI_PROGRESS_ACTIVE:-0}" == "1" ]] && declare -F promote_local_ui_set_state >/dev/null 2>&1; then
+            promote_local_ui_set_state "tag" "failed" "100" "tag_resolve_sha_fail" || true
+        fi
+        if declare -F promote_local_ui_print_failure_summary >/dev/null 2>&1; then
+            promote_local_ui_print_failure_summary "tag (resolver SHA)" "$tag_log"
+        fi
+        return 1
+    fi
+
+    local tag_cmd=""
+    printf -v tag_cmd 'promote_local_create_tag %q %q' "$final_tag" "$new_sha"
+    if declare -F promote_local_ui_run_cmd_for_step >/dev/null 2>&1 && [[ "${PROMOTE_LOCAL_UI_PROGRESS_ACTIVE:-0}" == "1" ]]; then
+        if ! promote_local_ui_run_cmd_for_step "tag" "$tag_cmd" "$tag_log" "time" "55" "90"; then
+            if declare -F promote_local_ui_print_failure_summary >/dev/null 2>&1; then
+                promote_local_ui_print_failure_summary "tag (create/push)" "$tag_log"
+            fi
+            return 1
+        fi
+    elif ! (promote_local_create_tag "$final_tag" "$new_sha") >>"$tag_log" 2>&1; then
+        if [[ "${PROMOTE_LOCAL_UI_PROGRESS_ACTIVE:-0}" == "1" ]] && declare -F promote_local_ui_set_state >/dev/null 2>&1; then
+            promote_local_ui_set_state "tag" "failed" || true
+        fi
+        if declare -F promote_local_ui_print_failure_summary >/dev/null 2>&1; then
+            promote_local_ui_print_failure_summary "tag (create/push)" "$tag_log"
+        fi
+        return 1
+    fi
+
+    if [[ "${PROMOTE_LOCAL_UI_PROGRESS_ACTIVE:-0}" == "1" ]] && declare -F promote_local_ui_set_state >/dev/null 2>&1; then
+        promote_local_ui_set_state "tag" "done" "100" "tag_done" || true
+    fi
+
+    printf -v "$out_sha_var" '%s' "$new_sha"
+    return 0
+}
+
+
+
 promote_to_local_v2() {
     resync_submodules_hard
 
@@ -118,6 +191,17 @@ promote_to_local_v2() {
         selected_level="${selected_level//$'\r'/}"
         selected_level="$(echo "${selected_level:-}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
         [[ -n "${selected_level:-}" ]] || selected_level="exit"
+
+        # promote_local_choose_validation_level se evalúa en subshell ($( ... )).
+        # El modo UI se decide aquí para que sobreviva en el proceso principal.
+        if [[ -n "${DEVTOOLS_LOCAL_VALIDATION_LEVEL:-}" || "${DEVTOOLS_LOCAL_VALIDATION_MENU:-}" == "legacy" ]]; then
+            PROMOTE_LOCAL_UI_MODE=0
+        elif [[ "${selected_level}" == "standard" ]]; then
+            PROMOTE_LOCAL_UI_MODE=1
+        else
+            PROMOTE_LOCAL_UI_MODE=0
+        fi
+        export PROMOTE_LOCAL_UI_MODE
 
         promote_local_run_validation_level "$selected_level" "$source_branch"
         run_rc=$?
@@ -167,11 +251,7 @@ promote_to_local_v2() {
         rev="$(promote_local_next_rev "$app_name" "$base_version" "$rc" "$build")"
         final_tag="$(promote_local_tag_name "$app_name" "$base_version" "$rc" "$build" "$rev")"
 
-        promote_local_pin_gitops_release_or_die "$final_tag"
-        candidate_sha="$(git rev-parse HEAD 2>/dev/null || true)"
-        [[ -n "${candidate_sha:-}" ]] || die "No pude resolver HEAD tras commit de GitOps."
-
-        promote_local_create_tag "$final_tag" "$candidate_sha" \
+        promote_local_run_tag_step_with_progress "$final_tag" candidate_sha \
             || die "No pude crear/publicar tag local ${final_tag}."
         log_success "✅ Tag local creado: ${final_tag}"
     fi
@@ -319,7 +399,8 @@ promote_to_local() {
                 # 🚪 Salir: salida limpia antes de tags/overlay/commit/push.
                 if [[ "${selected}" == "${CI_OPT_SKIP:-}" ]]; then
                     echo "👌 Omitido."
-                    return 0
+                    # Señal estándar al entrypoint para "salir sin promover".
+                    return 42
                 fi
 
                 # Guard de permisos solo si la opción usa CI nativo.

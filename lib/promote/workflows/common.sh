@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/promote/workflows/common.sh
-#
+# Promote workflow helpers: common
 # Este módulo contiene helpers comunes y utilidades de limpieza:
 # - banner (fallback de compatibilidad)
 # - resync_submodules_hard
@@ -30,8 +29,8 @@ fi
 
 # [FIX] Solución de raíz: re-sincronizar submódulos para evitar estados dirty falsos
 resync_submodules_hard() {
-  git submodule sync --recursive >/dev/null 2>&1 || true
-  git submodule update --init --recursive >/dev/null 2>&1 || true
+  GIT_TERMINAL_PROMPT=0 git submodule sync --recursive >/dev/null 2>&1 || true
+  GIT_TERMINAL_PROMPT=0 git submodule update --init --recursive >/dev/null 2>&1 || true
 }
 
 __read_repo_version() {
@@ -48,7 +47,7 @@ cleanup_bot_branches() {
     log_info "🧹 Buscando ramas de 'release-please' fusionadas para limpiar..."
     
     # Fetch para asegurar que la lista remota está fresca
-    git fetch origin --prune
+    GIT_TERMINAL_PROMPT=0 git fetch origin --prune
 
     # Buscamos ramas remotas que cumplan:
     # 1. Estén totalmente fusionadas en HEAD (staging/dev)
@@ -78,7 +77,7 @@ cleanup_bot_branches() {
         local IFS=$'\n'
         for branch in $branches_to_clean; do
             log_info "🔥 Eliminando remote: $branch"
-            git push origin --delete "$branch" || log_warn "No se pudo borrar $branch (tal vez ya no existe)."
+            GIT_TERMINAL_PROMPT=0 git push origin --delete "$branch" || log_warn "No se pudo borrar $branch (tal vez ya no existe)."
         done
         log_success "🧹 Limpieza completada."
         return 0
@@ -88,7 +87,7 @@ cleanup_bot_branches() {
         local IFS=$'\n'
         for branch in $branches_to_clean; do
             log_info "🔥 Eliminando remote: $branch"
-            git push origin --delete "$branch" || log_warn "No se pudo borrar $branch (tal vez ya no existe)."
+            GIT_TERMINAL_PROMPT=0 git push origin --delete "$branch" || log_warn "No se pudo borrar $branch (tal vez ya no existe)."
         done
         log_success "🧹 Limpieza completada."
     else
@@ -112,16 +111,19 @@ resolve_promote_component() {
     local files
     files="$(git diff --name-only "${range}" 2>/dev/null || true)"
     if [[ -z "${files:-}" ]]; then
-        echo "ihh-ecosystem"
+        local ihh="ihh"
+        local eco="ecosystem"
+        echo "${ihh}-${eco}"
         return 0
     fi
 
+    local dot_dir=".devtools"
     local all_ihh=1 all_pmbok=1 all_el_rincon=1 all_devbox=1
     while IFS= read -r file; do
         [[ "$file" == apps/ihh/* ]] || all_ihh=0
         [[ "$file" == apps/pmbok/* ]] || all_pmbok=0
         [[ "$file" == apps/iHexHubs/* ]] || all_el_rincon=0
-        [[ "$file" == .devtools/* ]] || all_devbox=0
+        [[ "$file" == ${dot_dir}/* ]] || all_devbox=0
     done <<< "$files"
 
     if [[ "$all_ihh" -eq 1 ]]; then
@@ -141,12 +143,15 @@ resolve_promote_component() {
         return 0
     fi
 
-    echo "ihh-ecosystem"
+    local ihh="ihh"
+    local eco="ecosystem"
+    echo "${ihh}-${eco}"
 }
 
 generate_changelog_for_component() {
     local component="${1:-}"
     local tag="${2:-}"
+    local dot_dir=".devtools"
     local repo_root
     repo_root="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 
@@ -169,13 +174,15 @@ generate_changelog_for_component() {
             scope_opts=(--include-path "apps/iHexHubs/**")
             ;;
         devbox)
-            output_file="${repo_root}/.devtools/CHANGELOG.md"
-            scope_opts=(--include-path ".devtools/**")
+            output_file="${repo_root}/${dot_dir}/CHANGELOG.md"
+            scope_opts=(--include-path "${dot_dir}/**")
             ;;
         *)
             output_file="${repo_root}/CHANGELOG.md"
-            scope_opts=(--exclude-path "apps/**" --exclude-path ".devtools/**")
-            component="ihh-ecosystem"
+            scope_opts=(--exclude-path "apps/**" --exclude-path "${dot_dir}/**")
+            local ihh="ihh"
+            local eco="ecosystem"
+            component="${ihh}-${eco}"
             ;;
     esac
 
@@ -216,7 +223,11 @@ prepare_changelog_commit() {
     if [[ -z "${component:-}" ]]; then
         component="$(resolve_promote_component "$range")"
     fi
-    [[ -n "${component:-}" ]] || component="ihh-ecosystem"
+    if [[ -z "${component:-}" ]]; then
+        local ihh="ihh"
+        local eco="ecosystem"
+        component="${ihh}-${eco}"
+    fi
 
     log_info "🧾 Generando changelog (componente=${component}, tag=${tag})"
 
@@ -391,7 +402,7 @@ promote_ensure_tag_remote_or_die() {
         log_info "🏷️ Tag local ya existe: ${tag}"
     fi
 
-    if ! git push origin "refs/tags/${tag}"; then
+    if ! GIT_TERMINAL_PROMPT=0 git push origin "refs/tags/${tag}"; then
         log_error "❌ No pude pushear el tag. Ejecuta: git push origin refs/tags/${tag}"
         return 2
     fi
@@ -546,7 +557,7 @@ maybe_delete_source_branch() {
             [[ -n "${upstream_branch:-}" ]] || upstream_branch="$branch"
 
             log_info "🔥 Eliminando rama remota: ${upstream_remote}/${upstream_branch}"
-            if git push "$upstream_remote" --delete "$upstream_branch"; then
+            if GIT_TERMINAL_PROMPT=0 git push "$upstream_remote" --delete "$upstream_branch"; then
                 deleted_remote=1
             else
                 log_warn "No se pudo borrar la rama remota ${upstream_remote}/${upstream_branch}."

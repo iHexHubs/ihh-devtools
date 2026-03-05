@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/bin/git-sweep.sh
+# Limpieza de ramas y tags.
 set -euo pipefail
 
 REMOTE="origin"
@@ -7,7 +7,7 @@ APPLY=0
 FORCE=0
 CLEAN_TAGS=1
 
-KEEP_BRANCHES=("main" "dev" "staging" "feature/dev-update")
+KEEP_BRANCHES=("main" "dev" "staging" "dev-update" "feature/dev-update")
 
 usage() {
   cat <<EOF
@@ -49,6 +49,7 @@ while (( $# )); do
 done
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "No estás en un repo git."; exit 1; }
+[[ -n "${REMOTE:-}" ]] || { echo "Remote vacío (usa --remote <name>)."; exit 2; }
 
 say "Remote: $REMOTE"
 say "Keep branches: ${KEEP_BRANCHES[*]}"
@@ -58,7 +59,7 @@ echo
 
 # 0) Sync/prune
 if [[ "$APPLY" == "1" ]]; then
-  git fetch "$REMOTE" --prune --tags >/dev/null 2>&1 || true
+  GIT_TERMINAL_PROMPT=0 git fetch "$REMOTE" --prune --tags >/dev/null 2>&1 || true
 else
   say "[DRY] git fetch $REMOTE --prune --tags"
 fi
@@ -110,12 +111,18 @@ for b in "${local_branches[@]}"; do
 done
 
 # 3) Borrar ramas remotas (excepto keep) - robusto (solo heads reales)
-mapfile -t remote_branches < <(git ls-remote --heads "$REMOTE" | awk '{print $2}' | sed 's#refs/heads/##')
+remote_ls_out=""
+if remote_ls_out="$(GIT_TERMINAL_PROMPT=0 git ls-remote --heads "$REMOTE" 2>/dev/null)"; then
+  mapfile -t remote_branches < <(printf '%s\n' "$remote_ls_out" | awk '{print $2}' | sed 's#refs/heads/##')
+else
+  remote_branches=()
+  say "⚠️  No pude listar ramas remotas en '$REMOTE' (skip borrado remoto)."
+fi
 for b in "${remote_branches[@]}"; do
   is_keep_branch "$b" && continue
 
   if [[ "$APPLY" == "1" ]]; then
-    git push "$REMOTE" --delete "$b" >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git push "$REMOTE" --delete "$b" >/dev/null 2>&1 || true
     say "Deleted remote branch: $REMOTE/$b"
   else
     say "[DRY] delete remote branch: $REMOTE/$b"
@@ -150,7 +157,7 @@ if [[ "$CLEAN_TAGS" == "1" ]]; then
 
     if [[ "$APPLY" == "1" ]]; then
       git tag -d "$t" >/dev/null 2>&1 || true
-      git push "$REMOTE" ":refs/tags/$t" >/dev/null 2>&1 || true
+      GIT_TERMINAL_PROMPT=0 git push "$REMOTE" ":refs/tags/$t" >/dev/null 2>&1 || true
       say "Deleted tag (not in keep branches): $t"
     else
       say "[DRY] delete tag (not in keep branches): $t"

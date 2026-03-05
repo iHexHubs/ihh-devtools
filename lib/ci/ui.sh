@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/ci/ui.sh
+# UI CI (degrada sin gum).
 
 # ==============================================================================
 # LÓGICA DE UI (Renderizado del Dashboard)
@@ -63,10 +63,7 @@ render_env_status_panel() {
             runtime_suggestions+=("📄 Logs DB:            task local:logs:db")
         fi
 
-        # Fallback manual (por si no existe local:logs:traefik todavía)
-        if ! task_exists "local:logs:traefik" && command -v docker >/dev/null 2>&1; then
-            runtime_suggestions+=("📄 Logs Traefik:       docker compose -f devops/local/compose.yml logs -f --tail=200 traefik")
-        fi
+        # Sin fallback hardcode a paths de otros repos (solo sugerencias vía task).
     fi
 
     # Sugerencia de observabilidad (k9s) para ver logs / pods
@@ -162,9 +159,9 @@ render_local_finish_summary() {
     [[ -n "${dash_port:-}" ]] || dash_port="8090"
 
     echo "✅ Resumen final (local)"
-    echo "   - Gateway: http://127.0.0.1:${gateway_port}/"
-    echo "   - Dashboard Traefik: http://127.0.0.1:${dash_port}/dashboard/"
-    echo "   - ArgoCD: https://argocd.localhost:8443"
+    echo "   - Gateway: 127.0.0.1:${gateway_port}"
+    echo "   - Dashboard Traefik: 127.0.0.1:${dash_port} (ruta /dashboard/)"
+    echo "   - ArgoCD: argocd.localhost:8443"
 
     local apps_log
     apps_log="$(mktemp /tmp/promote-local-apps.XXXXXX.log 2>/dev/null || true)"

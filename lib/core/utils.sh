@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/utils.sh
-set -u
+# Utilidades base de CLI.
 
 # ==============================================================================
 # 1. CONSTANTES Y COLORES
@@ -39,6 +38,123 @@ ui_header() {
     echo -e "${GREEN} ${title}${NC}"
     echo -e "${GREEN}════════════════════════════════════════════════════${NC}"
     echo
+}
+
+# ------------------------------------------------------------------------------
+# Step status helpers (reusable progress line)
+# ------------------------------------------------------------------------------
+ui_is_quiet_mode() {
+    [[ "${PROMOTE_LOCAL_UI_MODE:-0}" == "1" ]]
+}
+
+ui_progress_icon_for_state() {
+    case "${1:-pending}" in
+        running) printf '%s' "⏳" ;;
+        done) printf '%s' "✅" ;;
+        failed) printf '%s' "❌" ;;
+        *) printf '%s' "⏸️" ;;
+    esac
+}
+
+ui_progress_bar() {
+    local percent="${1:-0}"
+    local width="${2:-22}"
+    local filled=0
+    local empty=0
+    local full_block=""
+    local empty_block=""
+
+    [[ "${percent}" =~ ^[0-9]+$ ]] || percent=0
+    (( percent < 0 )) && percent=0
+    (( percent > 100 )) && percent=100
+    (( width < 1 )) && width=22
+
+    filled=$(( percent * width / 100 ))
+    empty=$(( width - filled ))
+
+    printf -v full_block '%*s' "$filled" ''
+    printf -v empty_block '%*s' "$empty" ''
+    full_block="${full_block// /█}"
+    empty_block="${empty_block// /░}"
+    printf '[%s%s]' "${full_block}" "${empty_block}"
+}
+
+ui_progress_line() {
+    local label="${1:-step}"
+    local percent="${2:-0}"
+    local state="${3:-pending}"
+    printf '%-13s %s %3d%% %s\n' "${label}:" "$(ui_progress_bar "$percent")" "$percent" "$(ui_progress_icon_for_state "$state")"
+}
+
+ui_move_cursor_up() {
+    local n="${1:-1}"
+    [[ "${n}" =~ ^[0-9]+$ ]] || n=1
+    (( n < 1 )) && return 0
+    [[ -t 1 ]] || return 0
+    printf '\033[%sA' "$n"
+}
+
+ui_clear_lines() {
+    local n="${1:-1}"
+    local i=0
+    [[ "${n}" =~ ^[0-9]+$ ]] || n=1
+    (( n < 1 )) && return 0
+    [[ -t 1 ]] || return 0
+    for ((i=0; i<n; i++)); do
+        printf '\r\033[2K'
+        if (( i + 1 < n )); then
+            printf '\n'
+        fi
+    done
+    ui_move_cursor_up "$((n - 1))"
+    printf '\r'
+}
+
+ui_render_progress_panel() {
+    local l1="$1" p1="${2:-0}" s1="${3:-pending}"
+    local l2="$4" p2="${5:-0}" s2="${6:-pending}"
+    local l3="$7" p3="${8:-0}" s3="${9:-pending}"
+
+    ui_progress_line "$l1" "$p1" "$s1"
+    ui_progress_line "$l2" "$p2" "$s2"
+    ui_progress_line "$l3" "$p3" "$s3"
+}
+
+ui_update_progress_panel() {
+    local lines="${1:-3}"
+    shift || true
+    [[ -t 1 ]] || {
+        ui_render_progress_panel "$@"
+        return 0
+    }
+    ui_move_cursor_up "$lines"
+    ui_clear_lines "$lines"
+    ui_render_progress_panel "$@"
+}
+
+# Backwards-compat wrappers
+ui_status_bar_for_state() {
+    case "${1:-pending}" in
+        running) ui_progress_bar 50 ;;
+        done|failed) ui_progress_bar 100 ;;
+        *) ui_progress_bar 0 ;;
+    esac
+}
+
+ui_status_icon_for_state() {
+    ui_progress_icon_for_state "${1:-pending}"
+}
+
+ui_print_step_status_line() {
+    local label="${1:-step}"
+    local state="${2:-pending}"
+    local percent="0"
+    case "${state}" in
+        running) percent=50 ;;
+        done|failed) percent=100 ;;
+        *) percent=0 ;;
+    esac
+    ui_progress_line "$label" "$percent" "$state"
 }
 
 # Termina la ejecución con error (Exit code 1)
@@ -214,6 +330,34 @@ confirm_action() {
     ask_yes_no "$1"
 }
 
+# Confirmación con default SI (pensada para flujos guiados).
+# - TTY + gum: gum confirm --default=true
+# - TTY sin gum: ask_yes_no o read [Y/n]
+# - No TTY: YES automático para no bloquear.
+ui_confirm_default_yes() {
+    local q="$1"
+
+    if command -v gum >/dev/null 2>&1 && have_gum_ui; then
+        gum confirm --default=true "$q" </dev/tty
+        return $?
+    fi
+
+    if can_prompt; then
+        if declare -F ask_yes_no >/dev/null 2>&1; then
+            ask_yes_no "$q"
+            return $?
+        fi
+        local ans=""
+        printf "%s [Y/n]: " "$q" > /dev/tty
+        read -r ans < /dev/tty || ans="Y"
+        ans="${ans:-Y}"
+        [[ "$ans" =~ ^[YySs]$ ]]
+        return $?
+    fi
+
+    return 0
+}
+
 # ==============================================================================
 # 6. EJECUCIÓN DE COMANDOS
 # ==============================================================================
@@ -251,10 +395,8 @@ check_superrepo_guard() {
         echo "🛑 SUPERREPO (NO ACP)"
         echo "🔴 Aquí NO se usa este comando (marcado con .no-acp-here)."
         echo
-        echo "✅ Usa en su lugar:"
-        echo "   • make rel"
-        echo "   • make rel-auto"
-        echo "   • git rel"
+        echo "💡 Sugerencia: ejecuta este comando en el subdirectorio correcto,"
+        echo "   o fuerza el bypass (solo si sabes lo que haces)."
         echo
         
         if is_tty; then
@@ -262,16 +404,13 @@ check_superrepo_guard() {
             echo "¿Qué quieres hacer ahora?"
             export COLUMNS=1
             PS3="Elige opción: "
-            select opt in "make rel" "make rel-auto" "git rel" "Continuar (forzar)" "Salir"; do
+            select opt in "Continuar (forzar)" "Salir"; do
                 case "$REPLY" in
-                    1) exec make rel ;;
-                    2) exec make rel-auto ;;
-                    3) exec git rel ;;
-                    4) 
+                    1)
                         # Relanzamos el script actual con una flag de entorno para saltar el guard
                         exec env DISABLE_NO_ACP_GUARD=1 "$script_path" "${original_args[@]}" 
                         ;;
-                    5) echo "✋ Cancelado."; exit 2 ;;
+                    2) echo "✋ Cancelado."; exit 2 ;;
                     *) echo "Opción inválida."; continue ;;
                 esac
             done

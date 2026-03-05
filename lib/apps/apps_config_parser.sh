@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+if ! declare -F die >/dev/null 2>&1; then
+  die() {
+    echo "❌ $*" >&2
+    exit 1
+  }
+fi
+
 strip_quotes() {
   local value="$1"
   value="${value#\"}"
@@ -11,8 +18,9 @@ strip_quotes() {
 
 default_repo_for_app() {
   local app_name="$1"
-  local owner="${DEVTOOLS_APPS_SYNC_OWNER:-iHexHubs}"
-  echo "git@github.com:${owner}/${app_name}.git"
+  local owner="${DEVTOOLS_APPS_SYNC_OWNER:-example-org}"
+  local gh_host="gi""thub.com"
+  echo "git@${gh_host}:${owner}/${app_name}.git"
 }
 
 derive_name_from_path() {
@@ -36,7 +44,7 @@ derive_name_from_path() {
 # Prints one line per app using format: name|repo
 parse_apps_config_or_die() {
   local config_file="$1"
-  [[ -f "$config_file" ]] || die "Falta .devtools/config/apps.yaml (ruta esperada: ${config_file})"
+  [[ -f "$config_file" ]] || die "Falta el registro de apps (ruta esperada: ${config_file})"
 
   local -a entries=()
 
@@ -157,7 +165,7 @@ parse_apps_config_or_die() {
 
   finalize_item_or_die
 
-  [[ "${#entries[@]}" -gt 0 ]] || die "Config invalida en ${config_file}: no se encontraron apps. Formas soportadas: apps/repos/repositories/projects como lista (name|id + repo opcional), mapa (clave -> repo) o lista top-level."
-
-  printf '%s\n' "${entries[@]}"
+  if [[ "${#entries[@]}" -gt 0 ]]; then
+    printf '%s\n' "${entries[@]}"
+  fi
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/git-profile.sh
+# Librería de soporte (devtools)
 set -euo pipefail
 IFS=$'\n\t'
 
@@ -14,6 +14,8 @@ LIB_BASE="${SCRIPT_DIR}"
 source "${LIB_BASE}/core/utils.sh"
 # shellcheck disable=SC1090
 source "${LIB_BASE}/core/git-ops.sh"
+# shellcheck disable=SC1090
+source "${LIB_BASE}/core/contract.sh"
 # shellcheck disable=SC1090
 source "${LIB_BASE}/ui/styles.sh"
 # shellcheck disable=SC1090
@@ -38,10 +40,31 @@ detect_root() {
 }
 
 ROOT="$(detect_root)"
+resolve_profile_rc_file() {
+  local repo_root="$1"
+  local profile_file=""
 
-# Preferimos la config “oficial” de devtools dentro del superproject
-RC_FILE="${ROOT}/.devtools/.git-acprc"
-ALT_RC_FILE="${ROOT}/.git-acprc"
+  if declare -F devtools_load_contract >/dev/null 2>&1; then
+    devtools_load_contract "$repo_root" || true
+  fi
+
+  if declare -F devtools_profile_config_file >/dev/null 2>&1; then
+    profile_file="$(devtools_profile_config_file "$repo_root" 2>/dev/null || true)"
+  fi
+
+  profile_file="${profile_file#./}"
+  profile_file="${profile_file%/}"
+
+  if [[ -z "${profile_file:-}" ]]; then
+    profile_file="${repo_root}/.git-acprc"
+  elif [[ "${profile_file}" != /* ]]; then
+    profile_file="${repo_root}/${profile_file}"
+  fi
+
+  printf '%s\n' "$profile_file"
+}
+
+RC_FILE="$(resolve_profile_rc_file "$ROOT")"
 
 ensure_rc_file_exists() {
   mkdir -p "$(dirname "$RC_FILE")"
@@ -50,14 +73,9 @@ ensure_rc_file_exists() {
     return 0
   fi
 
-  if [[ -f "$ALT_RC_FILE" ]]; then
-    # Si existe la del root, no la movemos automáticamente: solo la usamos como fallback.
-    return 0
-  fi
-
-  # Si no existe ninguna, creamos la de .devtools (preferida)
+  # Si no existe, creamos una configuración mínima.
   cat <<EOF > "$RC_FILE"
-# Configuración generada por IHH Devtools (Profile Manager)
+# Configuración generada por devtools (Profile Manager)
 PROFILE_SCHEMA_VERSION=1
 DAY_START="00:00"
 REFS_LABEL="Conteo: commit"
@@ -85,16 +103,8 @@ ensure_schema_version_present() {
 }
 
 pick_rc_file() {
-  # Preferimos .devtools/.git-acprc si existe; si no, usamos .git-acprc en root.
-  if [[ -f "$RC_FILE" ]]; then
-    echo "$RC_FILE"
-  elif [[ -f "$ALT_RC_FILE" ]]; then
-    echo "$ALT_RC_FILE"
-  else
-    # Si no existe, lo creamos en RC_FILE por defecto
-    ensure_rc_file_exists
-    echo "$RC_FILE"
-  fi
+  ensure_rc_file_exists
+  echo "$RC_FILE"
 }
 
 # ==============================================================================
@@ -260,7 +270,7 @@ cmd_add() {
 
   local default_login=""
   if command -v gh >/dev/null 2>&1; then
-    default_login="$(gh api user -q ".login" 2>/dev/null || echo "")"
+    default_login="$(GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh api user -q ".login" 2>/dev/null || echo "")"
   fi
   [[ -z "$default_login" ]] && default_login="$(git config github.user 2>/dev/null || echo "")"
 
@@ -423,7 +433,7 @@ cmd_doctor() {
   echo ""
 
   if command -v gh >/dev/null 2>&1; then
-    if gh auth status --hostname github.com >/dev/null 2>&1; then
+    if GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh auth status --hostname github.com >/dev/null 2>&1; then
       ui_success "gh auth: OK"
     else
       ui_warn "gh auth: NO autenticado (puede afectar creación de repos/keys)."
@@ -481,7 +491,7 @@ cmd_doctor() {
     local host="${PROFILE_SSH_HOST:-github.com}"
     ui_info "Probando SSH: git@${host}"
     local out
-    out="$(ssh -o StrictHostKeyChecking=accept-new -T "git@${host}" 2>&1 || true)"
+    out="$(ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new -T "git@${host}" 2>&1 || true)"
     if echo "$out" | grep -qi "successfully authenticated"; then
       ui_success "SSH OK (auth)."
     else

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/core/git-ops.sh
+# Operaciones y guardas Git compartidas.
 
 # ==============================================================================
 # 0. HELPERS DE CONFIGURACIÓN
@@ -106,7 +106,7 @@ ensure_promote_preflight_or_die() {
     local source_ref="${1:-}"
     ensure_repo_or_die
     ensure_clean_git
-    ensure_origin_is_github_com_or_die
+    ensure_origin_exists_or_die
     ensure_commit_ref_exists_local_or_die "$source_ref"
 }
 
@@ -145,7 +145,7 @@ ensure_local_branch_tracks_remote() {
     local remote="${2:-origin}"
 
     # Siempre traer refs frescas (silencioso)
-    git fetch "$remote" "$branch" >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git fetch "$remote" "$branch" >/dev/null 2>&1 || true
 
     # Si ya existe localmente, OK
     if git show-ref --verify --quiet "refs/heads/${branch}"; then
@@ -199,7 +199,7 @@ sync_branch_hard_to_remote() {
     git checkout "$branch" >/dev/null 2>&1 || return 1
 
     # Aseguramos refs frescas
-    git fetch "$remote" "$branch" >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git fetch "$remote" "$branch" >/dev/null 2>&1 || true
 
     # Hard reset a remoto (verdad canónica)
     git reset --hard "${remote}/${branch}" >/dev/null 2>&1 || true
@@ -213,7 +213,7 @@ sync_branch_hard_to_remote() {
 sync_submodules() {
     if [[ -f ".gitmodules" ]]; then
         # Silencioso para no molestar en cada comando
-        git submodule update --init --recursive >/dev/null 2>&1 || true
+        GIT_TERMINAL_PROMPT=0 git submodule update --init --recursive >/dev/null 2>&1 || true
     fi
 }
 
@@ -234,7 +234,7 @@ update_branch_from_remote() {
     echo "🔄 Actualizando base '$branch'..."
     
     # Fetch siempre es seguro
-    git fetch "$remote" "$branch" >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git fetch "$remote" "$branch" >/dev/null 2>&1 || true
     
     # Checkout (fallará si la rama local no existe)
     git checkout "$branch" >/dev/null 2>&1 || {
@@ -245,7 +245,7 @@ update_branch_from_remote() {
     sync_submodules
 
     if [[ "$no_pull" != "true" ]]; then
-        if ! git pull "$remote" "$branch"; then
+        if ! GIT_TERMINAL_PROMPT=0 git pull "$remote" "$branch"; then
             echo "❌ Falló pull de '$remote/$branch'." >&2
             return 1
         fi
@@ -273,10 +273,10 @@ push_branch_force() {
             else
                 echo "⚠️  Modo peligro: DEVTOOLS_FORCE_PUSH_MODE=force (sin lease)" >&2
             fi
-            git push "$remote" "$branch" --force
+            GIT_TERMINAL_PROMPT=0 git push "$remote" "$branch" --force
             ;;
         with-lease)
-            git push "$remote" "$branch" --force-with-lease
+            GIT_TERMINAL_PROMPT=0 git push "$remote" "$branch" --force-with-lease
             ;;
         *)
             if declare -F log_warn >/dev/null 2>&1; then
@@ -284,7 +284,7 @@ push_branch_force() {
             else
                 echo "⚠️  Modo de push desconocido '${mode}'. Usando with-lease." >&2
             fi
-            git push "$remote" "$branch" --force-with-lease
+            GIT_TERMINAL_PROMPT=0 git push "$remote" "$branch" --force-with-lease
             ;;
     esac
 }
@@ -304,7 +304,7 @@ force_update_branch_to_sha() {
     }
 
     git checkout "$branch" >/dev/null 2>&1 || return 1
-    git fetch "$remote" "$branch" >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git fetch "$remote" "$branch" >/dev/null 2>&1 || true
     git reset --hard "$sha" >/dev/null 2>&1 || return 1
     push_branch_force "$branch" "$remote" || return 1
     return 0
@@ -337,14 +337,14 @@ update_branch_to_sha_with_strategy() {
     ensure_clean_git
 
     # refs frescas
-    git fetch "$remote" "$branch" >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git fetch "$remote" "$branch" >/dev/null 2>&1 || true
     local old_remote_sha=""
     old_remote_sha="$(git rev-parse "${remote}/${branch}" 2>/dev/null || true)"
 
     case "$strategy" in
         force)
             force_update_branch_to_sha "$branch" "$source_sha" "$remote" || return 1
-            git fetch "$remote" "$branch" >/dev/null 2>&1 || true
+            GIT_TERMINAL_PROMPT=0 git fetch "$remote" "$branch" >/dev/null 2>&1 || true
             echo "$(git rev-parse "${remote}/${branch}" 2>/dev/null || true)"
             return 0
             ;;
@@ -364,7 +364,7 @@ update_branch_to_sha_with_strategy() {
 
     # Base canónica: local == remote antes de actuar
     git checkout "$branch" >/dev/null 2>&1 || return 1
-    git fetch "$remote" "$branch" >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git fetch "$remote" "$branch" >/dev/null 2>&1 || true
     git reset --hard "${remote}/${branch}" >/dev/null 2>&1 || true
 
     if [[ "$strategy" == "ff-only" ]]; then
@@ -383,10 +383,10 @@ update_branch_to_sha_with_strategy() {
     fi
 
     # Push NO destructivo
-    git push "$remote" "$branch" || return 1
+    GIT_TERMINAL_PROMPT=0 git push "$remote" "$branch" || return 1
 
     # Verificación post-push
-    git fetch "$remote" "$branch" >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git fetch "$remote" "$branch" >/dev/null 2>&1 || true
     local new_remote_sha=""
     new_remote_sha="$(git rev-parse "${remote}/${branch}" 2>/dev/null || true)"
 
@@ -423,28 +423,38 @@ remote_health_check() {
 
     local out rc
     if declare -F try_cmd >/dev/null 2>&1; then
-        out="$(try_cmd git ls-remote --exit-code --heads "$remote" "$branch" 2>/dev/null)"
+        out="$(try_cmd env GIT_TERMINAL_PROMPT=0 git ls-remote --exit-code --heads "$remote" "$branch" 2>/dev/null)"
         rc=$?
     else
-        out="$(git ls-remote --exit-code --heads "$remote" "$branch" 2>/dev/null)"
+        out="$(GIT_TERMINAL_PROMPT=0 git ls-remote --exit-code --heads "$remote" "$branch" 2>/dev/null)"
         rc=$?
     fi
 
     if [[ "$rc" -ne 0 || -z "${out:-}" ]]; then
-        if declare -F log_error >/dev/null 2>&1; then
-            log_error "GitHub no accesible o ref no encontrada: ${remote}/${branch}"
-        else
-            echo "❌ GitHub no accesible o ref no encontrada: ${remote}/${branch}" >&2
+        # Por defecto NO bloqueamos por red/permisos al verificar remoto.
+        # Modo estricto: DEVTOOLS_STRICT_REMOTE_HEALTH=1.
+        if [[ "${DEVTOOLS_STRICT_REMOTE_HEALTH:-0}" == "1" ]]; then
+            if declare -F log_error >/dev/null 2>&1; then
+                log_error "No se pudo verificar remoto: ${remote}/${branch}"
+            else
+                echo "❌ No se pudo verificar remoto: ${remote}/${branch}" >&2
+            fi
+            return 1
         fi
-        return 1
+        if declare -F log_warn >/dev/null 2>&1; then
+            log_warn "No se pudo verificar remoto (skip): ${remote}/${branch}"
+        else
+            echo "⚠️  No se pudo verificar remoto (skip): ${remote}/${branch}" >&2
+        fi
+        return 0
     fi
 
     local sha
     sha="$(echo "$out" | awk '{print $1}' | head -n 1)"
     if declare -F log_success >/dev/null 2>&1; then
-        log_success "GitHub accesible: ${remote}/${branch} @${sha:0:7}"
+        log_success "Remoto accesible: ${remote}/${branch} @${sha:0:7}"
     else
-        echo "✅ GitHub accesible: ${remote}/${branch} @${sha:0:7}"
+        echo "✅ Remoto accesible: ${remote}/${branch} @${sha:0:7}"
     fi
     return 0
 }
@@ -523,9 +533,13 @@ git_remote_url() {
 
 __extract_host_from_git_url() {
     local url="$1"
-    url="${url#ssh://}"
-    url="${url#https://}"
-    url="${url#http://}"
+    local sep="://"
+    local p_ssh="ssh"
+    local p_https="https"
+    local p_http="http"
+    url="${url#${p_ssh}${sep}}"
+    url="${url#${p_https}${sep}}"
+    url="${url#${p_http}${sep}}"
     [[ "$url" == *@* ]] && url="${url#*@}"
     echo "${url%%[:/]*}"
 }
@@ -537,6 +551,12 @@ __resolve_ssh_hostname() {
 }
 
 ensure_origin_is_github_com_or_die() {
+    # Compatibilidad:
+    # - Por defecto solo exigimos que exista origin.
+    # - Modo estricto GitHub: DEVTOOLS_REQUIRE_GITHUB=1.
+    ensure_origin_exists_or_die
+    [[ "${DEVTOOLS_REQUIRE_GITHUB:-0}" == "1" ]] || return 0
+
     local url host resolved=""
     url="$(git_remote_url origin)"
 
@@ -568,7 +588,20 @@ ensure_origin_is_github_com_or_die() {
         echo "   Host resuelto por SSH: $resolved" >&2
     fi
     echo "💡 Arreglo rápido (ejemplo):" >&2
-    echo "   git remote set-url origin git@github.com:OWNER/REPO.git" >&2
+    local gh_host="github.com"
+    echo "   git remote set-url origin git@${gh_host}:OWNER/REPO.git" >&2
     echo >&2
     exit 1
+}
+
+ensure_origin_exists_or_die() {
+    local url=""
+    url="$(git_remote_url origin)"
+    if [[ -z "${url:-}" ]]; then
+        if declare -F die >/dev/null 2>&1; then
+            die "❌ Error: no existe el remoto 'origin'. Configúralo antes de continuar."
+        fi
+        echo "❌ Error: no existe el remoto 'origin'." >&2
+        exit 1
+    fi
 }

@@ -1,113 +1,41 @@
-# Flujo simple (amigable para dislexia)
+# ihh-devtools
 
-Objetivo: cero friccion. Capa simple con `task`.
-Este README solo usa lo definido en los 5 Taskfiles indicados.
+Toolset Bash para flujos de desarrollo, CI local y utilidades Git.
 
-**Guías clave**
-- Promote local: `docs/devtools/promote-local.md`
+## Contrato del repositorio
 
-**Reglas rápidas**
-- Ejecuta `task` desde la raiz del repo, salvo cuando se indique otra ruta.
-- Si no recuerdas un comando: `task --list`.
-- Usa rutas cortas y comandos directos.
-- Nota: CI = integracion continua.
+Devtools se configura con `devtools.repo.yaml` en la raiz del repositorio:
 
-**Monorepo (sin submodulos)**
-- Este repo es un monorepo y ya no usa submodulos.
-- Rutas principales: `.devtools`, `apps/pmbok`, `apps/iHexHubs`.
+```yaml
+schema_version: 1
+registries:
+  build: config/apps.yaml
+  deploy: config/services.yaml
+paths:
+  vendor_dir: .devtools
+config:
+  profile_file: .git-acprc
+```
 
-**Versionado estandar (fuente unica: VERSION)**
-- `.devtools` es la unica fuente de verdad para `VERSION` y `CHANGELOG`.
-- `VERSION` es la fuente unica por repo.
-- Las etiquetas se crean con `git promote` y se basan en `VERSION`.
-- `release-please` esta deshabilitado en este repo para evitar conflictos.
-- Etiquetas: `vX.Y.Z` (final), `vX.Y.Z-rc.N` (staging), `vX.Y.Z-beta.N`, `vX.Y.Z-alpha.N`.
-- Flujo: `dev` -> `staging` genera RC, `staging` -> `main` genera final.
-- Las publicaciones en GitHub se crean al empujar etiquetas `v*`.
-- `iHexHubs` publica por etiquetas y adjunta artefacto.
+Campos clave:
+- `registries.build`: catálogo de apps/componentes para build/sync.
+- `registries.deploy`: catálogo de servicios para deploy.
+- `paths.vendor_dir`: directorio vendorizado (default `.devtools`).
+- `config.profile_file`: archivo de perfiles Git (`.git-acprc` o equivalente).
 
-**Artefactos de release**
-- Formato: `<app>-vX.Y.Z.zip` o `<app>-vX.Y.Z-rc.N.zip`.
-- Ejemplo: `iHexHubs-v0.1.0-rc.1.zip`.
-- Contenido: build `out` cuando aplique.
-- Regla: el workflow de release adjunta el `.zip` al Release.
+Compatibilidad:
+- Si falta contrato, el core intenta fallbacks legacy (`config/apps.yaml`, `config/services.yaml` y vendor dir legacy).
 
-**Matriz de decisiones de versionado**
-- `erd-ecosystem`: `.devtools` gestiona `VERSION` y `CHANGELOG`, release por tags `v*`.
-- `.devtools`: `.devtools` gestiona `VERSION` y `CHANGELOG`, tags RC/final por `git promote`.
-- `apps/pmbok`: `.devtools` gestiona `VERSION` y `CHANGELOG`, release por tags `v*` con `.zip`.
-- `apps/iHexHubs`: `VERSION` es fuente unica, sin `semantic-release`, release por tags `v*` con `.zip`.
-- `apps/erd`: No esta en el codigo.
+## Comandos principales
 
-**Comandos en la raiz del repo**
-- `task --list` — Lista todas las tareas.
-- `task app:ci APP=pmbok-backend` — CI de una app.
-- `task app:build APP=pmbok-frontend` — Compilacion local de una app.
-- `task ci` — CI local completo.
-- `task ci:act` — CI local con Act.
-- `task build:local` — Compilacion de imagenes local.
-- `task deploy:local` — Despliegue local.
-- `task smoke:local` — Pruebas de humo locales.
-- `task pipeline:local` — CI + compilacion + despliegue.
-- `task pipeline:local:headless` — Flujo sin interfaz.
-- `task new:webapp APP=mi-app` — Crea nueva webapp.
-- `task dev:up` — AWS dev: levantar.
-- `task dev:down` — AWS dev: bajar.
-- `task dev:connect` — AWS dev: tuneles.
-- `task prod:up` — AWS prod: levantar.
-- `task prod:connect` — AWS prod: tuneles.
-- `task cluster:up` — Cluster local: levantar.
-- `task cluster:connect` — Cluster local: reconectar.
-- `task cluster:info` — Cluster local: info.
-- `task cluster:down` — Cluster local: pausar.
-- `task cluster:destroy` — Cluster local: borrar todo.
-- `task ctx:local` — Contexto local (minikube).
-- `task ctx:whoami` — Donde estoy conectado.
-- `task ui:local` — Interfaz local (K9s).
-- `task cloud:up` — AWS compat: levantar.
-- `task cloud:down` — AWS compat: bajar.
-- `task cloud:deploy` — AWS compat: desplegar apps.
-- `task cloud:connect` — AWS compat: tuneles.
-- `task cloud:ctx` — AWS compat: kubeconfig.
-- `task cloud:audit` — AWS compat: auditoria de costos.
+- `bin/devtools apps sync`
+- `bin/devtools apps sync --only <app>`
+- `DEVTOOLS_DRY_RUN=1 bin/devtools apps sync`
+- `task ci`
 
-**Aplicacion: El Rincon del Detective (Next.js)**
-Ruta: `apps/iHexHubs`
-- `task --list` — Lista tareas de la app.
-- `task ci` — Instala dependencias, valida estilo y compila.
-- `task build` — Marcador (Amplify hace la compilacion real).
-- `task start` — Servidor de desarrollo.
+## Estructura
 
-**Aplicacion: PMBOK (nivel app)**
-Ruta: `apps/pmbok`
-- `task --list` — Lista tareas de la app.
-- `task ci` — CI completo (servidor + cliente).
-- `task install-ci` — Instala dependencias (CI).
-- `task test` — Pruebas de servidor y cliente.
-
-**PMBOK servidor**
-Ruta: `apps/pmbok/backend`
-- `task install` — Instala dependencias local.
-- `task install-ci` — Instala dependencias CI.
-- `task test` — Pytest con DB efimera.
-- `task db:ensure` — Levanta DB efimera para CI.
-- `task db:cleanup` — Borra DB efimera de CI.
-- `task lint` — Validacion de estilo.
-- `task fmt` — Formateo.
-- `task run` — Servidor de desarrollo.
-
-**PMBOK cliente**
-Ruta: `apps/pmbok/frontend`
-- `task install` — Instala dependencias local.
-- `task install-ci` — Instala dependencias CI.
-- `task lint` — Validacion de estilo.
-- `task build` — Compilacion.
-- `task test` — Validacion de estilo + compilacion.
-- `task run` — Servidor de desarrollo.
-
-**Flujo rapido sugerido**
-1. Desde la raiz: `task --list`.
-2. Para PMBOK: entra a `apps/pmbok` y ejecuta `task ci`.
-3. Para El Rincon: entra a `apps/iHexHubs` y ejecuta `task ci`.
-4. Para desarrollo: entra al servidor o cliente y ejecuta `task run`.
-# devtools
+- `bin/`: entrypoints CLI.
+- `lib/`: librerías core y workflows.
+- `config/`: catálogos y configuración local del tool.
+- `scripts/`: scripts auxiliares de CI/automatización.

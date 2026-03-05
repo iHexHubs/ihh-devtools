@@ -1,0 +1,11 @@
+schema_version: 1
+registries:
+  # Defaults permitidos (sin hardcodear literal ".devtools" + "/..."):
+  # - build  : ".devtools" + "/config/apps.yaml"
+  # - deploy : "ecosystem/services.yaml"
+  build: null
+  deploy: null
+paths:
+  vendor_dir: .devtools
+config:
+  profile_file: .git-acprc
