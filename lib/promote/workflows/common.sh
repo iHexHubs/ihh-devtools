@@ -151,6 +151,7 @@ resolve_promote_component() {
 generate_changelog_for_component() {
     local component="${1:-}"
     local tag="${2:-}"
+    local range="${3:-}"
     local dot_dir=".devtools"
     local repo_root
     repo_root="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
@@ -160,6 +161,7 @@ generate_changelog_for_component() {
 
     local output_file=""
     local -a scope_opts=()
+    local -a range_opts=()
     case "$component" in
         ihh)
             output_file="${repo_root}/apps/ihh/CHANGELOG.md"
@@ -188,6 +190,10 @@ generate_changelog_for_component() {
 
     mkdir -p "$(dirname "$output_file")"
 
+    if [[ -n "${range:-}" ]]; then
+        range_opts+=("$range")
+    fi
+
     local tag_pattern="^([A-Za-z0-9._-]+-)?v[0-9]+\\.[0-9]+\\.[0-9]+(-rc\\.[0-9]+(\\+build\\.[0-9]+)?)?$"
 
     if command -v git-cliff >/dev/null 2>&1; then
@@ -195,13 +201,21 @@ generate_changelog_for_component() {
             "${scope_opts[@]}" \
             --tag-pattern "$tag_pattern" \
             --tag "$tag" \
+            "${range_opts[@]}" \
             -o "$output_file"
     elif command -v devbox >/dev/null 2>&1; then
-        devbox run git-cliff --config "$config_file" \
-            "${scope_opts[@]}" \
-            --tag-pattern "$tag_pattern" \
-            --tag "$tag" \
-            -o "$output_file"
+        local devbox_env=""
+        devbox_env="$(devbox shell --print-env 2>/dev/null)" \
+            || die "No pude obtener entorno de Devbox para ejecutar git-cliff."
+        (
+            eval "$devbox_env"
+            git-cliff --config "$config_file" \
+                "${scope_opts[@]}" \
+                --tag-pattern "$tag_pattern" \
+                --tag "$tag" \
+                "${range_opts[@]}" \
+                -o "$output_file"
+        ) || die "Falló git-cliff usando entorno de Devbox."
     else
         die "No se encontró git-cliff ni devbox para ejecutarlo."
     fi
@@ -232,17 +246,18 @@ prepare_changelog_commit() {
     log_info "🧾 Generando changelog (componente=${component}, tag=${tag})"
 
     local output_file
-    output_file="$(generate_changelog_for_component "$component" "$tag")"
+    output_file="$(generate_changelog_for_component "$component" "$tag" "$range")"
     [[ -n "${output_file:-}" ]] || die "No pude resolver el archivo de changelog."
+    export DEVTOOLS_CHANGELOG_FILE="${output_file}"
+    export DEVTOOLS_CHANGELOG_UPDATED="0"
 
     if git diff --quiet -- "$output_file"; then
         log_warn "El changelog no cambió (${output_file}). Omitiendo commit."
         return 0
     fi
 
-    git add "$output_file" || die "No pude agregar ${output_file}."
-    git commit -m "chore(release): actualizar changelog ${tag}" \
-        || die "No pude crear el commit del changelog."
+    export DEVTOOLS_CHANGELOG_UPDATED="1"
+    log_info "📝 Changelog actualizado en ${output_file} (se integrará en commit final)."
 }
 
 # ==============================================================================

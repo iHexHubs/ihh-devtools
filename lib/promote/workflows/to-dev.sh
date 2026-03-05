@@ -542,7 +542,7 @@ promote_to_dev() {
     fi
     [[ -n "${source_sha:-}" ]] || die "No pude resolver SHA fuente."
     local target_before_sha=""
-    target_before_sha="$(git rev-parse dev 2>/dev/null || true)"
+    target_before_sha="$(git rev-parse origin/dev 2>/dev/null || git rev-parse dev 2>/dev/null || true)"
     local target_after_sha="${target_before_sha:-unknown}"
     local moved="no"
     local final_tag_sha="-"
@@ -601,32 +601,36 @@ promote_to_dev() {
         die "No se encontró helper prepare_changelog_commit."
     fi
 
-    local base_ref="origin/staging"
-    if ! git show-ref --verify --quiet "refs/remotes/origin/staging"; then
-        if git show-ref --verify --quiet "refs/heads/staging"; then
-            base_ref="staging"
+    GIT_TERMINAL_PROMPT=0 git fetch origin dev staging --prune >/dev/null 2>&1 || true
+    local dev_before_sha=""
+    local staging_head_sha=""
+    local source_sha_for_dev=""
+    local staging_sync_strategy="merge-theirs"
+    dev_before_sha="$(git rev-parse origin/dev 2>/dev/null || true)"
+    [[ -n "${dev_before_sha:-}" ]] || die "No pude resolver origin/dev para calcular rango de changelog."
+    staging_head_sha="$(git rev-parse origin/staging 2>/dev/null || true)"
+    [[ -n "${staging_head_sha:-}" ]] || die "No pude resolver origin/staging para calcular rango de changelog."
+    source_sha_for_dev="$staging_head_sha"
+
+    # Si la fuente no coincide con origin/staging, primero alineamos staging y usamos ese SHA.
+    if [[ "${source_sha}" != "${staging_head_sha}" ]]; then
+        if [[ "${source_branch_original}" != "staging" ]]; then
+            log_warn "Fuente '${source_branch_original}' no es staging; alineando staging con source_sha=${source_sha:0:7}."
         else
-            base_ref=""
+            log_info "Rama staging local adelantada; sincronizando origin/staging con source_sha=${source_sha:0:7}."
         fi
+        update_branch_to_sha_with_strategy "staging" "$source_sha" "origin" "$staging_sync_strategy" "1" >/dev/null \
+            || die "No pude alinear staging con source_sha=${source_sha:0:7}."
+        GIT_TERMINAL_PROMPT=0 git fetch origin staging --prune >/dev/null 2>&1 || true
+        staging_head_sha="$(git rev-parse origin/staging 2>/dev/null || true)"
+    elif [[ "${source_branch_original}" != "staging" ]]; then
+        log_info "Fuente '${source_branch_original}' ya coincide con origin/staging (${staging_head_sha:0:7})."
     fi
-    local range range_head
-    if [[ -n "${base_ref:-}" ]]; then
-        if git show-ref --verify --quiet "refs/heads/dev"; then
-            local dev_sha
-            dev_sha="$(git rev-parse dev 2>/dev/null || true)"
-            if [[ -n "${dev_sha:-}" && "$dev_sha" == "$source_sha" ]]; then
-                range_head="dev"
-            else
-                range_head="$source_sha"
-            fi
-        else
-            range_head="$source_sha"
-        fi
-        range="${base_ref}..${range_head}"
-    else
-        range="${source_sha}"
-        log_warn "No pude resolver ref de staging para calcular el rango."
-    fi
+    [[ "${staging_head_sha:-}" =~ ^[0-9a-f]{40}$ ]] || die "staging_head_sha inválido: '${staging_head_sha:-<vacío>}'"
+    source_sha_for_dev="$staging_head_sha"
+
+    local range
+    range="${dev_before_sha}..${staging_head_sha}"
 
     local suggested_tag final_tag
     suggested_tag="$(promote_next_tag_dev "$range")"
@@ -682,17 +686,7 @@ promote_to_dev() {
     local promote_component
     promote_component="$(resolve_promote_component "$range")"
     log_info "🧩 Componente changelog: ${promote_component}"
-
-    log_info "🧪 Checkpoint: antes de prepare_changelog_commit (tag=${final_tag})"
-    if git log --format="%s" --grep="^chore\\(release\\): actualizar changelog ${final_tag}$" -n 1 >/dev/null 2>&1; then
-        log_warn "El changelog ya tiene commit para ${final_tag}. Omitiendo recreación."
-    else
-        prepare_changelog_commit "$final_tag" "$range" "$promote_component"
-    fi
-    log_info "🧪 Checkpoint: después de prepare_changelog_commit"
-    source_sha="$(git rev-parse HEAD 2>/dev/null || true)"
-    [[ -n "${source_sha:-}" ]] || die "No pude resolver SHA luego del commit de changelog."
-    export DEVTOOLS_PROMOTE_FROM_SHA="$source_sha"
+    log_info "🔎 CHANGELOG DEBUG: from_ref=${dev_before_sha:0:7} to_ref=${staging_head_sha:0:7} range=${dev_before_sha:0:7}..${staging_head_sha:0:7}"
 
     # Tag real: se crea/pushea al final, solo después de Push OK a dev.
 
@@ -717,11 +711,16 @@ promote_to_dev() {
     # Estrategia (Menú Universal): el bin la setea siempre, pero dejamos fallback seguro.
     local strategy="${DEVTOOLS_PROMOTE_STRATEGY:-}"
     [[ -n "${strategy:-}" ]] || strategy="ff-only"
+    if [[ "$strategy" == "ff-only" || "$strategy" == "force" ]]; then
+        log_warn "Para integrar CHANGELOG sin commit extra se requiere merge commit; ajustando estrategia ${strategy} -> merge-theirs."
+        strategy="merge-theirs"
+        export DEVTOOLS_PROMOTE_STRATEGY="$strategy"
+    fi
 
-    # Aplicar estrategia y PUSHEAR inmediatamente a origin/dev (lo hace git-ops.sh)
+    # Aplicar estrategia sobre dev local; el push se hace luego del amend del changelog.
     local final_sha="" rc=0 dev_push_ok=0
     while true; do
-        if final_sha="$(update_branch_to_sha_with_strategy "dev" "$source_sha" "origin" "$strategy")"; then
+        if final_sha="$(update_branch_to_sha_with_strategy "dev" "$source_sha_for_dev" "origin" "$strategy" "0")"; then
             rc=0
         else
             rc=$?
@@ -736,9 +735,30 @@ promote_to_dev() {
         break
     done
 
+    log_success "✅ Promoción local en dev lista (sin push): strategy=${strategy}, sha=${final_sha:0:7}"
+
+    log_info "🧪 Checkpoint: antes de prepare_changelog_commit (tag=${final_tag})"
+    prepare_changelog_commit "$final_tag" "$range" "$promote_component"
+    log_info "🧪 Checkpoint: después de prepare_changelog_commit"
+
+    if [[ "${DEVTOOLS_CHANGELOG_UPDATED:-0}" == "1" ]]; then
+        local changelog_file="${DEVTOOLS_CHANGELOG_FILE:-CHANGELOG.md}"
+        log_info "🔎 CHANGELOG DEBUG: file=${changelog_file} range=${range}"
+        git add "$changelog_file" || die "No pude agregar ${changelog_file}."
+        git commit --amend --no-edit || die "No pude integrar changelog en el commit final."
+        final_sha="$(git rev-parse HEAD 2>/dev/null || true)"
+        [[ -n "${final_sha:-}" ]] || die "No pude resolver SHA tras integrar changelog."
+    fi
+
+    if [[ "$strategy" == "force" ]]; then
+        push_branch_force "dev" "origin" || die "No pude pushear dev (force)."
+    else
+        GIT_TERMINAL_PROMPT=0 git push origin dev || die "No pude pushear dev."
+    fi
+
     log_success "✅ Push OK: ${source_branch} -> origin/dev (strategy=${strategy}, sha=${final_sha:0:7})"
     dev_push_ok=1
-    if ! target_after_sha="$(promote_dev_verify_target_advanced_or_die "dev" "$source_sha" "$target_before_sha")"; then
+    if ! target_after_sha="$(promote_dev_verify_target_advanced_or_die "dev" "$source_sha_for_dev" "$target_before_sha")"; then
         return 2
     fi
     moved="yes"
