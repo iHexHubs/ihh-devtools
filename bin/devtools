@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="${SCRIPT_DIR}/../lib"
+
+# shellcheck source=../lib/core/utils.sh
+source "${LIB_DIR}/core/utils.sh"
+APPS_SYNC_AVAILABLE=0
+if [[ -f "${LIB_DIR}/apps/sync.sh" ]]; then
+  # shellcheck source=../lib/apps/sync.sh
+  source "${LIB_DIR}/apps/sync.sh"
+  APPS_SYNC_AVAILABLE=1
+fi
+
+usage() {
+  cat <<'EOF'
+Uso:
+  devtools apps sync [--only <app>]
+
+Comandos:
+  apps sync   Sincroniza repos definidos en el registry de build del contrato
+
+Opciones:
+  --only <app>   Sincroniza solo una app por nombre
+
+Notas:
+  - DEVTOOLS_DRY_RUN=1: solo imprime acciones (sin clone/fetch/pull)
+EOF
+}
+
+main() {
+  local cmd="${1:-}"
+  local subcmd="${2:-}"
+
+  case "$cmd" in
+    apps)
+      case "$subcmd" in
+        sync)
+          if [[ "${APPS_SYNC_AVAILABLE}" != "1" ]]; then
+            echo "Este build de devtools no incluye apps sync." >&2
+            exit 1
+          fi
+          shift 2
+          apps_sync "$@"
+          ;;
+        -h|--help|help|"")
+          apps_sync_usage
+          ;;
+        *)
+          die "Subcomando desconocido: apps ${subcmd}"
+          ;;
+      esac
+      ;;
+    -h|--help|help|"")
+      usage
+      ;;
+    *)
+      die "Comando desconocido: ${cmd}. Usa: devtools apps sync [--only <app>]"
+      ;;
+  esac
+}
+
+main "$@"

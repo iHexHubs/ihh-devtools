@@ -1,0 +1,3 @@
+apps:
+  - name: pmbok
+    repo: git@github.com:org/pmbok.git

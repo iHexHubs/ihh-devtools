@@ -1,0 +1,19 @@
+# Runtime artifacts
+run/tunnels.log
+run/tunnels.pids
+devbox.lock
+.promote_tag
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+.venv/
+.venv-ci
+.pytest_cache/
+
+# Frontend artifacts
+node_modules/
+dist/
+devbox-app/.env
+staging.md
+prod.md

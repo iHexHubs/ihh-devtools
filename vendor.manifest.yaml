@@ -1,0 +1,7 @@
+includes:
+  - bin/**
+  - lib/**
+  - config/**
+  - scripts/**
+  - VERSION
+  - README.md

@@ -1,0 +1,3 @@
+apps:
+  -
+    path: apps/pmbok/backend

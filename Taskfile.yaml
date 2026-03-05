@@ -1,0 +1,209 @@
+version: "3"
+
+tasks:
+  ci:
+    desc: "Validaciones base del repositorio devtools"
+    cmds:
+      - task lint:shell
+      - task lint:contamination
+      - bash -euo pipefail -c './scripts/gh-policy-check.sh'
+
+  lint:shell:
+    desc: "Chequea sintaxis bash en bin/ y lib/"
+    cmds:
+      - bash -euo pipefail -c 'mapfile -t files < <(find bin lib -type f | sort); [ "${#files[@]}" -gt 0 ] || exit 0; bash -n "${files[@]}"'
+
+  lint:contamination:
+    desc: "Detecta rutas hardcodeadas y referencias legacy no portables"
+    cmds:
+      - |-
+          bash -euo pipefail -c '
+            PATTERN="(/webapps/|/home/|/Users/|\\.devtools/|github\\.com/|git@github\\.com:)";
+            TARGETS=(README.md CHANGELOG.md scripts devtools.repo.yaml);
+            matches="$(grep -RniE "$PATTERN" "${TARGETS[@]}" || true)";
+            filtered="$(printf "%s\n" "$matches" | grep -vE "^CHANGELOG\\.md:[0-9]+:.*\\.devtools/releases/(prod|staging)\\.md" || true)";
+            if [[ -n "$filtered" ]]; then
+              printf "%s\n" "$filtered";
+              echo "contaminacion detectada";
+              exit 1;
+            fi
+          '
+
+  ci:act:
+    desc: "Ejecuta CI local usando Act"
+    cmds:
+      - |-
+          bash -euo pipefail -c '
+            WF=".github/workflows/ci.yaml"
+            DEFAULT_IMAGE="catthehacker/ubuntu:full-latest"
+            ACT_IMAGE="${DEVTOOLS_ACT_IMAGE:-$DEFAULT_IMAGE}"
+
+            if [ ! -f "$WF" ]; then
+              echo "skip: $WF no existe"
+              exit 0
+            fi
+
+            command -v act >/dev/null 2>&1 || { echo "act no esta instalado"; exit 1; }
+            command -v docker >/dev/null 2>&1 || { echo "docker no esta instalado"; exit 1; }
+
+            if ! docker image inspect "$ACT_IMAGE" >/dev/null 2>&1; then
+              echo "Este comando necesita la imagen Docker: $ACT_IMAGE"
+              echo "No esta disponible localmente."
+
+              if [ ! -t 0 ]; then
+                echo "skip: stdin no interactivo; imagen requerida no disponible"
+                exit 0
+              fi
+
+              ask_pull() {
+                local answer
+                printf "Deseas descargarla ahora? [Y/n]: "
+                read -r answer
+                answer="${answer:-Y}"
+                case "$answer" in
+                  [Yy]|[Yy][Ee][Ss]) return 0 ;;
+                  [Nn]|[Nn][Oo]) return 1 ;;
+                  *) return 2 ;;
+                esac
+              }
+
+              if ask_pull; then
+                rc=0
+              else
+                rc=$?
+              fi
+
+              if [ "$rc" -eq 2 ]; then
+                echo "Respuesta no valida. Responde Y o N."
+                if ask_pull; then
+                  rc=0
+                else
+                  rc=$?
+                fi
+                if [ "$rc" -eq 2 ]; then
+                  rc=0
+                fi
+              fi
+
+              if [ "$rc" -eq 1 ]; then
+                echo "skip: imagen requerida no disponible"
+                exit 0
+              fi
+
+              if ! docker pull "$ACT_IMAGE"; then
+                echo "error: no se pudo descargar $ACT_IMAGE"
+                exit 1
+              fi
+            fi
+
+            act -W "$WF" -j ci --pull=false -P ubuntu-latest="$ACT_IMAGE"
+          '
+
+  app:devbox:ci:
+    desc: "Validaciones de devbox-app (backend + frontend)"
+    cmds:
+      - task app:devbox:backend:test
+      - task app:devbox:frontend:build
+
+  app:devbox:backend:test:
+    desc: "Ejecuta tests de Django en devbox-app/backend"
+    cmds:
+      - |-
+          bash -euo pipefail -c '
+            BACKEND_DIR="devbox-app/backend"
+            VENV_DIR="$(mktemp -d /tmp/devbox-app-ci-venv.XXXXXX)"
+            trap "rm -rf \"$VENV_DIR\"" EXIT
+
+            [ -d "$BACKEND_DIR" ] || { echo "error: no existe ${BACKEND_DIR}"; exit 1; }
+            command -v python3 >/dev/null 2>&1 || { echo "error: python3 no esta instalado"; exit 1; }
+
+            python3 -m venv "$VENV_DIR"
+            "$VENV_DIR/bin/python" -m pip install --disable-pip-version-check --upgrade pip
+            "$VENV_DIR/bin/python" -m pip install --disable-pip-version-check -r "${BACKEND_DIR}/requirements.txt"
+            PYTHONPATH="$BACKEND_DIR" "$VENV_DIR/bin/python" -m pytest -q "${BACKEND_DIR}/tests"
+          '
+
+  app:devbox:frontend:build:
+    desc: "Compila frontend de devbox-app"
+    cmds:
+      - |-
+          bash -euo pipefail -c '
+            FRONTEND_DIR="devbox-app/frontend"
+
+            [ -d "$FRONTEND_DIR" ] || { echo "error: no existe ${FRONTEND_DIR}"; exit 1; }
+            command -v npm >/dev/null 2>&1 || { echo "error: npm no esta instalado"; exit 1; }
+
+            npm --prefix "$FRONTEND_DIR" ci
+            npm --prefix "$FRONTEND_DIR" run build
+          '
+
+  app:devbox:docker:up:
+    desc: "Levanta devbox-app con Docker Compose"
+    cmds:
+      - |-
+          bash -euo pipefail -c '
+            APP_DIR="devbox-app"
+            COMPOSE_FILE="${APP_DIR}/docker-compose.yml"
+            ENV_FILE="${APP_DIR}/.env"
+            ENV_EXAMPLE="${APP_DIR}/.env.example"
+
+            [ -f "$COMPOSE_FILE" ] || { echo "error: no existe ${COMPOSE_FILE}"; exit 1; }
+            command -v docker >/dev/null 2>&1 || { echo "error: docker no esta instalado"; exit 1; }
+
+            if docker compose version >/dev/null 2>&1; then
+              COMPOSE_CMD=(docker compose)
+            elif command -v docker-compose >/dev/null 2>&1; then
+              COMPOSE_CMD=(docker-compose)
+            else
+              echo "error: no se encontro docker compose ni docker-compose"
+              exit 1
+            fi
+
+            if [ ! -f "$ENV_FILE" ]; then
+              [ -f "$ENV_EXAMPLE" ] || { echo "error: falta ${ENV_FILE} y ${ENV_EXAMPLE}"; exit 1; }
+              cp "$ENV_EXAMPLE" "$ENV_FILE"
+              echo "info: se creo ${ENV_FILE} desde ${ENV_EXAMPLE}"
+            fi
+
+            "${COMPOSE_CMD[@]}" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build
+            "${COMPOSE_CMD[@]}" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps
+          '
+
+  app:devbox:docker:down:
+    desc: "Baja devbox-app en Docker Compose"
+    cmds:
+      - |-
+          bash -euo pipefail -c '
+            APP_DIR="devbox-app"
+            COMPOSE_FILE="${APP_DIR}/docker-compose.yml"
+            ENV_FILE="${APP_DIR}/.env"
+            ENV_EXAMPLE="${APP_DIR}/.env.example"
+
+            [ -f "$COMPOSE_FILE" ] || { echo "error: no existe ${COMPOSE_FILE}"; exit 1; }
+            command -v docker >/dev/null 2>&1 || { echo "error: docker no esta instalado"; exit 1; }
+
+            if docker compose version >/dev/null 2>&1; then
+              COMPOSE_CMD=(docker compose)
+            elif command -v docker-compose >/dev/null 2>&1; then
+              COMPOSE_CMD=(docker-compose)
+            else
+              echo "error: no se encontro docker compose ni docker-compose"
+              exit 1
+            fi
+
+            if [ ! -f "$ENV_FILE" ] && [ -f "$ENV_EXAMPLE" ]; then
+              ENV_FILE="$ENV_EXAMPLE"
+            fi
+
+            "${COMPOSE_CMD[@]}" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" down --remove-orphans
+          '
+
+  apps:sync:
+    desc: "Sincroniza apps declaradas en el registry de build"
+    cmds:
+      - bash -euo pipefail -c 'bin/devtools apps sync'
+
+  apps:sync:dry:
+    desc: "Dry run de sincronización de apps"
+    cmds:
+      - bash -euo pipefail -c 'DEVTOOLS_DRY_RUN=1 bin/devtools apps sync'

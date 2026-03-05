@@ -1,0 +1,639 @@
+#!/usr/bin/env bash
+# Librería de soporte (devtools)
+
+# ==============================================================================
+# 0. IMPORTS & BOOTSTRAP
+# ==============================================================================
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Cargar módulos refactorizados
+source "${SCRIPT_DIR}/ci/detection.sh"
+source "${SCRIPT_DIR}/ci/ui.sh"
+source "${SCRIPT_DIR}/ci/actions.sh"
+
+# Ejecutar detección inicial al cargar
+detect_ci_tools
+
+# ==============================================================================
+# Helpers de Menú (Reutilizables)
+# ==============================================================================
+ci_ensure_ui_fallbacks() {
+    # [SAFETY] Fallback de UI: Define funciones dummy si styles.sh no cargó
+    if ! declare -F ui_step_header >/dev/null 2>&1; then
+        ui_step_header() { echo -e "\n>>> $1"; }
+        ui_success() { echo "✅ $1"; }
+        ui_error() { echo "❌ $1"; }
+        ui_warn() { echo "⚠️  $1"; }
+        ui_info() { echo "ℹ️  $1"; }
+        ask_yes_no() {
+            local prompt="$1"
+            read -r -p "$prompt [y/N] " response
+            [[ "$response" =~ ^[yY] ]]
+        }
+        # Helper simple para ejecutar comandos si run_cmd no existe
+        if ! declare -F run_cmd >/dev/null 2>&1; then
+            run_cmd() { eval "$@"; }
+        fi
+    fi
+}
+
+ci_get_native_cmd() {
+    if [[ -n "${DEVTOOLS_CI_NATIVE_CMD_OVERRIDE:-}" ]]; then
+        echo "${DEVTOOLS_CI_NATIVE_CMD_OVERRIDE}"
+        return 0
+    fi
+    echo "${NATIVE_CI_CMD:-}"
+}
+
+ci_trace_enabled() {
+    [[ "${DEVTOOLS_CI_TRACE:-0}" == "1" ]]
+}
+
+ci_trace() {
+    ci_trace_enabled || return 0
+    echo "TRACE $*"
+}
+
+ci_acp_native_include_devtools_checks() {
+    [[ "${DEVTOOLS_ACP_NATIVE_DEVTOOLS_CHECKS:-0}" == "1" ]]
+}
+
+ci_run_command_with_evidence() {
+    local cmd="${1:-}"
+    local start_ts=0
+    local duration=0
+    local rc=0
+
+    [[ -n "${cmd:-}" ]] || {
+        ui_error "Comando vacío en ejecución CI."
+        return 1
+    }
+
+    start_ts="${SECONDS:-0}"
+    echo "▶️ Ejecutando: ${cmd}"
+    if eval "$cmd"; then
+        rc=0
+    else
+        rc=$?
+    fi
+    duration="$(( ${SECONDS:-0} - start_ts ))"
+
+    if [[ "$rc" -eq 0 ]]; then
+        echo "✅ OK: ${cmd} (rc=${rc}, duration=${duration}s)"
+        return 0
+    fi
+
+    echo "❌ FAIL: ${cmd} (rc=${rc}, duration=${duration}s)"
+    return "$rc"
+}
+
+ci_task_list_has_task() {
+    local list_text="${1:-}"
+    local task_name="${2:-}"
+    [[ -n "${list_text:-}" && -n "${task_name:-}" ]] || return 1
+
+    awk -v want="${task_name}" '
+        BEGIN { found=0 }
+        /^task:/ {next}
+        NF==0 {next}
+        {
+            name=$1
+            if (name ~ /^[*+-]$/) { name=$2 }
+            gsub(/^[*+-]+/, "", name)
+            sub(/:$/, "", name)
+            if (name == want) { found=1; exit }
+        }
+        END { exit(found ? 0 : 1) }
+    ' <<<"${list_text}"
+}
+
+ci_task_exists_here() {
+    local task_name="${1:-}"
+    local list_text=""
+    command -v task >/dev/null 2>&1 || return 1
+    list_text="$(TASK_COLOR=0 task --list 2>/dev/null || true)"
+    ci_task_list_has_task "${list_text}" "${task_name}"
+}
+
+ci_task_exists_in_dir() {
+    local rel_dir="${1:-}"
+    local task_name="${2:-}"
+    local list_text=""
+    [[ -n "${rel_dir:-}" && -n "${task_name:-}" ]] || return 1
+    command -v task >/dev/null 2>&1 || return 1
+    [[ -d "${rel_dir}" ]] || return 1
+
+    list_text="$(TASK_COLOR=0 task -d "${rel_dir}" --list 2>/dev/null || true)"
+    ci_task_list_has_task "${list_text}" "${task_name}"
+}
+
+ci_resolve_native_app_ci_cmd() {
+    if task_exists "app:devbox:ci" || ci_task_exists_here "app:devbox:ci"; then
+        printf '%s\n' "task app:devbox:ci"
+        return 0
+    fi
+    if ci_task_exists_in_dir "devbox-app" "ci"; then
+        printf '%s\n' "task -d devbox-app ci"
+        return 0
+    fi
+    if ci_task_exists_in_dir "devbox-app/backend" "test"; then
+        printf '%s\n' "task -d devbox-app/backend test"
+        return 0
+    fi
+    return 1
+}
+
+ci_print_task_context_evidence() {
+    local task_version=""
+    local task_list=""
+    local list_rc=0
+
+    echo "🧰 Task Context:"
+    echo "  - pwd: '$(pwd)'"
+    echo "  - TASKFILE: '${TASKFILE:-<vacío>}'"
+
+    if ! command -v task >/dev/null 2>&1; then
+        echo "  - task --version: '<no instalado>'"
+        return 0
+    fi
+
+    task_version="$(task --version 2>&1 | head -n 1)"
+    echo "  - task --version: '${task_version}'"
+
+    if task_list="$(TASK_COLOR=0 task --list 2>&1)"; then
+        list_rc=0
+    else
+        list_rc=$?
+    fi
+    if [[ "$list_rc" -eq 0 ]]; then
+        echo "  - task --list (primeras 10 líneas):"
+    else
+        echo "  - task --list ERROR (rc=${list_rc}, primeras 10 líneas):"
+    fi
+    printf '%s\n' "${task_list}" | head -n 10 | sed 's/^/      /'
+}
+
+ci_print_task_detection_failure_evidence() {
+    local wanted_task="${1:-app:devbox:ci}"
+    local legacy_check="0"
+    local local_check="0"
+    local grep_hits=""
+
+    task_exists "${wanted_task}" && legacy_check="1"
+    ci_task_exists_here "${wanted_task}" && local_check="1"
+
+    echo "🔎 Detección task fallida:"
+    echo "  - task_exists('${wanted_task}'): ${legacy_check}"
+    echo "  - ci_task_exists_here('${wanted_task}'): ${local_check}"
+
+    if command -v task >/dev/null 2>&1; then
+        grep_hits="$(TASK_COLOR=0 task --list 2>/dev/null | grep -n "${wanted_task}" || true)"
+        if [[ -n "${grep_hits}" ]]; then
+            echo "  - grep task --list '${wanted_task}':"
+            printf '%s\n' "${grep_hits}" | sed 's/^/      /'
+        else
+            echo "  - grep task --list '${wanted_task}': <sin coincidencias>"
+        fi
+    fi
+}
+
+ci_normalize_selection() {
+    local raw="${1:-}"
+    local normalized=""
+
+    normalized="$(printf '%s\n' "$raw" \
+        | sed -e 's/\r//g' -e '/^[[:space:]]*$/d' \
+        | tail -n 1 \
+        | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+    printf '%s\n' "$normalized"
+}
+
+ci_map_validation_option() {
+    local raw="${1:-}"
+    local selected=""
+    selected="$(ci_normalize_selection "$raw")"
+
+    case "$selected" in
+        "${CI_OPT_GATE:-}"|*"Gate Estándar"*) printf '%s\n' "gate" ;;
+        "${CI_OPT_NATIVE:-}"|*"Solo Nativo"*) printf '%s\n' "native" ;;
+        "${CI_OPT_ACT:-}"|*"Solo Act"*) printf '%s\n' "act" ;;
+        "${CI_OPT_COMPOSE:-}"|*"Chequeo Compose"*) printf '%s\n' "compose" ;;
+        "${CI_OPT_K8S:-}"|*"K8s Pro"*) printf '%s\n' "k8s" ;;
+        "${CI_OPT_K8S_FULL:-}"|*"Pipeline Completo"*) printf '%s\n' "k8s_full" ;;
+        "${CI_OPT_START_MINIKUBE:-}"|*"Activar Minikube"*) printf '%s\n' "start_minikube" ;;
+        "${CI_OPT_K9S:-}"|*"Abrir K9s"*) printf '%s\n' "k9s" ;;
+        "${CI_OPT_HELP:-}"|*"¿Qué hace cada opción?"*) printf '%s\n' "help" ;;
+        "${CI_OPT_PR:-}"|*"Finalizar y Crear PR"*) printf '%s\n' "pr" ;;
+        "${CI_OPT_SKIP:-}"|""|*"Salir (Seguir trabajando)"*) printf '%s\n' "skip" ;;
+        *) printf '%s\n' "unknown" ;;
+    esac
+}
+
+ci_build_validation_menu() {
+    CI_OPT_GATE="✅ Gate Estándar (Nativo + Act)"
+    CI_OPT_NATIVE="🔍 Solo Nativo (Rápido)"
+    CI_OPT_ACT="🎬 Solo Act (GH Actions)"
+    CI_OPT_COMPOSE="🐳 Chequeo Compose (Integración)"
+    CI_OPT_K8S="☸️  K8s Pro (Compilar -> Desplegar -> Smoke)"
+    CI_OPT_K8S_FULL="🚀 Pipeline Completo (Interactivo)"
+    CI_OPT_START_MINIKUBE="🟢 Activar Minikube (cluster:up)"
+    CI_OPT_K9S="👀 Abrir K9s (ui:local)"
+    CI_OPT_HELP="📘 ¿Qué hace cada opción?"
+    CI_OPT_PR="📨 Finalizar y Crear PR"
+    CI_OPT_SKIP="🚪 Salir (Seguir trabajando)"
+
+    CI_MENU_CHOICES=()
+
+    local native_cmd
+    native_cmd="$(ci_get_native_cmd)"
+
+    if [[ -n "${native_cmd:-}" && -n "${ACT_CI_CMD:-}" ]]; then
+        CI_MENU_CHOICES+=("$CI_OPT_GATE")
+    fi
+    [[ -n "${native_cmd:-}" ]] && CI_MENU_CHOICES+=("$CI_OPT_NATIVE")
+    [[ -n "${ACT_CI_CMD:-}" ]] && CI_MENU_CHOICES+=("$CI_OPT_ACT")
+    [[ -n "${COMPOSE_CI_CMD:-}" ]] && CI_MENU_CHOICES+=("$CI_OPT_COMPOSE")
+    [[ -n "${K8S_HEADLESS_CMD:-}" ]] && CI_MENU_CHOICES+=("$CI_OPT_K8S")
+    [[ -n "${K8S_FULL_CMD:-}" ]] && CI_MENU_CHOICES+=("$CI_OPT_K8S_FULL")
+
+    if ! detect_minikube_active && task_exists "cluster:up"; then
+        CI_MENU_CHOICES+=("$CI_OPT_START_MINIKUBE")
+    fi
+    if task_exists "ui:local" || command -v k9s >/dev/null 2>&1; then
+        CI_MENU_CHOICES+=("$CI_OPT_K9S")
+    fi
+
+    CI_MENU_CHOICES+=("$CI_OPT_HELP")
+    CI_MENU_CHOICES+=("$CI_OPT_PR")
+    CI_MENU_CHOICES+=("$CI_OPT_SKIP")
+}
+
+ci_render_validation_menu_header() {
+    local head="$1"
+
+    ci_ensure_ui_fallbacks
+    render_env_status_panel
+    if declare -F render_ci_diagnostic_panel >/dev/null 2>&1; then
+        render_ci_diagnostic_panel
+    fi
+
+    echo
+    ui_step_header "🕵️  Panel de Calidad de Código"
+    echo "   Rama actual: $head"
+    echo
+}
+
+ci_prompt_validation_menu() {
+    ci_build_validation_menu
+
+    local selected=""
+    if command -v gum >/dev/null 2>&1 && have_gum_ui; then
+        selected=$(gum choose --header "Selecciona un nivel de validación:" "${CI_MENU_CHOICES[@]}")
+    else
+        echo "Selecciona opción:" >/dev/tty
+        select opt in "${CI_MENU_CHOICES[@]}"; do selected="$opt"; break; done </dev/tty
+    fi
+
+    echo "$selected"
+}
+
+ci_is_skip_option() {
+    [[ "$(ci_map_validation_option "${1:-}")" == "skip" ]]
+}
+
+ci_is_validation_option() {
+    case "$(ci_map_validation_option "${1:-}")" in
+        gate|native|act|compose|k8s|k8s_full)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+ci_selection_uses_native() {
+    case "$(ci_map_validation_option "${1:-}")" in
+        gate|native)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+ci_run_validation_option() {
+    local selected_raw="$1"
+    local head="$2"
+    local base="$3"
+    local mode="${4:-post}"
+
+    ci_ensure_ui_fallbacks
+
+    local native_cmd
+    local native_app_cmd=""
+    local include_devtools_checks=0
+    local selected=""
+    local mapped=""
+    native_cmd="$(ci_get_native_cmd)"
+    native_app_cmd="$(ci_resolve_native_app_ci_cmd || true)"
+    ci_acp_native_include_devtools_checks && include_devtools_checks=1
+
+    selected="$(ci_normalize_selection "$selected_raw")"
+    mapped="$(ci_map_validation_option "$selected")"
+    ci_trace "selected='${selected_raw}' normalized='${selected}' mapped='${mapped}'"
+    ci_trace "NATIVE_CI_CMD='${native_cmd:-}' ACT_CI_CMD='${ACT_CI_CMD:-}' NATIVE_APP_CI_CMD='${native_app_cmd:-}'"
+
+    case "$mapped" in
+        gate)
+            echo "▶️  Ejecutando Gate Estándar..."
+            if [[ -n "${native_cmd:-}" ]]; then
+                ci_trace "about_to_run='${native_cmd}'"
+                if ci_run_command_with_evidence "$native_cmd"; then
+                    echo
+                else
+                    ui_error "❌ Falló CI Nativo."
+                    return 1
+                fi
+            fi
+            ci_trace "about_to_run='${ACT_CI_CMD:-<vacío>}'"
+            if ci_run_command_with_evidence "$ACT_CI_CMD"; then
+                ui_success "✅ Gate completado."
+                CI_GATE_PASSED=1
+                echo
+                if [[ "$mode" != "pre" ]]; then
+                    if ask_yes_no "¿Quieres crear el PR ahora?"; then
+                        do_create_pr_flow "$head" "$base"
+                    fi
+                fi
+            else
+                ui_error "❌ Falló CI Act."
+                return 1
+            fi
+            ;;
+
+        native)
+            [[ -n "${native_app_cmd:-}" ]] || {
+                ui_error "No se detectó comando CI nativo para el proyecto."
+                ci_print_task_detection_failure_evidence "app:devbox:ci"
+                ci_print_task_context_evidence
+                echo "   Revisa tareas disponibles con: task --list"
+                return 1
+            }
+            echo "▶️  Ejecutando Solo Nativo..."
+            ci_trace "about_to_run='${native_app_cmd}'"
+            if ! ci_run_command_with_evidence "$native_app_cmd"; then
+                ui_error "Falló Solo Nativo."
+                return 1
+            fi
+            if [[ "$mode" == "post" && "$include_devtools_checks" == "1" ]]; then
+                [[ -n "${native_cmd:-}" ]] || {
+                    ui_error "No se detectó comando para checks devtools (NATIVE_CI_CMD)."
+                    return 1
+                }
+                ci_trace "about_to_run='${native_cmd}'"
+                if ! ci_run_command_with_evidence "$native_cmd"; then
+                    ui_error "Falló Solo Nativo (checks devtools)."
+                    return 1
+                fi
+            fi
+            ui_success "Solo Nativo completado."
+            ;;
+
+        act)
+            [[ -n "${ACT_CI_CMD:-}" ]] || {
+                ui_error "❌ No se detectó comando para Solo Act."
+                return 1
+            }
+            echo "▶️  Ejecutando Solo Act..."
+            ci_trace "about_to_run='${ACT_CI_CMD:-<vacío>}'"
+            if ! ci_run_command_with_evidence "$ACT_CI_CMD"; then
+                ui_error "Falló Solo Act."
+                return 1
+            fi
+            ui_success "Solo Act completado."
+            ;;
+
+        compose)
+            echo "▶️  Verificando entorno Compose..."
+            ci_trace "about_to_run='${COMPOSE_CI_CMD:-<vacío>}'"
+            run_cmd "$COMPOSE_CI_CMD"
+            ;;
+
+        k8s)
+            echo "▶️  Ejecutando Pipeline K8s Local (Headless)..."
+            ci_trace "about_to_run='${K8S_HEADLESS_CMD:-<vacío>}'"
+            run_cmd "$K8S_HEADLESS_CMD"
+            ;;
+
+        k8s_full)
+            echo "▶️  Ejecutando Pipeline Full (Bloqueará la terminal)..."
+
+            ci_trace "about_to_run='${K8S_FULL_CMD:-<vacío>}'"
+            run_cmd "$K8S_FULL_CMD"
+            local rc=$?
+
+            if [[ "$rc" != "0" && "$rc" != "130" && "$rc" != "143" ]]; then
+                ui_error "❌ Pipeline full falló con código $rc"
+                return "$rc"
+            else
+                echo
+                ui_info "🛑 Pipeline finalizado/interrumpido (rc=$rc)."
+            fi
+
+            echo
+            ui_warn "🔌 Has desconectado los túneles del Pipeline."
+            echo
+            ui_info "Si cerraste por error o quieres seguir navegando, puedo reabrirlos por ti."
+            ui_info "Comando manual: task cluster:connect"
+            echo
+
+            while ask_yes_no "¿Quieres volver a abrir los túneles ahora?"; do
+                echo "🔌 Reconectando..."
+                run_cmd "task cluster:connect"
+                echo
+                ui_warn "🔌 Túneles cerrados nuevamente."
+            done
+            ui_info "👌 Entendido. Túneles cerrados definitivamente."
+            ;;
+
+        start_minikube)
+            ci_trace "about_to_run='task cluster:up'"
+            run_cmd "task cluster:up"
+            return 11
+            ;;
+
+        k9s)
+            if task_exists "ui:local"; then
+                ci_trace "about_to_run='task ui:local'"
+                run_cmd "task ui:local"
+            else
+                ci_trace "about_to_run='k9s'"
+                run_cmd "k9s"
+            fi
+            return 11
+            ;;
+
+        help)
+            if command -v gum >/dev/null 2>&1 && have_gum_ui; then
+                gum style --border rounded --padding "1 2" \
+                    "📘 Ayuda rápida" \
+                    "" \
+                    "✅ Gate Estándar: corre CI nativo + CI con Act (recomendado antes de PR)" \
+                    "🔍 Solo Nativo: corre tests rápidos sin simular GitHub Actions" \
+                    "🎬 Solo Act: corre el workflow real de GitHub Actions en local" \
+                    "🐳 Chequeo Compose: valida que Compose/Traefik responde (entorno dev)" \
+                    "☸️  K8s Pro: compilar+desplegar+pruebas smoke en Minikube (sin túneles)" \
+                    "🚀 Pipeline Completo: despliega y abre túneles (Ctrl+C para salir)" \
+                    "" \
+                    "Tip: Usa 👀 K9s para ver pods/logs fácilmente."
+            else
+                echo "📘 Ayuda rápida:"
+                echo "  - ✅ Gate Estándar: CI nativo + Act (recomendado antes de PR)"
+                echo "  - 🔍 Solo Nativo: tests rápidos sin simular GH Actions"
+                echo "  - 🎬 Solo Act: workflow real GH Actions en local"
+                echo "  - 🐳 Chequeo Compose: valida entorno Compose/Traefik"
+                echo "  - ☸️  K8s Pro: compilar+desplegar+pruebas smoke en Minikube (sin UI)"
+                echo "  - 🚀 Pipeline Completo: despliega y abre túneles (Ctrl+C para salir)"
+                echo "  - Tip: usa K9s para logs/pods."
+            fi
+            return 11
+            ;;
+
+        pr)
+            if [[ "$mode" == "pre" ]]; then
+                ui_warn "PR no disponible en preflight."
+                return 11
+            fi
+            # [PROCESS] Enforzar Gate antes de PR
+            if [[ "${REQUIRE_GATE_BEFORE_PR:-true}" == "true" && "${CI_GATE_PASSED:-0}" != "1" && "${DEVTOOLS_ALLOW_PR_WITHOUT_GATE:-0}" != "1" ]]; then
+                ui_warn "🔒 Para crear PR debes pasar el Gate (Nativo + Act)."
+                echo "   Esto asegura que no subamos código roto."
+                echo 
+                if ask_yes_no "¿Ejecutar Gate ahora?"; then
+                    ci_trace "about_to_run='${native_cmd:-<vacío>}'"
+                    ci_trace "about_to_run='${ACT_CI_CMD:-<vacío>}'"
+                    if run_cmd "$native_cmd" && run_cmd "$ACT_CI_CMD"; then
+                        CI_GATE_PASSED=1
+                        ui_success "Gate superado. Procediendo al PR..."
+                    else
+                        ui_error "No se pasó el Gate. PR abortado."
+                        return 1
+                    fi
+                else
+                    ui_info "PR cancelado. (Usa DEVTOOLS_ALLOW_PR_WITHOUT_GATE=1 si es urgente)."
+                    return 1
+                fi
+            fi
+            do_create_pr_flow "$head" "$base"
+            ;;
+
+        skip)
+            echo "👌 Omitido."
+            return 10
+            ;;
+        *)
+            ui_warn "Opción no reconocida: '${selected}'."
+            ci_trace "selected='${selected_raw}' normalized='${selected}' mapped='unknown'"
+            return 11
+            ;;
+    esac
+
+    return 0
+}
+
+# ==============================================================================
+# 1. FLUJO POST-PUSH (Orquestador del Menú)
+# ==============================================================================
+
+run_post_push_flow() {
+    local head="$1"
+    local base="$2"
+
+    # Fuente de verdad de fallback UI (DRY)
+    ci_ensure_ui_fallbacks
+
+    # Dependencias de utils.sh (check de TTY)
+    if ! command -v is_tty >/dev/null; then 
+        is_tty() { [ -t 1 ]; }
+    fi
+
+    [[ "$POST_PUSH_FLOW" == "true" ]] || return 0
+
+    local non_interactive_reason=""
+    if [[ "${DEVTOOLS_NONINTERACTIVE:-0}" == "1" || "${CI:-}" == "1" || "${CI:-}" == "true" || "${GITHUB_ACTIONS:-}" == "1" || "${GITHUB_ACTIONS:-}" == "true" ]]; then
+        non_interactive_reason="CI/GITHUB_ACTIONS/DEVTOOLS_NONINTERACTIVE"
+    elif ! is_tty; then
+        non_interactive_reason="sin TTY"
+    fi
+    if [[ -n "${non_interactive_reason:-}" ]]; then
+        ui_info "Modo no interactivo (${non_interactive_reason}): se omite menú de Calidad de Código."
+        if declare -F render_ci_diagnostic_panel >/dev/null 2>&1; then
+            render_ci_diagnostic_panel
+        fi
+        return 0
+    fi
+    
+    # Mostrar menú en cualquier rama NO protegida
+    case "$head" in
+        dev|staging|main) return 0 ;;
+        *) : ;;
+    esac
+
+    # --- 1. Re-detectar herramientas (frescura) ---
+    # Limpiamos variables para forzar re-evaluación en detection.sh
+    unset NATIVE_CI_CMD ACT_CI_CMD COMPOSE_CI_CMD K8S_HEADLESS_CMD K8S_FULL_CMD
+    detect_ci_tools
+    CI_GATE_PASSED=0
+
+    # --- 2. Mostrar Dashboard + Menú ---
+    ci_render_validation_menu_header "$head"
+
+    # IMPORTANT: evitar subshell-loss de CI_OPT_* (ci_prompt_validation_menu corre en $(...))
+    ci_build_validation_menu
+    local selected_raw=""
+    local selected=""
+    local mapped=""
+    local native_cmd
+    local include_devtools_checks="0"
+    local native_app_cmd
+    local native_effective_cmd
+    selected_raw="$(ci_prompt_validation_menu)"
+    selected="$(ci_normalize_selection "$selected_raw")"
+    mapped="$(ci_map_validation_option "$selected")"
+
+    native_cmd="$(ci_get_native_cmd)"
+    ci_acp_native_include_devtools_checks && include_devtools_checks="1"
+    native_app_cmd="$(ci_resolve_native_app_ci_cmd || true)"
+    if [[ -z "${native_app_cmd:-}" ]]; then
+        native_app_cmd="<no detectado>"
+    fi
+    native_effective_cmd="${native_app_cmd}"
+    if [[ "$include_devtools_checks" == "1" ]]; then
+        native_effective_cmd="${native_effective_cmd} + ${native_cmd:-<no detectado>}"
+    fi
+
+    ci_trace "selected='${selected_raw}' normalized='${selected}' mapped='${mapped}'"
+    ci_trace "NATIVE_CI_CMD='${native_cmd:-}' ACT_CI_CMD='${ACT_CI_CMD:-}' NATIVE_APP_CI_CMD='${native_app_cmd}'"
+    echo "🧾 Selección CI:"
+    echo "  - raw: '${selected_raw}'"
+    echo "  - normalized: '${selected}'"
+    echo "  - mapped: ${mapped}"
+    echo "  - NATIVE_CI_CMD: '${native_cmd:-<no detectado>}'"
+    echo "  - ACT_CI_CMD: '${ACT_CI_CMD:-<no detectado>}'"
+    echo "  - DEVTOOLS_ACP_NATIVE_DEVTOOLS_CHECKS: '${include_devtools_checks}'"
+    echo "  - NATIVE_APP_CI_CMD: '${native_app_cmd}'"
+    ci_print_task_context_evidence
+    if [[ "$mapped" == "native" ]]; then
+        echo "  - NATIVE_EFFECTIVE_CMD: '${native_effective_cmd}'"
+    fi
+
+    if ci_is_skip_option "$selected"; then
+        echo "👌 Omitido."
+        return 0
+    fi
+
+    ci_run_validation_option "$selected" "$head" "$base" "post"
+    local rc=$?
+    if [[ "$rc" -eq 10 || "$rc" -eq 11 ]]; then
+        return 0
+    fi
+    return "$rc"
+}
