@@ -702,14 +702,7 @@ promote_to_dev() {
         exit $?
     fi
 
-    # Guard: la rama fuente debe estar publicada para que exista CI en ese SHA.
-    local gate_ref="${source_branch}"
-    if ! promote_dev_ensure_ci_ref_or_die "$source_branch" "$source_sha"; then
-        return 2
-    fi
-    gate_ref="${DEVTOOLS_PROMOTE_GATE_REF:-$source_branch}"
-    source_branch="${gate_ref}"
-
+    # Cargamos helpers del gate aquí para validarlo más adelante sobre dev (post-push).
     if ! declare -F gate_required_workflows_on_sha_or_die >/dev/null 2>&1; then
         local checks_file="${_PROMOTE_LIB_ROOT}/workflows/checks.sh"
         if [[ -f "${checks_file}" ]]; then
@@ -720,8 +713,6 @@ promote_to_dev() {
     if ! declare -F gate_required_workflows_on_sha_or_die >/dev/null 2>&1; then
         die "No se encontró gate_required_workflows_on_sha_or_die (faltó source de workflows/checks.sh)."
     fi
-    gate_required_workflows_on_sha_or_die "$source_sha" "$source_branch" "dev" \
-        || die "Gate por SHA falló para ${source_branch} (${source_sha:0:7}). Abortando promote a dev."
 
     # Estrategia (Menú Universal): el bin la setea siempre, pero dejamos fallback seguro.
     local strategy="${DEVTOOLS_PROMOTE_STRATEGY:-}"
@@ -752,6 +743,10 @@ promote_to_dev() {
     fi
     moved="yes"
     final_sha="${target_after_sha}"
+
+    # Guard final: validar CI sobre el SHA real de dev, no sobre la rama fuente local.
+    gate_required_workflows_on_sha_or_die "$final_sha" "dev" "dev" \
+        || die "Gate por SHA falló para dev (${final_sha:0:7}). Abortando promote a dev."
 
     # Tag + GitOps ArgoCD (solo ramas fuente no protegidas)
     if [[ "$dev_push_ok" -eq 1 ]]; then
