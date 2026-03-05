@@ -196,13 +196,22 @@ generate_changelog_for_component() {
 
     local tag_pattern="^([A-Za-z0-9._-]+-)?v[0-9]+\\.[0-9]+\\.[0-9]+(-rc\\.[0-9]+(\\+build\\.[0-9]+)?)?$"
 
+    local tmp_full=""
+    local tmp_section=""
+    local tmp_dedup=""
+    local tmp_merged=""
+    tmp_full="$(mktemp)" || die "No pude crear temporal para changelog."
+    tmp_section="$(mktemp)" || die "No pude crear temporal para sección de changelog."
+    tmp_dedup="$(mktemp)" || die "No pude crear temporal para deduplicación de changelog."
+    tmp_merged="$(mktemp)" || die "No pude crear temporal para merge de changelog."
+
     if command -v git-cliff >/dev/null 2>&1; then
         git-cliff --config "$config_file" \
             "${scope_opts[@]}" \
             --tag-pattern "$tag_pattern" \
             --tag "$tag" \
             "${range_opts[@]}" \
-            -o "$output_file"
+            -o "$tmp_full"
     elif command -v devbox >/dev/null 2>&1; then
         local devbox_env=""
         devbox_env="$(devbox shell --print-env 2>/dev/null)" \
@@ -214,12 +223,75 @@ generate_changelog_for_component() {
                 --tag-pattern "$tag_pattern" \
                 --tag "$tag" \
                 "${range_opts[@]}" \
-                -o "$output_file"
+                -o "$tmp_full"
         ) || die "Falló git-cliff usando entorno de Devbox."
     else
         die "No se encontró git-cliff ni devbox para ejecutarlo."
     fi
 
+    local tag_header="## ${tag}"
+    if ! awk -v tag_header="$tag_header" '
+        BEGIN { capture=0; found=0 }
+        $0 == tag_header {
+            capture=1
+            found=1
+        }
+        capture {
+            if ($0 ~ /^## / && $0 != tag_header && found == 1) {
+                exit
+            }
+            print
+        }
+        END {
+            if (found == 0) {
+                exit 3
+            }
+        }
+    ' "$tmp_full" > "$tmp_section"; then
+        local awk_rc=$?
+        if [[ "$awk_rc" -eq 3 ]]; then
+            die "No encontré sección '${tag_header}' en salida de git-cliff."
+        fi
+        die "No pude extraer sección '${tag_header}' del changelog generado."
+    fi
+
+    # Dedup exacto de bullets para evitar repetidos por commits con cuerpo largo.
+    awk '
+        /^- / {
+            if (seen[$0]++) {
+                next
+            }
+        }
+        { print }
+    ' "$tmp_section" > "$tmp_dedup"
+
+    if [[ ! -f "$output_file" || ! -s "$output_file" ]]; then
+        printf '# Changelog\n\n' > "$output_file"
+    fi
+    if ! grep -Eq '^# Changelog' "$output_file"; then
+        {
+            printf '# Changelog\n\n'
+            cat "$output_file"
+        } > "$tmp_merged"
+        mv "$tmp_merged" "$output_file"
+    fi
+
+    if grep -Fq "$tag_header" "$output_file"; then
+        rm -f "$tmp_full" "$tmp_section" "$tmp_dedup" "$tmp_merged"
+        echo "$output_file"
+        return 0
+    fi
+
+    {
+        head -n 1 "$output_file"
+        printf '\n'
+        cat "$tmp_dedup"
+        printf '\n'
+        tail -n +2 "$output_file"
+    } > "$tmp_merged"
+    mv "$tmp_merged" "$output_file"
+
+    rm -f "$tmp_full" "$tmp_section" "$tmp_dedup" "$tmp_merged"
     echo "$output_file"
 }
 
