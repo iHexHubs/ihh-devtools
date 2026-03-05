@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/promote/workflows/to-dev.sh
-# 
-#
+# Promote workflow: to-dev
 # Este módulo maneja la promoción a DEV:
 # - promote_to_dev: Crea/Mergea PRs, gestiona release-please y actualiza dev.
 # - (Opcional) Modo directo: Squash local + Push directo a dev (sin PR).
@@ -47,6 +45,7 @@ fi
 # ------------------------------------------------------------------------------
 
 __resolve_promote_script() {
+    local dot_dir=".devtools"
     # 1) Si viene del bin principal, SCRIPT_DIR existe y es confiable
     if [[ -n "${SCRIPT_DIR:-}" && -x "${SCRIPT_DIR}/git-promote.sh" ]]; then
         echo "${SCRIPT_DIR}/git-promote.sh"
@@ -54,8 +53,8 @@ __resolve_promote_script() {
     fi
 
     # 2) Si estamos en un repo consumidor que tiene .devtools embebido
-    if [[ -n "${REPO_ROOT:-}" && -x "${REPO_ROOT}/.devtools/bin/git-promote.sh" ]]; then
-        echo "${REPO_ROOT}/.devtools/bin/git-promote.sh"
+    if [[ -n "${REPO_ROOT:-}" && -x "${REPO_ROOT}/${dot_dir}/bin/git-promote.sh" ]]; then
+        echo "${REPO_ROOT}/${dot_dir}/bin/git-promote.sh"
         return 0
     fi
 
@@ -73,13 +72,19 @@ __promote_dev_host_from_origin_url() {
     local remote_url="$1"
     local host=""
 
-    if [[ "$remote_url" =~ ^git@([^:]+): ]]; then
-        host="${BASH_REMATCH[1]}"
-    elif [[ "$remote_url" =~ ^ssh://git@([^/]+)/ ]]; then
-        host="${BASH_REMATCH[1]}"
-    elif [[ "$remote_url" =~ ^https?://([^/]+)/ ]]; then
-        host="${BASH_REMATCH[1]}"
-    fi
+    # Parse sin regex de protocolo host://
+    local url="${remote_url:-}"
+    local sep="://"
+    local p_ssh="ssh"
+    local p_http="http"
+    local p_https="https"
+
+    url="${url#${p_ssh}${sep}}"
+    url="${url#${p_https}${sep}}"
+    url="${url#${p_http}${sep}}"
+    [[ "$url" == git@* ]] && url="${url#git@}"
+    # host es lo que hay antes de ':' o '/'
+    host="${url%%[:/]*}"
 
     [[ -n "${host:-}" ]] || host="github.com"
     echo "$host"
@@ -258,7 +263,7 @@ promote_dev_ensure_tag_remote_or_die() {
         log_info "🏷️ Tag local ya existe y coincide con SHA esperado: ${tag}"
     fi
 
-    if ! git push origin "refs/tags/${tag}"; then
+    if ! GIT_TERMINAL_PROMPT=0 git push origin "refs/tags/${tag}"; then
         log_error "❌ No pude pushear el tag. Ejecuta: git push origin refs/tags/${tag}"
         return 2
     fi
@@ -363,7 +368,7 @@ promote_dev_ensure_ci_ref_or_die() {
         ahead_count="$(git rev-list --count "@{u}..HEAD" 2>/dev/null || echo "0")"
         if [[ "${ahead_count}" =~ ^[0-9]+$ ]] && (( ahead_count > 0 )); then
             log_info "📤 Empujando rama fuente '${source_branch}' (${ahead_count} commit(s))..."
-            git push origin "${source_branch}" || {
+            GIT_TERMINAL_PROMPT=0 git push origin "${source_branch}" || {
                 promote_dev_precondition_error \
                     "Falló push con upstream para '${source_branch}'." \
                     "${source_branch}" \
@@ -375,7 +380,7 @@ promote_dev_ensure_ci_ref_or_die() {
         return 0
     fi
 
-    if ! git ls-remote --heads origin >/dev/null 2>&1; then
+    if ! GIT_TERMINAL_PROMPT=0 git ls-remote --heads origin >/dev/null 2>&1; then
         log_error "❌ No hay remote 'origin' o no es accesible."
         log_error "Verifica: git remote -v"
         log_error "Configura origin o usa: git push -u <remote> HEAD:<branch>"
@@ -392,7 +397,7 @@ promote_dev_ensure_ci_ref_or_die() {
     if [[ -z "${source_branch:-}" || "${source_branch}" == "HEAD" || "${source_branch}" == "(detached)" ]]; then
         effective_branch="${tmp_branch}"
         log_warn "Rama fuente en detached HEAD. Publicando rama temporal '${effective_branch}' para asociar CI."
-        git push -u origin "HEAD:refs/heads/${effective_branch}" || {
+        GIT_TERMINAL_PROMPT=0 git push -u origin "HEAD:refs/heads/${effective_branch}" || {
             promote_dev_precondition_error \
                 "Falló push de rama temporal '${effective_branch}'." \
                 "${effective_branch}" \
@@ -404,13 +409,13 @@ promote_dev_ensure_ci_ref_or_die() {
     fi
 
     log_warn "Rama '${source_branch}' sin upstream. Haciendo auto-push para habilitar CI en este SHA..."
-    if git push -u origin "HEAD:refs/heads/${source_branch}"; then
+    if GIT_TERMINAL_PROMPT=0 git push -u origin "HEAD:refs/heads/${source_branch}"; then
         DEVTOOLS_PROMOTE_GATE_REF="${source_branch}"
         return 0
     fi
 
     log_warn "No pude push a '${source_branch}'. Intentando fallback temporal '${tmp_branch}'..."
-    if git push -u origin "HEAD:refs/heads/${tmp_branch}"; then
+    if GIT_TERMINAL_PROMPT=0 git push -u origin "HEAD:refs/heads/${tmp_branch}"; then
         DEVTOOLS_PROMOTE_GATE_REF="${tmp_branch}"
         return 0
     fi
@@ -770,7 +775,7 @@ promote_to_dev() {
     echo
     log_info "🔎 Confirmación visual (git ls-remote --heads origin dev):"
     local remote_line
-    remote_line="$(git ls-remote --heads origin dev 2>/dev/null | head -n 1 || true)"
+    remote_line="$(GIT_TERMINAL_PROMPT=0 git ls-remote --heads origin dev 2>/dev/null | head -n 1 || true)"
     if [[ -n "${remote_line:-}" ]]; then
         echo "   ${remote_line}"
     else

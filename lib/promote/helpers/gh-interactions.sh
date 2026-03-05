@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/promote/helpers/gh-interactions.sh
-#
+# Promote helpers: gh-interactions
 # Helpers de bajo nivel para interactuar con GitHub (gh) y referencias Git.
 # Extraído de to-dev.sh para modularidad.
 #
@@ -31,7 +30,7 @@ gh_warn_missing_jq_once() {
 __remote_head_sha() {
     local branch="$1"
     local remote="${2:-origin}"
-    git fetch "$remote" "$branch" >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git fetch "$remote" "$branch" >/dev/null 2>&1 || true
     git rev-parse "${remote}/${branch}" 2>/dev/null || true
 }
 
@@ -49,7 +48,7 @@ gh_create_prerelease_draft_from_tag() {
         return 0
     fi
 
-    if git ls-remote --tags "$remote" "refs/tags/${tag}" 2>/dev/null | grep -q "${tag}"; then
+    if GIT_TERMINAL_PROMPT=0 git ls-remote --tags "$remote" "refs/tags/${tag}" 2>/dev/null | grep -q "${tag}"; then
         log_warn "Pre-release draft omitido: el tag '${tag}' ya existe en ${remote}."
         return 0
     fi
@@ -68,7 +67,7 @@ gh_create_prerelease_draft_from_tag() {
         fi
     fi
 
-    if ! git push "$remote" "$tag" >/dev/null 2>&1; then
+    if ! GIT_TERMINAL_PROMPT=0 git push "$remote" "$tag" >/dev/null 2>&1; then
         log_warn "No pude hacer push del tag '${tag}' a ${remote}."
         return 0
     fi
@@ -116,7 +115,7 @@ gh_create_prerelease_from_tag() {
         return 0
     fi
 
-    if git ls-remote --tags "$remote" "refs/tags/${tag}" 2>/dev/null | grep -q "${tag}"; then
+    if GIT_TERMINAL_PROMPT=0 git ls-remote --tags "$remote" "refs/tags/${tag}" 2>/dev/null | grep -q "${tag}"; then
         log_warn "Pre-release omitido: el tag '${tag}' ya existe en ${remote}."
         return 0
     fi
@@ -135,7 +134,7 @@ gh_create_prerelease_from_tag() {
         fi
     fi
 
-    if ! git push "$remote" "$tag" >/dev/null 2>&1; then
+    if ! GIT_TERMINAL_PROMPT=0 git push "$remote" "$tag" >/dev/null 2>&1; then
         log_warn "No pude hacer push del tag '${tag}' a ${remote}."
         return 0
     fi
@@ -186,7 +185,7 @@ gh_create_release_draft_from_tag() {
         return 0
     fi
 
-    if git ls-remote --tags "$remote" "refs/tags/${tag}" 2>/dev/null | grep -q "${tag}"; then
+    if GIT_TERMINAL_PROMPT=0 git ls-remote --tags "$remote" "refs/tags/${tag}" 2>/dev/null | grep -q "${tag}"; then
         log_warn "Release draft omitido: el tag '${tag}' ya existe en ${remote}."
         return 0
     fi
@@ -205,7 +204,7 @@ gh_create_release_draft_from_tag() {
         fi
     fi
 
-    if ! git push "$remote" "$tag" >/dev/null 2>&1; then
+    if ! GIT_TERMINAL_PROMPT=0 git push "$remote" "$tag" >/dev/null 2>&1; then
         log_warn "No pude hacer push del tag '${tag}' a ${remote}."
         return 0
     fi
@@ -253,7 +252,7 @@ gh_create_release_from_tag() {
         return 0
     fi
 
-    if git ls-remote --tags "$remote" "refs/tags/${tag}" 2>/dev/null | grep -q "${tag}"; then
+    if GIT_TERMINAL_PROMPT=0 git ls-remote --tags "$remote" "refs/tags/${tag}" 2>/dev/null | grep -q "${tag}"; then
         log_warn "Release omitido: el tag '${tag}' ya existe en ${remote}."
         return 0
     fi
@@ -272,7 +271,7 @@ gh_create_release_from_tag() {
         fi
     fi
 
-    if ! git push "$remote" "$tag" >/dev/null 2>&1; then
+    if ! GIT_TERMINAL_PROMPT=0 git push "$remote" "$tag" >/dev/null 2>&1; then
         log_warn "No pude hacer push del tag '${tag}' a ${remote}."
         return 0
     fi

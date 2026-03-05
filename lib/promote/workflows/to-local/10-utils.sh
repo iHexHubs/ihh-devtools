@@ -48,7 +48,7 @@ promote_local_get_previous_tag() {
     local branch="${3:-local}"
 
     # 1) Preferir origin/local:<overlay>
-    git fetch "$remote" "$branch" >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git fetch "$remote" "$branch" >/dev/null 2>&1 || true
     if git show-ref --verify --quiet "refs/remotes/${remote}/${branch}"; then
         local content=""
         content="$(git show "${remote}/${branch}:${overlay_file}" 2>/dev/null || true)"
@@ -123,7 +123,7 @@ promote_local_next_rev_for_base() {
     local base="$1"
     local max_rev=""
 
-    git fetch --tags --quiet >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git fetch --tags --quiet >/dev/null 2>&1 || true
     max_rev="$(
         git tag -l "${base}-rev.*" \
             | sed -n 's/.*-rev\.\([0-9]\+\)$/\1/p' \
@@ -261,7 +261,7 @@ promote_local_select_rc_build() {
     pattern_legacy="${app}-v${version}-rc.*+build.*"
     pattern_new_noprefix="v${version}.rc.*-build.*"
     pattern_legacy_noprefix="v${version}-rc.*+build.*"
-    git fetch --tags --quiet >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git fetch --tags --quiet >/dev/null 2>&1 || true
 
     while IFS= read -r tag; do
         [[ -n "${tag:-}" ]] || continue
@@ -308,7 +308,7 @@ promote_local_next_rev() {
     pattern_legacy="${app}-v${version}-rc.${rc}+build.${build}-rev.*"
     pattern_new_noprefix="v${version}.rc.${rc}-build.${build}-rev.*"
     pattern_legacy_noprefix="v${version}-rc.${rc}+build.${build}-rev.*"
-    git fetch --tags --quiet >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git fetch --tags --quiet >/dev/null 2>&1 || true
 
     while IFS= read -r tag; do
         [[ -n "${tag:-}" ]] || continue
@@ -352,9 +352,9 @@ promote_local_remote_tag_sha_or_empty_fallback() {
         return 0
     }
 
-    resolved="$(git ls-remote --tags "${remote}" "refs/tags/${tag}^{}" 2>/dev/null | awk 'NR==1 {print $1}')"
+    resolved="$(GIT_TERMINAL_PROMPT=0 git ls-remote --tags "${remote}" "refs/tags/${tag}^{}" 2>/dev/null | awk 'NR==1 {print $1}')"
     if [[ -z "${resolved:-}" ]]; then
-        resolved="$(git ls-remote --tags "${remote}" "refs/tags/${tag}" 2>/dev/null | awk 'NR==1 {print $1}')"
+        resolved="$(GIT_TERMINAL_PROMPT=0 git ls-remote --tags "${remote}" "refs/tags/${tag}" 2>/dev/null | awk 'NR==1 {print $1}')"
     fi
     printf '%s\n' "${resolved:-}"
     return 0
@@ -401,7 +401,7 @@ promote_local_create_tag() {
         if [[ -n "${remote_sha:-}" ]]; then
             return 0
         fi
-        if ! git push origin "$tag"; then
+        if ! GIT_TERMINAL_PROMPT=0 git push origin "$tag"; then
             if [[ "$created_local" -eq 1 ]]; then
                 git tag -d "$tag" >/dev/null 2>&1 || true
             fi

@@ -182,7 +182,7 @@ ui_text_highlight() {
     else echo -e "${ANSI_YELLOW}$1${ANSI_RESET}"; fi
 }
 
-# Link o texto primario (Ej: "👉 https://...")
+# Link o texto primario (ejemplo: "👉 Visita la documentación")
 ui_link() { 
     if have_gum_ui; then gum style --foreground "$COLOR_PRIMARY" "$1";
     else echo -e "${ANSI_BLUE}$1${ANSI_RESET}"; fi

@@ -1,7 +1,4 @@
-
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/checks/doctor.sh
-#
 # Doctor: diagnóstico rápido (no destructivo).
 # Depende de: utils.sh, git-ops.sh (ya cargados por bin/git-promote.sh).
 

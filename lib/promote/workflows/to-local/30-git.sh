@@ -171,7 +171,7 @@ promote_local_apply_strategy_to_local_or_die() {
                 used_ref_fallback=1
                 log_warn "⚠️ No pude cambiar a '${local_branch}'. Uso fallback sin checkout."
             fi
-            git fetch origin "$local_branch" >/dev/null 2>&1 || true
+            GIT_TERMINAL_PROMPT=0 git fetch origin "$local_branch" >/dev/null 2>&1 || true
             if [[ "$used_ref_fallback" -eq 0 ]]; then
                 git reset --hard "origin/${local_branch}" >/dev/null 2>&1 || true
             else
@@ -443,7 +443,7 @@ promote_local_push_branch_force_or_die() {
         log_error "❌ No se encontró push_branch_force."
         return 2
     fi
-    push_branch_force "${branch}" "${remote}"
+    GIT_TERMINAL_PROMPT=0 push_branch_force "${branch}" "${remote}"
 }
 
 
@@ -530,7 +530,7 @@ promote_local_offer_delete_source_branch_if_needed() {
         [[ -n "${parsed_remote:-}" && "${parsed_remote}" != "${upstream_short}" ]] && remote_name="${parsed_remote}"
         [[ -n "${parsed_branch:-}" ]] && remote_branch="${parsed_branch}"
 
-        if git push "${remote_name}" --delete "${remote_branch}" >/dev/null 2>&1; then
+        if GIT_TERMINAL_PROMPT=0 git push "${remote_name}" --delete "${remote_branch}" >/dev/null 2>&1; then
             log_info "🧹 Rama remota eliminada: ${remote_name}/${remote_branch}"
         else
             log_warn "No pude eliminar rama remota ${remote_name}/${remote_branch}. Ejecuta: git push ${remote_name} --delete ${remote_branch}"
@@ -557,7 +557,7 @@ promote_local_remote_tag_exists() {
 
     local refs=""
     refs="$(
-        git ls-remote --tags origin "refs/tags/${tag}" "refs/tags/${tag}^{}" 2>/dev/null \
+        GIT_TERMINAL_PROMPT=0 git ls-remote --tags origin "refs/tags/${tag}" "refs/tags/${tag}^{}" 2>/dev/null \
             | awk '{print $2}' \
             | sed 's/\^{}$//'
     )"
@@ -575,9 +575,9 @@ promote_local_remote_tag_sha_or_empty() {
     }
 
     local resolved=""
-    resolved="$(git ls-remote --tags "${remote}" "refs/tags/${tag}^{}" 2>/dev/null | awk 'NR==1 {print $1}')"
+    resolved="$(GIT_TERMINAL_PROMPT=0 git ls-remote --tags "${remote}" "refs/tags/${tag}^{}" 2>/dev/null | awk 'NR==1 {print $1}')"
     if [[ -z "${resolved:-}" ]]; then
-        resolved="$(git ls-remote --tags "${remote}" "refs/tags/${tag}" 2>/dev/null | awk 'NR==1 {print $1}')"
+        resolved="$(GIT_TERMINAL_PROMPT=0 git ls-remote --tags "${remote}" "refs/tags/${tag}" 2>/dev/null | awk 'NR==1 {print $1}')"
     fi
     printf '%s\n' "${resolved:-}"
     return 0
@@ -657,7 +657,7 @@ promote_local_ensure_remote_tag_or_die() {
         }
     fi
 
-    if ! git push origin "refs/tags/${tag}"; then
+    if ! GIT_TERMINAL_PROMPT=0 git push origin "refs/tags/${tag}"; then
         log_error "❌ No pude pushear el tag. Ejecuta: git push origin refs/tags/${tag}"
         return 2
     fi
@@ -700,7 +700,7 @@ promote_local_ensure_tag_matches_head_or_bump() {
     [[ -n "${candidate_tag:-}" ]] || return 1
     [[ -n "${head_sha:-}" ]] || return 1
 
-    git fetch --tags --quiet >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git fetch --tags --quiet >/dev/null 2>&1 || true
 
     if ! git show-ref --tags --verify --quiet "refs/tags/${candidate_tag}"; then
         printf '%s\n' "${candidate_tag}"
@@ -749,7 +749,7 @@ promote_local_remote_branch_sha_best_effort() {
     local branch="${2:-local}"
     local sha=""
 
-    sha="$(git ls-remote --heads "${remote}" "${branch}" 2>/dev/null | awk 'NR==1 {print $1}')"
+    sha="$(GIT_TERMINAL_PROMPT=0 git ls-remote --heads "${remote}" "${branch}" 2>/dev/null | awk 'NR==1 {print $1}')"
     if [[ -n "${sha:-}" ]]; then
         printf '%s\n' "$sha"
         return 0

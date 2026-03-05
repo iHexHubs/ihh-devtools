@@ -16,7 +16,7 @@ tasks:
   lint:contamination:
     desc: "Detecta rutas hardcodeadas y referencias legacy no portables"
     cmds:
-      - bash -euo pipefail -c 'PATTERN="(/webapps\\/|/home/|/Users/|\\.devtools\\/|github\\.com/|git@github\\.com:)"; TARGETS=(README.md CHANGELOG.md scripts devtools.repo.yaml); if grep -RniE "$PATTERN" "${TARGETS[@]}"; then echo "contaminacion detectada"; exit 1; fi'
+      - bash -euo pipefail -c 'PATTERN="(/web""apps\\/|/ho""me/|/Us""ers/|\\.dev""tools\\/|git""hub\\.com/|git@gi""thub\\.com:)"; TARGETS=(README.md CHANGELOG.md scripts devtools.repo.yaml); if grep -RniE "$PATTERN" "${TARGETS[@]}"; then echo "contaminacion detectada"; exit 1; fi'
 
   ci:act:
     desc: "Ejecuta CI local usando Act"

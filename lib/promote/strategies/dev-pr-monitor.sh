@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/promote/strategies/dev-pr-monitor.sh
-#
+# Promote strategy: dev-pr-monitor
 # Estrategia: PR Monitor & Interactive Dashboard.
 # FASES:
 # 1. Discovery (Búsqueda de PRs)

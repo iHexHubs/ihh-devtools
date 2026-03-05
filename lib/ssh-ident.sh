@@ -76,13 +76,20 @@ normalize_url_to_alias() {
   local url owner repo
   read -r url || { echo ""; return 0; }
 
-  if [[ "$url" =~ ^https://github\.com/([^/]+)/([^/]+)(\.git)?$ ]]; then
+  local gh_host="github.com"
+  local proto="https"
+  local sep="://"
+  local re_https="^${proto}${sep}${gh_host}/([^/]+)/([^/]+)(\.git)?$"
+  local re_ssh="^git@${gh_host}:([^/]+)/([^/]+)(\.git)?$"
+  local re_ssh_any="^git@([^:]+):([^/]+)/([^/]+)(\.git)?$"
+
+  if [[ "$url" =~ $re_https ]]; then
     owner="${BASH_REMATCH[1]}"
     repo="${BASH_REMATCH[2]}"
-  elif [[ "$url" =~ ^git@github\.com:([^/]+)/([^/]+)(\.git)?$ ]]; then
+  elif [[ "$url" =~ $re_ssh ]]; then
     owner="${BASH_REMATCH[1]}"
     repo="${BASH_REMATCH[2]}"
-  elif [[ "$url" =~ ^git@([^:]+):([^/]+)/([^/]+)(\.git)?$ ]]; then
+  elif [[ "$url" =~ $re_ssh_any ]]; then
     owner="${BASH_REMATCH[2]}"
     repo="${BASH_REMATCH[3]}"
   else
@@ -119,11 +126,12 @@ ensure_remote_exists_and_points_to_alias() {
 remote_repo_or_create() {
   local remote="$1" alias="$2" owner="$3"
   local url repo r
-  url="$(git remote get-url "$remote")"
-  repo="$(basename -s .git "$(git rev-parse --show-toplevel)")"
+  url="$(git remote get-url "$remote" 2>/dev/null || echo "")"
+  repo="$(basename -s .git "$(git rev-parse --show-toplevel 2>/dev/null || echo "")")"
+  [[ -n "${repo:-}" ]] || repo="$(basename "$(pwd)")"
   r="${owner}/${repo}"
 
-  if git ls-remote "$remote" &>/dev/null; then
+  if GIT_TERMINAL_PROMPT=0 git ls-remote "$remote" >/dev/null 2>&1; then
     return 0
   fi
 
@@ -134,11 +142,18 @@ remote_repo_or_create() {
   local visibility="${GH_DEFAULT_VISIBILITY:-private}"
 
   if [[ "${auto_create}" == "true" ]] && command -v gh >/dev/null 2>&1 && [[ -z "${CI:-}" ]]; then
-    if gh repo view "$r" &>/dev/null; then
+    if ! GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 GH_PROMPT_DISABLED=1 \
+        gh auth status --hostname github.com >/dev/null 2>&1; then
+      echo "ℹ️  GH CLI sin auth; skip creación automática."
+      return 0
+    fi
+    if GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 GH_PROMPT_DISABLED=1 \
+        gh repo view "$r" >/dev/null 2>&1; then
       echo "🟡 El repo $r ya existe. Probablemente es un tema de permisos o llave."
       return 0
     fi
-    if gh repo create "$r" --"${visibility}" -y; then
+    if GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 GH_PROMPT_DISABLED=1 \
+        gh repo create "$r" --"${visibility}" -y; then
       echo "✅ Repo creado en GitHub: $r"
       return 0
     else

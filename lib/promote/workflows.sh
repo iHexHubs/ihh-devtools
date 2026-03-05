@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/promote/workflows.sh
-#
+# Promote workflows facade
 # Este módulo es el punto de entrada (Facade) para los flujos de trabajo.
 #
 # REFACTORIZACIÓN "DIVIDE Y VENCERÁS":

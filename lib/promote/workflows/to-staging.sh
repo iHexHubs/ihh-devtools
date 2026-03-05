@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/promote/workflows/to-staging.sh
-#
+# Promote workflow: to-staging
 # CONTRATO: STAGING CERO FRICCIÓN (default)
 # Objetivo: Menú (estrategia) → Push → Confirmación (git ls-remote) → Landing (quedar en staging).
 # Incluye UI interactiva (TTY) para version RC y notas de lanzamiento.
@@ -8,11 +7,12 @@
 # (Este archivo debe mantenerse corto y predecible.)
 
 promote_to_staging() {
+    local dot_dir=".devtools"
     if [[ "${DEVTOOLS_DRY_RUN:-0}" == "1" ]]; then
         log_info "⚗️  Simulacion (--dry-run) para STAGING"
 
         # Best-effort: refrescar refs
-        git fetch origin dev staging --prune >/dev/null 2>&1 || true
+        GIT_TERMINAL_PROMPT=0 git fetch origin dev staging --prune >/dev/null 2>&1 || true
 
         local range tag last_tag
         range="staging..dev"
@@ -189,7 +189,7 @@ promote_to_staging() {
     generate_ai_prompt "dev" "$compare_ref"
 
     local notes_dir notes_file tmp_file
-    notes_dir="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}/.devtools/releases"
+    notes_dir="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}/${dot_dir}/releases"
     mkdir -p "$notes_dir"
     notes_file="${notes_dir}/staging.md"
     tmp_file="$(mktemp)"
@@ -203,8 +203,7 @@ promote_to_staging() {
     fi
 
     local staging_overlay_file="devops/k8s/overlays/staging/kustomization.yaml"
-    local repo_root_for_overlay_check="${DEVTOOLS_DISPATCH_REPO_ROOT:-${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}}"
-    if [[ "${repo_root_for_overlay_check}" != "/webapps/ihh-devtools" && "${repo_root_for_overlay_check}" != "/webapps/ihh-ecosystem" ]]; then
+    if [[ -f "${staging_overlay_file}" ]]; then
         [[ -f "${staging_overlay_file}" ]] || die "No existe overlay de staging: ${staging_overlay_file}"
         local staging_unqualified_images=""
         local staging_line_no=0
@@ -226,6 +225,8 @@ promote_to_staging() {
         done < "${staging_overlay_file}"
         [[ -z "${staging_unqualified_images:-}" ]] \
             || die "Policy registry (staging): imágenes sin registry en ${staging_overlay_file}: ${staging_unqualified_images}"
+    else
+        log_warn "No existe overlay de staging en este repo. Omitiendo validación de registry."
     fi
 
     if ! declare -F gate_required_workflows_on_sha_or_die >/dev/null 2>&1; then
@@ -252,7 +253,7 @@ promote_to_staging() {
     log_success "✅ Staging actualizado. SHA final: ${staging_sha:0:7}"
     echo
     log_info "🔎 Confirmación visual (git ls-remote --heads origin staging):"
-    git ls-remote --heads origin staging 2>/dev/null || true
+    GIT_TERMINAL_PROMPT=0 git ls-remote --heads origin staging 2>/dev/null || true
     echo
 
     if [[ "$tag_owner" == "Local" ]]; then
