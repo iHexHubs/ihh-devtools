@@ -235,9 +235,16 @@ promote_to_prod() {
         log_warn "No existe overlay de main en este repo. Omitiendo validación de registry para prod."
     fi
 
-    local skip_prod_ci="${DEVTOOLS_PROMOTE_PROD_SKIP_CI:-0}"
+    # Política por defecto: prod NO ejecuta gate/CI remoto.
+    # Override explícito:
+    # - DEVTOOLS_PROMOTE_PROD_SKIP_CI=0
+    # - DEVTOOLS_PROMOTE_PROD_ENFORCE_CI=1
+    local skip_prod_ci="${DEVTOOLS_PROMOTE_PROD_SKIP_CI:-1}"
+    if [[ "${DEVTOOLS_PROMOTE_PROD_ENFORCE_CI:-0}" == "1" ]]; then
+        skip_prod_ci="0"
+    fi
     if [[ "${skip_prod_ci}" == "1" ]]; then
-        log_warn "⚠️ PROD: CI/Gate deshabilitado por DEVTOOLS_PROMOTE_PROD_SKIP_CI=1"
+        log_warn "⚠️ PROD: CI/Gate deshabilitado (default). Usa DEVTOOLS_PROMOTE_PROD_ENFORCE_CI=1 para exigir gate."
     else
         if ! declare -F gate_required_workflows_on_sha_or_die >/dev/null 2>&1; then
             die "No se encontró gate_required_workflows_on_sha_or_die (faltó source de workflows/checks.sh)."

@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.0-rc.4+build.1
+
+
+### Features
+
+
+- permitir omitir CI en promote a `prod` con `DEVTOOLS_PROMOTE_PROD_SKIP_CI` (ace2377)
+
+
+
+
+
 ## v0.1.0-rc.3+build.1
 
 
