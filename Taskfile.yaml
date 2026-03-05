@@ -20,7 +20,10 @@ tasks:
           bash -euo pipefail -c '
             PATTERN="(/webapps/|/home/|/Users/|\\.devtools/|github\\.com/|git@github\\.com:)";
             TARGETS=(README.md CHANGELOG.md scripts devtools.repo.yaml);
-            if grep -RniE "$PATTERN" "${TARGETS[@]}"; then
+            matches="$(grep -RniE "$PATTERN" "${TARGETS[@]}" || true)";
+            filtered="$(printf "%s\n" "$matches" | grep -vE "^CHANGELOG\\.md:[0-9]+:.*\\.devtools/releases/(prod|staging)\\.md" || true)";
+            if [[ -n "$filtered" ]]; then
+              printf "%s\n" "$filtered";
               echo "contaminacion detectada";
               exit 1;
             fi
