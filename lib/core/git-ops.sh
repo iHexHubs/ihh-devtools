@@ -332,6 +332,7 @@ update_branch_to_sha_with_strategy() {
     local source_sha="$2"
     local remote="${3:-origin}"
     local strategy="${4:-ff-only}"
+    local push_remote="${5:-1}"
 
     [[ -n "${branch:-}" && -n "${source_sha:-}" ]] || return 2
     ensure_clean_git
@@ -343,6 +344,17 @@ update_branch_to_sha_with_strategy() {
 
     case "$strategy" in
         force)
+            if [[ "${push_remote}" == "0" ]]; then
+                ensure_local_branch_tracks_remote "$branch" "$remote" || {
+                    echo "❌ No pude preparar la rama '$branch' desde '$remote/$branch'." >&2
+                    return 1
+                }
+                git checkout "$branch" >/dev/null 2>&1 || return 1
+                GIT_TERMINAL_PROMPT=0 git fetch "$remote" "$branch" >/dev/null 2>&1 || true
+                git reset --hard "$source_sha" >/dev/null 2>&1 || return 1
+                echo "$(git rev-parse HEAD 2>/dev/null || true)"
+                return 0
+            fi
             force_update_branch_to_sha "$branch" "$source_sha" "$remote" || return 1
             GIT_TERMINAL_PROMPT=0 git fetch "$remote" "$branch" >/dev/null 2>&1 || true
             echo "$(git rev-parse "${remote}/${branch}" 2>/dev/null || true)"
@@ -380,6 +392,11 @@ update_branch_to_sha_with_strategy() {
         git merge --no-ff --no-edit "$source_sha" || return 1
     elif [[ "$strategy" == "merge-theirs" ]]; then
         git merge --no-ff --no-edit -X theirs "$source_sha" || return 1
+    fi
+
+    if [[ "${push_remote}" == "0" ]]; then
+        echo "$(git rev-parse HEAD 2>/dev/null || true)"
+        return 0
     fi
 
     # Push NO destructivo
