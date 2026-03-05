@@ -108,7 +108,8 @@ tasks:
       - |-
           bash -euo pipefail -c '
             BACKEND_DIR="devbox-app/backend"
-            VENV_DIR="${BACKEND_DIR}/.venv-ci"
+            VENV_DIR="$(mktemp -d /tmp/devbox-app-ci-venv.XXXXXX)"
+            trap "rm -rf \"$VENV_DIR\"" EXIT
 
             [ -d "$BACKEND_DIR" ] || { echo "error: no existe ${BACKEND_DIR}"; exit 1; }
             command -v python3 >/dev/null 2>&1 || { echo "error: python3 no esta instalado"; exit 1; }
@@ -131,6 +132,67 @@ tasks:
 
             npm --prefix "$FRONTEND_DIR" ci
             npm --prefix "$FRONTEND_DIR" run build
+          '
+
+  app:devbox:docker:up:
+    desc: "Levanta devbox-app con Docker Compose"
+    cmds:
+      - |-
+          bash -euo pipefail -c '
+            APP_DIR="devbox-app"
+            COMPOSE_FILE="${APP_DIR}/docker-compose.yml"
+            ENV_FILE="${APP_DIR}/.env"
+            ENV_EXAMPLE="${APP_DIR}/.env.example"
+
+            [ -f "$COMPOSE_FILE" ] || { echo "error: no existe ${COMPOSE_FILE}"; exit 1; }
+            command -v docker >/dev/null 2>&1 || { echo "error: docker no esta instalado"; exit 1; }
+
+            if docker compose version >/dev/null 2>&1; then
+              COMPOSE_CMD=(docker compose)
+            elif command -v docker-compose >/dev/null 2>&1; then
+              COMPOSE_CMD=(docker-compose)
+            else
+              echo "error: no se encontro docker compose ni docker-compose"
+              exit 1
+            fi
+
+            if [ ! -f "$ENV_FILE" ]; then
+              [ -f "$ENV_EXAMPLE" ] || { echo "error: falta ${ENV_FILE} y ${ENV_EXAMPLE}"; exit 1; }
+              cp "$ENV_EXAMPLE" "$ENV_FILE"
+              echo "info: se creo ${ENV_FILE} desde ${ENV_EXAMPLE}"
+            fi
+
+            "${COMPOSE_CMD[@]}" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build
+            "${COMPOSE_CMD[@]}" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps
+          '
+
+  app:devbox:docker:down:
+    desc: "Baja devbox-app en Docker Compose"
+    cmds:
+      - |-
+          bash -euo pipefail -c '
+            APP_DIR="devbox-app"
+            COMPOSE_FILE="${APP_DIR}/docker-compose.yml"
+            ENV_FILE="${APP_DIR}/.env"
+            ENV_EXAMPLE="${APP_DIR}/.env.example"
+
+            [ -f "$COMPOSE_FILE" ] || { echo "error: no existe ${COMPOSE_FILE}"; exit 1; }
+            command -v docker >/dev/null 2>&1 || { echo "error: docker no esta instalado"; exit 1; }
+
+            if docker compose version >/dev/null 2>&1; then
+              COMPOSE_CMD=(docker compose)
+            elif command -v docker-compose >/dev/null 2>&1; then
+              COMPOSE_CMD=(docker-compose)
+            else
+              echo "error: no se encontro docker compose ni docker-compose"
+              exit 1
+            fi
+
+            if [ ! -f "$ENV_FILE" ] && [ -f "$ENV_EXAMPLE" ]; then
+              ENV_FILE="$ENV_EXAMPLE"
+            fi
+
+            "${COMPOSE_CMD[@]}" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" down --remove-orphans
           '
 
   apps:sync:
