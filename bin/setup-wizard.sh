@@ -151,14 +151,21 @@ if [ "$VERIFY_ONLY" = true ]; then
     fi
 
     wizard_spinner_or_info "Verificando conexión SSH ($TEST_HOST)..." sleep 1
-    
-    if ssh -T "git@$TEST_HOST" \
-        -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new 2>&1 | \
-        grep -qE "(successfully authenticated|Hi)"; then
+
+    # Nota: GitHub responde con exit code 1 en ssh -T incluso cuando autentica OK.
+    # Con pipefail, no podemos confiar en el rc; validamos por texto del output.
+    ssh_check_out=""
+    ssh_check_out="$(
+      ssh -T "git@$TEST_HOST" \
+        -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new 2>&1 || true
+    )"
+
+    if printf '%s\n' "$ssh_check_out" | grep -qiE "(successfully authenticated|^Hi )"; then
         ui_success "Conexión a GitHub (SSH): OK ($TEST_HOST)"
     else
         ui_error "Conexión a GitHub (SSH): FALLÓ para $TEST_HOST"
         ui_info "Esto puede ocurrir si expiró tu sesión o cambió tu llave."
+        ui_info "Salida SSH (resumen): $(printf '%s\n' "$ssh_check_out" | head -n 2 | tr '\n' ' ')"
         echo ""
         ui_warn "🔧 SOLUCIÓN: Ejecuta './bin/setup-wizard.sh --force' para reparar."
         exit 1

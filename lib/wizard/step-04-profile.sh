@@ -152,12 +152,19 @@ EOF
     # --- FIX: Usar variable de host en vez de hardcode ---
     ui_spinner "Validando conexión SSH final ($safe_ssh_host)..." sleep 1
 
-    if ssh -T "git@$safe_ssh_host" \
-        -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new 2>&1 | \
-        grep -qE "(successfully authenticated|Hi)"; then
+    # GitHub retorna rc=1 en ssh -T aunque autentique correctamente.
+    # Validamos por output para evitar falsos negativos con pipefail.
+    local ssh_check_out=""
+    ssh_check_out="$(
+      ssh -T "git@$safe_ssh_host" \
+        -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new 2>&1 || true
+    )"
+
+    if printf '%s\n' "$ssh_check_out" | grep -qiE "(successfully authenticated|^Hi )"; then
         ui_success "Conexión SSH verificada: Acceso Correcto."
     else
         ui_warn "No pudimos validar la conexión automáticamente a $safe_ssh_host."
+        ui_info "Salida SSH (resumen): $(printf '%s\n' "$ssh_check_out" | head -n 2 | tr '\n' ' ')"
         ui_info "Prueba manual: ssh -T git@$safe_ssh_host"
     fi
 

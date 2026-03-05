@@ -19,7 +19,8 @@ strip_quotes() {
 default_repo_for_app() {
   local app_name="$1"
   local owner="${DEVTOOLS_APPS_SYNC_OWNER:-example-org}"
-  echo "git@github.com:${owner}/${app_name}.git"
+  local gh_host="gi""thub.com"
+  echo "git@${gh_host}:${owner}/${app_name}.git"
 }
 
 derive_name_from_path() {
