@@ -1,0 +1,40 @@
+[changelog]
+header = "# Changelog\n\n"
+body = """
+{% if version %}## {{ version }}{% else %}## Unreleased{% endif %}\n
+{% for group, commits in commits | group_by(attribute=\"group\") %}
+### {{ group }}\n
+{% for commit in commits %}
+- {{ commit.message | split(pat=\"\\n\") | first }} ({{ commit.id | truncate(length=7, end=\"\") }})
+{% endfor %}\n
+{% endfor %}
+"""
+trim = true
+footer = ""
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = false
+tag_pattern = "v[0-9].*"
+
+commit_preprocessors = [
+  { pattern = "\\.devtools/", replace = "devtools/" },
+  { pattern = "/webapps/[^ )]+", replace = "<path>" },
+  { pattern = "/home/[^ )]+", replace = "<path>" },
+  { pattern = "/Users/[^ )]+", replace = "<path>" },
+  { pattern = "git@github\\.com:", replace = "github:" },
+  { pattern = "github\\.com/", replace = "github/" }
+]
+
+commit_parsers = [
+  { message = "^chore\\(gitignore\\):", skip = true },
+  { message = "^chore\\(release\\):", skip = true },
+  { message = "^feat", group = "Features" },
+  { message = "^fix", group = "Fixes" },
+  { message = "^docs", group = "Docs" },
+  { message = "^refactor", group = "Refactor" },
+  { message = "^perf", group = "Performance" },
+  { message = "^test", group = "Tests" },
+  { message = "^chore", group = "Chores" }
+]
