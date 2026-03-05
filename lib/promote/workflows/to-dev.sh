@@ -593,12 +593,6 @@ promote_to_dev() {
         return 2
     fi
 
-    if [[ "${promote_dev_direct}" != "1" && "${DEVTOOLS_ALLOW_PROMOTE_DEV_FROM_NON_STAGING:-0}" != "1" ]]; then
-        if [[ "${source_branch_original}" != "staging" ]]; then
-            die "Promote a dev requiere rama fuente 'staging' (actual='${source_branch_original}'). Usa DEVTOOLS_ALLOW_PROMOTE_DEV_FROM_NON_STAGING=1 para override."
-        fi
-    fi
-
     if ! declare -F promote_next_tag_dev >/dev/null 2>&1 \
         || ! declare -F semver_parse_tag >/dev/null 2>&1; then
         die "No se encontraron helpers necesarios para calcular la version RC+build."
@@ -609,19 +603,24 @@ promote_to_dev() {
 
     GIT_TERMINAL_PROMPT=0 git fetch origin dev staging --prune >/dev/null 2>&1 || true
     local dev_before_sha=""
-    local staging_head_sha=""
+    local range_to_sha=""
     dev_before_sha="$(git rev-parse origin/dev 2>/dev/null || true)"
     [[ -n "${dev_before_sha:-}" ]] || die "No pude resolver origin/dev para calcular rango de changelog."
 
     if [[ "${source_branch_original}" == "staging" ]]; then
-        staging_head_sha="$source_sha"
+        range_to_sha="$source_sha"
     else
-        staging_head_sha="$(git rev-parse origin/staging 2>/dev/null || git rev-parse staging 2>/dev/null || true)"
+        # Compatibilidad con flujo habitual local->dev:
+        # al promover desde una rama no-staging, el changelog se calcula contra la fuente real.
+        range_to_sha="$source_sha"
+        if [[ "${promote_dev_direct}" != "1" && "${DEVTOOLS_ALLOW_PROMOTE_DEV_FROM_NON_STAGING:-0}" != "1" ]]; then
+            log_warn "Fuente '${source_branch_original}' no es staging; uso source_sha para rango (${dev_before_sha:0:7}..${range_to_sha:0:7})."
+        fi
     fi
-    [[ -n "${staging_head_sha:-}" ]] || die "No pude resolver staging para calcular rango de changelog."
+    [[ -n "${range_to_sha:-}" ]] || die "No pude resolver SHA final para calcular rango de changelog."
 
     local range
-    range="${dev_before_sha}..${staging_head_sha}"
+    range="${dev_before_sha}..${range_to_sha}"
 
     local suggested_tag final_tag
     suggested_tag="$(promote_next_tag_dev "$range")"
@@ -677,7 +676,7 @@ promote_to_dev() {
     local promote_component
     promote_component="$(resolve_promote_component "$range")"
     log_info "🧩 Componente changelog: ${promote_component}"
-    log_info "🔎 CHANGELOG DEBUG: from_ref=${dev_before_sha} to_ref=${staging_head_sha} range=${range}"
+    log_info "🔎 CHANGELOG DEBUG: from_ref=${dev_before_sha} to_ref=${range_to_sha} range=${range}"
 
     # Tag real: se crea/pushea al final, solo después de Push OK a dev.
 
