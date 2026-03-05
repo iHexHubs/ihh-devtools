@@ -352,12 +352,18 @@ update_branch_to_sha_with_strategy() {
                 git checkout "$branch" >/dev/null 2>&1 || return 1
                 GIT_TERMINAL_PROMPT=0 git fetch "$remote" "$branch" >/dev/null 2>&1 || true
                 git reset --hard "$source_sha" >/dev/null 2>&1 || return 1
-                echo "$(git rev-parse HEAD 2>/dev/null || true)"
+                local local_sha=""
+                local_sha="$(git rev-parse HEAD 2>/dev/null || true)"
+                [[ -n "${local_sha:-}" ]] || return 1
+                printf '%s\n' "$local_sha"
                 return 0
             fi
-            force_update_branch_to_sha "$branch" "$source_sha" "$remote" || return 1
+            force_update_branch_to_sha "$branch" "$source_sha" "$remote" 1>&2 || return 1
             GIT_TERMINAL_PROMPT=0 git fetch "$remote" "$branch" >/dev/null 2>&1 || true
-            echo "$(git rev-parse "${remote}/${branch}" 2>/dev/null || true)"
+            local force_remote_sha=""
+            force_remote_sha="$(git rev-parse "${remote}/${branch}" 2>/dev/null || true)"
+            [[ -n "${force_remote_sha:-}" ]] || return 1
+            printf '%s\n' "$force_remote_sha"
             return 0
             ;;
         ff-only|merge|merge-theirs)
@@ -389,18 +395,21 @@ update_branch_to_sha_with_strategy() {
         fi
         git merge --ff-only "$source_sha" >/dev/null 2>&1 || return 1
     elif [[ "$strategy" == "merge" ]]; then
-        git merge --no-ff --no-edit "$source_sha" || return 1
+        git merge --no-ff --no-edit "$source_sha" >/dev/null 2>&1 || return 1
     elif [[ "$strategy" == "merge-theirs" ]]; then
-        git merge --no-ff --no-edit -X theirs "$source_sha" || return 1
+        git merge --no-ff --no-edit -X theirs "$source_sha" >/dev/null 2>&1 || return 1
     fi
 
     if [[ "${push_remote}" == "0" ]]; then
-        echo "$(git rev-parse HEAD 2>/dev/null || true)"
+        local local_sha=""
+        local_sha="$(git rev-parse HEAD 2>/dev/null || true)"
+        [[ -n "${local_sha:-}" ]] || return 1
+        printf '%s\n' "$local_sha"
         return 0
     fi
 
     # Push NO destructivo
-    GIT_TERMINAL_PROMPT=0 git push "$remote" "$branch" || return 1
+    GIT_TERMINAL_PROMPT=0 git push "$remote" "$branch" 1>&2 || return 1
 
     # Verificación post-push
     GIT_TERMINAL_PROMPT=0 git fetch "$remote" "$branch" >/dev/null 2>&1 || true
@@ -423,7 +432,7 @@ update_branch_to_sha_with_strategy() {
         fi
     fi
 
-    echo "$new_remote_sha"
+    printf '%s\n' "$new_remote_sha"
     return 0
 }
 

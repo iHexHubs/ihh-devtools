@@ -619,12 +619,15 @@ promote_to_dev() {
         else
             log_info "Rama staging local adelantada; sincronizando origin/staging con source_sha=${source_sha:0:7}."
         fi
-        source_sha_for_dev="$(update_branch_to_sha_with_strategy "staging" "$source_sha" "origin" "$staging_sync_strategy")" \
+        update_branch_to_sha_with_strategy "staging" "$source_sha" "origin" "$staging_sync_strategy" "1" >/dev/null \
             || die "No pude alinear staging con source_sha=${source_sha:0:7}."
-        staging_head_sha="$source_sha_for_dev"
+        GIT_TERMINAL_PROMPT=0 git fetch origin staging --prune >/dev/null 2>&1 || true
+        staging_head_sha="$(git rev-parse origin/staging 2>/dev/null || true)"
     elif [[ "${source_branch_original}" != "staging" ]]; then
         log_info "Fuente '${source_branch_original}' ya coincide con origin/staging (${staging_head_sha:0:7})."
     fi
+    [[ "${staging_head_sha:-}" =~ ^[0-9a-f]{40}$ ]] || die "staging_head_sha inválido: '${staging_head_sha:-<vacío>}'"
+    source_sha_for_dev="$staging_head_sha"
 
     local range
     range="${dev_before_sha}..${staging_head_sha}"
@@ -683,7 +686,7 @@ promote_to_dev() {
     local promote_component
     promote_component="$(resolve_promote_component "$range")"
     log_info "🧩 Componente changelog: ${promote_component}"
-    log_info "🔎 CHANGELOG DEBUG: from_ref=${dev_before_sha} to_ref=${staging_head_sha} range=${range}"
+    log_info "🔎 CHANGELOG DEBUG: from_ref=${dev_before_sha:0:7} to_ref=${staging_head_sha:0:7} range=${dev_before_sha:0:7}..${staging_head_sha:0:7}"
 
     # Tag real: se crea/pushea al final, solo después de Push OK a dev.
 
