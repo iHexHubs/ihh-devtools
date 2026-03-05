@@ -18,7 +18,7 @@ tasks:
     cmds:
       - |-
           bash -euo pipefail -c '
-            PATTERN="(/web""apps\\/|/ho""me/|/Us""ers/|\\.dev""tools\\/|git""hub\\.com/|git@gi""thub\\.com:)";
+            PATTERN="(/webapps/|/home/|/Users/|\\.devtools/|github\\.com/|git@github\\.com:)";
             TARGETS=(README.md CHANGELOG.md scripts devtools.repo.yaml);
             if grep -RniE "$PATTERN" "${TARGETS[@]}"; then
               echo "contaminacion detectada";
