@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/bin/git-feature.sh
+# Crea y prepara ramas feature/*.
 set -euo pipefail
 IFS=$'\n\t'
 

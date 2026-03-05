@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
+// Comentario
+
 function App() {
   const apiBase = useMemo(() => import.meta.env.VITE_API_URL || "/api", []);
   const [health, setHealth] = useState("checking...");
@@ -54,7 +56,7 @@ function App() {
       <p>
         Backend health: <strong>{health}</strong>
       </p>
-      {error ? <p style={{ color: "#b91c1c" }}>{error}</p> : null}
+      {error ? <p style={{ color: "#b9291cff" }}>{error}</p> : null}
 
       <form onSubmit={onSubmit}>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="New item name" />

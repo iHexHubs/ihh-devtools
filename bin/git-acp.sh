@@ -1,23 +1,59 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/bin/git-acp.sh
+# Add/commit/push con asistente de flujo.
 set -euo pipefail
 IFS=$'\n\t'
+__repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
 # ==============================================================================
 # DISPATCHER DE CONTEXTO (repo raíz -> script correcto)
 # ==============================================================================
 if [[ "${DEVTOOLS_DISPATCH_DONE:-0}" != "1" ]]; then
+    __read_vendor_dir_from_contract() {
+        local contract_file="$1"
+        [[ -f "$contract_file" ]] || return 0
+        awk '
+            function clean(v) {
+                gsub(/["\047]/, "", v)
+                sub(/[[:space:]]+#.*/, "", v)
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", v)
+                return v
+            }
+            /^[[:space:]]*#/ { next }
+            /^[[:space:]]*paths:[[:space:]]*$/ { in_paths=1; next }
+            in_paths && /^[^[:space:]]/ { in_paths=0 }
+            in_paths && /^[[:space:]]*vendor_dir:[[:space:]]*/ {
+                line=$0
+                sub(/^[[:space:]]*vendor_dir:[[:space:]]*/, "", line)
+                print clean(line)
+                exit
+            }
+            /^[[:space:]]*vendor_dir:[[:space:]]*/ {
+                line=$0
+                sub(/^[[:space:]]*vendor_dir:[[:space:]]*/, "", line)
+                print clean(line)
+                exit
+            }
+        ' "$contract_file" 2>/dev/null || true
+    }
+
     __self_path="${BASH_SOURCE[0]}"
     __self_real="$(cd "$(dirname "${__self_path}")" && pwd)/$(basename "${__self_path}")"
-    __repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+    __repo_root="${__repo_root:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
     __script_name="$(basename "${__self_path}")"
     __dispatch_target=""
+    __vendor_dir="$(__read_vendor_dir_from_contract "${__repo_root}/devtools.repo.yaml")"
 
-    for __candidate in \
-        "${__repo_root}/bin/${__script_name}" \
-        "${__repo_root}/.devtools/bin/${__script_name}" \
-        "/webapps/ihh-devtools/bin/${__script_name}"
-    do
+    if [[ -n "${__vendor_dir:-}" ]]; then
+        __vendor_dir="${__vendor_dir#./}"
+        __vendor_dir="${__vendor_dir%/}"
+    fi
+
+    __candidates=("${__repo_root}/bin/${__script_name}")
+    if [[ -n "${__vendor_dir:-}" ]]; then
+        __candidates+=("${__repo_root}/${__vendor_dir}/bin/${__script_name}")
+    fi
+
+    for __candidate in "${__candidates[@]}"; do
         [[ -f "${__candidate}" ]] || continue
         __candidate_real="$(cd "$(dirname "${__candidate}")" && pwd)/$(basename "${__candidate}")"
         if [[ "${__candidate_real}" != "${__self_real}" ]]; then
@@ -32,8 +68,10 @@ if [[ "${DEVTOOLS_DISPATCH_DONE:-0}" != "1" ]]; then
     export DEVTOOLS_DISPATCH_REPO_ROOT="${__repo_root}"
     export DEVTOOLS_DISPATCH_TO="${__dispatch_target}"
     if [[ "${__dispatch_target}" != "${__self_real}" ]]; then
-        echo "ℹ️  DISPATCH_REPO_ROOT=${DEVTOOLS_DISPATCH_REPO_ROOT}"
-        echo "ℹ️  DISPATCH_TO=${DEVTOOLS_DISPATCH_TO}"
+        if [[ "${DEVTOOLS_DEBUG_DISPATCH:-0}" == "1" ]]; then
+            echo "ℹ️  DISPATCH_REPO_ROOT=${DEVTOOLS_DISPATCH_REPO_ROOT}"
+            echo "ℹ️  DISPATCH_TO=${DEVTOOLS_DISPATCH_TO}"
+        fi
         export DEVTOOLS_DISPATCH_DONE=1
         exec bash "${__dispatch_target}" "$@"
     fi
@@ -43,7 +81,7 @@ fi
 # 1. BOOTSTRAP DE LIBRERÍAS
 # ==============================================================================
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Asumimos estructura: .devtools/bin/script.sh -> .devtools/lib/
+# Estructura esperada: bin/script.sh -> lib/
 LIB_DIR="${SCRIPT_DIR}/../lib"
 
 # Orden de carga importante
@@ -54,7 +92,15 @@ source "${LIB_DIR}/git-flow.sh"         # Políticas de ramas
 source "${LIB_DIR}/ssh-ident.sh"        # Identidad SSH/GPG
 source "${LIB_DIR}/ci-workflow.sh"      # Flujo Post-Push (CI/PR)
 
-echo "🟢 [IHH-ECOSYSTEM] Ejecutando git-acp integrado..."
+# Defaults "set -u safe" (si config/rc no los define)
+: "${SIMPLE_MODE:=false}"
+: "${DAY_START:=00:00}"
+: "${REFS_LABEL:=Conteo: commit}"
+: "${DAILY_GOAL:=10}"
+
+TOOL_NAME="$(basename "${__repo_root}")"
+[[ -n "${TOOL_NAME:-}" ]] || TOOL_NAME="devtools"
+echo "🟢 [${TOOL_NAME}] Ejecutando git-acp..."
 
 # ==============================================================================
 # 2. VALIDACIONES INICIALES Y ARGUMENTOS
@@ -89,6 +135,9 @@ if ! $SIMPLE_MODE; then
 else
     echo "⚡ Modo Estándar (Sin gestión de identidades avanzada)."
 fi
+
+# Si setup_git_identity no exportó push_target, usamos origin.
+: "${push_target:=origin}"
 
 # ==============================================================================
 # 4. PARSEO DE ARGUMENTOS DE COMANDO
@@ -145,6 +194,7 @@ do_push() {
   local remote="$1"
   local branch
   branch="$(git branch --show-current 2>/dev/null || echo "")"
+  [[ -n "${branch:-}" ]] || { log_error "HEAD desacoplado. No puedo pushear."; return 1; }
   
   echo "📡 Enviando a '$remote' (Ref: $branch)..."
 
@@ -152,18 +202,18 @@ do_push() {
   local push_success=false
   
   if ! git rev-parse --abbrev-ref --symbolic-full-name "@{u}" >/dev/null 2>&1; then
-      if git push -u "$remote" "$branch"; then push_success=true; fi
+      if GIT_TERMINAL_PROMPT=0 git push -u "$remote" "$branch"; then push_success=true; fi
   else
-      if git push "$remote" "$branch"; then push_success=true; fi
+      if GIT_TERMINAL_PROMPT=0 git push "$remote" "$branch"; then push_success=true; fi
   fi
 
   # Si falla, intentamos estrategia de rebase (auto-heal)
   if [ "$push_success" = false ]; then
       log_warn "El push fue rechazado. Intentando pull --rebase..."
-      if git pull --rebase "$remote" "$branch"; then
+      if GIT_TERMINAL_PROMPT=0 git pull --rebase "$remote" "$branch"; then
           log_success "Rebase exitoso. Reintentando push..."
-          git fetch --tags --force "$remote"
-          if git push "$remote" "$branch"; then
+          GIT_TERMINAL_PROMPT=0 git fetch --tags --force "$remote" >/dev/null 2>&1 || true
+          if GIT_TERMINAL_PROMPT=0 git push "$remote" "$branch"; then
               push_success=true
           fi
       else

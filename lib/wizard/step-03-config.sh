@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/wizard/step-03-config.sh
+# Paso de wizard: identidad Git y firma SSH.
 
 run_step_git_config() {
     ui_step_header "5. Configuración de Identidad Local"
+    command -v gh >/dev/null 2>&1 || { ui_error "Falta 'gh' (CLI)."; exit 1; }
+    command -v gum >/dev/null 2>&1 || { ui_error "Falta 'gum' para el wizard interactivo. Usa --verify-only o instala gum."; exit 1; }
 
     # ==========================================================================
     # 1. DETECCIÓN DE CONFLICTOS (Safety Checks)
@@ -26,10 +28,10 @@ run_step_git_config() {
     # ==========================================================================
     # Prioridad: Local > Global
     # Usamos el helper git_get para evitar errores si las llaves no existen
-    local local_name="$(git_get local user.name)"
-    local local_email="$(git_get local user.email)"
-    local global_name="$(git_get global user.name)"
-    local global_email="$(git_get global user.email)"
+    local local_name="$(git_get local user.name 2>/dev/null || true)"
+    local local_email="$(git_get local user.email 2>/dev/null || true)"
+    local global_name="$(git_get global user.name 2>/dev/null || true)"
+    local global_email="$(git_get global user.email 2>/dev/null || true)"
 
     # Variables que exportaremos para el Step 04
     export GIT_NAME=""
@@ -88,9 +90,9 @@ run_step_git_config() {
         
         # Intentar adivinar datos desde GitHub API para mejorar UX
         local gh_name
-        gh_name=$(gh api user -q ".name" 2>/dev/null || gh api user -q ".login" 2>/dev/null || echo "")
+        gh_name=$(GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh api user -q ".name" 2>/dev/null || GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh api user -q ".login" 2>/dev/null || echo "")
         local gh_email
-        gh_email=$(gh api user -q ".email" 2>/dev/null || echo "")
+        gh_email=$(GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh api user -q ".email" 2>/dev/null || echo "")
 
         # Inputs interactivos
         gum style "Confirma tus datos para los commits:"
@@ -125,7 +127,7 @@ run_step_git_config() {
     if [ -n "$SSH_KEY_FINAL" ]; then
         # --- FIX: CONFIRMACIÓN ANTES DE PISAR (P2) ---
         local current_key
-        current_key=$(git_get global user.signingkey)
+        current_key="$(git_get global user.signingkey 2>/dev/null || true)"
         local do_configure=true
 
         # Si ya existe una llave y es distinta a la nueva, preguntamos.
@@ -179,7 +181,7 @@ run_step_git_config() {
     else
         # Fallback por si este script se corre aislado (sin paso 2)
         local current_key
-        current_key=$(git_get global user.signingkey)
+        current_key="$(git_get global user.signingkey 2>/dev/null || true)"
         if [ -n "$current_key" ]; then
             ui_success "Firma SSH ya configurada previamente (Key: $current_key)."
             SIGNING_KEY="$current_key"

@@ -2,14 +2,11 @@
 
 ## v0.1.2-rc.6+build.1
 
-
-
 ### Correcciones
 
 - empuja rama fuente y maneja rc de estrategia al promover a `dev`
 
-- fix(devtools): corrige encabezado de reporte diario en `.devtools/bin/git-acp.sh`
-fix(devtools): corrige encabezado de reporte diario en `.devtools/bin/git-acp.sh`
+- fix(devtools): corrige encabezado de reporte diario en `bin/git-acp.sh`
 
 📅 Fecha: 2026-02-09 07:15
 
@@ -17,22 +14,19 @@ Conteo: commit #17
 
 - muestra menú post-push en cualquier rama NO protegida
 
-- fix(devtools): corrige encabezado de reporte diario en `.devtools/bin/git-acp.sh`
-fix(devtools): corrige encabezado de reporte diario en `.devtools/bin/git-acp.sh`
+- fix(devtools): corrige encabezado de reporte diario en `bin/git-acp.sh`
 
 📅 Fecha: 2026-02-09 06:45
 
 Conteo: commit #11
 
-- fix(devtools): corrige encabezado de reporte diario en `.devtools/bin/git-acp.sh`
-fix(devtools): corrige encabezado de reporte diario en `.devtools/bin/git-acp.sh`
+- fix(devtools): corrige encabezado de reporte diario en `bin/git-acp.sh`
 
 📅 Fecha: 2026-02-09 06:39
 
 Conteo: commit #10
 
-- fix(devtools): corrige encabezado de reporte diario en `.devtools/bin/git-acp.sh`
-fix(devtools): corrige encabezado de reporte diario en `.devtools/bin/git-acp.sh`
+- fix(devtools): corrige encabezado de reporte diario en `bin/git-acp.sh`
 
 📅 Fecha: 2026-02-09 06:37
 
@@ -41,14 +35,12 @@ Conteo: commit #7
 - evitar borrar la rama origen si no aterriza en destino
 
 - fix(promote): validar .promote_tag como cache y mantener compatibilidad
-fix(promote): validar .promote_tag como cache y mantener compatibilidad
 
 📅 Fecha: 2026-02-08 16:43
 
 Conteo: commit #42
 
 - excluir `chore(release): actualizar changelog` del resumen y prompt de notas
-
 
 ### Documentación
 
@@ -58,17 +50,15 @@ Conteo: commit #42
 
 - ajustar encabezado de sección en `hotfix.sh`
 
-- corregir comentario de salida en `.devtools/bin/git-gp.sh`
+- corregir comentario de salida en `bin/git-gp.sh`
 
 - normalizar encabezado de sección en `hotfix.sh`
 
 - ajustar encabezado de sección en `hotfix.sh`
 
-
 ### Funciones
 
 - exporta tag de imagen y acepta `+build` como legado
-
 
 ### Mantenimiento
 
@@ -94,14 +84,11 @@ Conteo: commit #42
 
 ## v0.1.2-rc.5
 
-
-
 ### Correcciones
 
 - priorizar tags de `origin` y estabilizar estrategia de `dev` cuando hay `rc` activo
 
 - calcular rango de changelog en `to-dev.sh` usando `dev` cuando coincide con `source_sha`
-
 
 ### Mantenimiento
 
@@ -111,25 +98,19 @@ Conteo: commit #42
 
 ## v0.1.2-rc.4
 
-
-
 ### Correcciones
 
-- limpiar entradas duplicadas de `v0.2.0-rc.1+build.1` en `CHANGELOG.md` y `.devtools/CHANGELOG.md`
-
+- limpiar entradas duplicadas de `v0.2.0-rc.1+build.1` en `CHANGELOG.md` y `CHANGELOG.md`
 
 ### Funciones
 
 - generar tag de `prod` como estable sin `rc` ni `+build` desde el último `staging`
-
 
 ### Mantenimiento
 
 - actualizar changelog v0.2.0-rc.1+build.1
 
 ## v0.1.2-rc.3
-
-
 
 ### CI
 
@@ -138,7 +119,6 @@ Conteo: commit #42
 - deshabilitar Release Please renombrando configs y workflows a `.disabled`
 
 - deshabilitar `release-please` y documentar fuente única de `VERSION`
-
 
 ### Correcciones
 
@@ -163,32 +143,28 @@ Conteo: commit #42
 - extraer correctamente `rc.N` al calcular el siguiente tag en `semver_next_rc`
 
 - fix(devtools): permitir `feat/*` y relajar enforcement de renombre en `git-flow.sh`
-fix(devtools): permitir `feat/*` y relajar enforcement de renombre en `git-flow.sh`
 
 📅 Fecha: 2026-02-06 16:34
 
 Conteo: commit #43
 
-
 ### Documentación
 
-- documentar flujo actual de tags en `.devtools/notes/tag-flow.md`
+- documentar flujo actual de tags en `notes/tag-flow.md`
 
-- docs(release): corregir comentario de estrategia de tags en `.devtools/lib/promote/version-strategy.sh`
-docs(release): corregir comentario de estrategia de tags en `.devtools/lib/promote/version-strategy.sh`
+- docs(release): corregir comentario de estrategia de tags en `lib/promote/version-strategy.sh`
 
 📅 Fecha: 2026-02-07 21:48
 
 Conteo: commit #97
 
-- documentar matriz de build `build_matrix` y reflejarla en `.devtools/config/apps.yaml`
+- documentar matriz de build `build_matrix` y reflejarla en `config/apps.yaml`
 
 - ajustar encabezado de changelog en `common.sh`
 
 - ajustar comentario de sección de changelog en `common.sh`
 
-- documentar monorepo y matriz de versionado en .devtools/README.md
-
+- documentar monorepo y matriz de versionado en README.md
 
 ### Funciones
 
@@ -208,7 +184,7 @@ Conteo: commit #97
 
 - agregar parser del registro `apps.yaml` y tareas `task app:*`
 
-- registrar apps y bootstrap de `apps/erd/mobile`
+- registrar apps y bootstrap inicial de componentes
 
 - validar policy de GitHub Actions y bloquear tagging/versionado en workflows
 
@@ -246,7 +222,6 @@ Conteo: commit #97
 
 - integrar herramientas de desarrollo git-acp pro y ajustar flujo de release-please
 
-
 ### Mantenimiento
 
 - actualizar changelog v0.2.0-rc.1+build.1
@@ -281,17 +256,14 @@ Conteo: commit #97
 
 - eliminar macro `sync` y retirar `git-sync.sh` del flujo de `git-promote.sh`
 
-- revertir patrón `....` en `/.devtools/.gitignore`
+- revertir patrón `....` en `/.gitignore`
 
-- ajustar reglas en `/.devtools/.gitignore`
+- ajustar reglas en `/.gitignore`
 
-- integrar .devtools como subtree
-
+- integrar toolset como subtree
 
 ### Refactor
 
 - seleccionar último tag por entorno sin depender de `sort -V`
 
 - migrar scripts de herramientas a submódulos de git
-
-

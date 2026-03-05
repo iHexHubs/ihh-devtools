@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/wizard/step-02-ssh.sh
+# Paso de wizard: gestión de llaves SSH.
 
 # --- FIX: INTEGRACIÓN CON RUNTIME ---
 # Importamos ssh-ident.sh para usar la misma lógica de agente que el resto del toolset
@@ -11,6 +11,8 @@ source "${LIB_BASE}/ssh-ident.sh"
 
 run_step_ssh() {
     ui_step_header "3. Configuración de Llaves de Seguridad"
+    command -v gh >/dev/null 2>&1 || { ui_error "Falta 'gh' (CLI)."; exit 1; }
+    command -v gum >/dev/null 2>&1 || { ui_error "Falta 'gum' para el wizard interactivo. Usa --verify-only o instala gum."; exit 1; }
 
     # Variable global que exportaremos para los siguientes pasos
     export SSH_KEY_FINAL=""
@@ -73,7 +75,7 @@ run_step_ssh() {
 
 generate_new_ssh_key() {
     local current_user_safe
-    current_user_safe=$(gh api user -q ".login" || echo "user")
+    current_user_safe=$(GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh api user -q ".login" || echo "user")
     
     local default_name="id_ed25519_${current_user_safe}"
     local key_name
@@ -123,7 +125,7 @@ sync_ssh_key_to_github() {
     # --------------------------------------------------------------------------
     # FASE 1: Llave de AUTENTICACIÓN (Crítica)
     # --------------------------------------------------------------------------
-    if gh ssh-key add "$SSH_KEY_FINAL.pub" --title "$key_title (Auth)" --type authentication >/dev/null 2>&1; then
+    if GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh ssh-key add "$SSH_KEY_FINAL.pub" --title "$key_title (Auth)" --type authentication >/dev/null 2>&1; then
         auth_uploaded=true
         ui_success "✅ Llave de Autenticación subida (git push/pull habilitado)."
     else
@@ -131,7 +133,7 @@ sync_ssh_key_to_github() {
         local key_body
         key_body=$(echo "$pub_key_content" | cut -d' ' -f2)
         
-        if gh ssh-key list | grep -q "$key_body"; then
+        if GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh ssh-key list | grep -q "$key_body"; then
             auth_uploaded=true
             ui_success "ℹ️ La llave ya estaba configurada para Autenticación."
         else
@@ -142,7 +144,7 @@ sync_ssh_key_to_github() {
     # --------------------------------------------------------------------------
     # FASE 2: Llave de FIRMA (Opcional / Verified Commits)
     # --------------------------------------------------------------------------
-    if gh ssh-key add "$SSH_KEY_FINAL.pub" --title "$key_title (Signing)" --type signing >/dev/null 2>&1; then
+    if GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh ssh-key add "$SSH_KEY_FINAL.pub" --title "$key_title (Signing)" --type signing >/dev/null 2>&1; then
         sign_uploaded=true
         ui_success "✅ Llave de Firma subida (Verified Commits)."
     else
@@ -150,7 +152,7 @@ sync_ssh_key_to_github() {
         key_body=$(echo "$pub_key_content" | cut -d' ' -f2)
         
         # Check suave para no romper en versiones viejas de gh o planes sin soporte
-        if gh ssh-key list --type signing 2>/dev/null | grep -q "$key_body"; then
+        if GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh ssh-key list --type signing 2>/dev/null | grep -q "$key_body"; then
                 ui_success "ℹ️ La llave ya estaba configurada para Firma."
                 sign_uploaded=true
         else
@@ -177,7 +179,7 @@ sync_ssh_key_to_github() {
         fi
         
         echo ""
-        ui_info "2. Abre: https://github.com/settings/ssh/new"
+        ui_info "2. Abre GitHub Settings > SSH and GPG keys (New SSH key)"
         echo ""
         ui_info "3. Pega la llave, ponle título y guarda."
         

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/bin/git-rp.sh
+# Renombra push target y protege ramas críticas.
 set -euo pipefail
 IFS=$'\n\t'
 
@@ -18,7 +18,12 @@ source "${LIB_DIR}/git-flow.sh"    # Logic: is_protected_branch
 # ==============================================================================
 ensure_repo
 
-CURRENT_BRANCH=$(git branch --show-current)
+CURRENT_BRANCH="$(git branch --show-current 2>/dev/null || echo "(detached)")"
+CURRENT_BRANCH="$(echo "${CURRENT_BRANCH:-}" | tr -d '[:space:]')"
+if [[ -z "${CURRENT_BRANCH:-}" || "${CURRENT_BRANCH:-}" == "(detached)" ]]; then
+    log_error "HEAD desacoplado. No puedo ejecutar 'git rp'."
+    exit 1
+fi
 
 # Usamos la lógica centralizada de ramas protegidas
 if is_protected_branch "$CURRENT_BRANCH"; then
@@ -54,7 +59,7 @@ log_info "🔥 Destruyendo commit en local..."
 git reset --hard HEAD~1
 
 log_info "☁️  Sincronizando destrucción con el remoto (Force Push)..."
-if git push origin "$CURRENT_BRANCH" --force; then
+if GIT_TERMINAL_PROMPT=0 git push origin "$CURRENT_BRANCH" --force; then
     echo
     log_success "✅ Listo. Has retrocedido en el tiempo 1 commit en '$CURRENT_BRANCH'."
 else

@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/ui/prompts.sh
+# Prompts UI compartidos.
 
 # Lee un carácter del usuario (o una cadena si no es modo raw)
 # Uso: choice=$(ui_read_option "   Opción > ")
 ui_read_option() {
     local prompt="${1:-> }"
     local input
-    # Forzamos lectura desde /dev/tty para garantizar interactividad incluso dentro de pipes
-    read -r -p "$prompt" input < /dev/tty
-    echo "$input"
+    # Preferir /dev/tty si existe (interactivo incluso dentro de pipes); si no, degradar sin bloquear.
+    if [[ -r /dev/tty && -t 0 && -t 1 ]]; then
+        read -r -p "$prompt" input < /dev/tty
+        printf '%s\n' "$input"
+        return 0
+    fi
+    printf '%s\n' ""
 }

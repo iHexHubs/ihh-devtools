@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/promote/strategies/dev-direct.sh
-#
+# Promote strategy: dev-direct
 # Estrategia de promoción DIRECTA a DEV (opt-in / macro).
 # Objetivo: usar SIEMPRE el "Jefe de Obra" (update_branch_to_sha_with_strategy)
 # para heredar: fetch/reset canónico, push --force-with-lease y post-checks.
@@ -77,7 +76,7 @@ promote_dev_direct_monitor() {
     echo
     log_success "✅ DEV listo. SHA final: ${final_dev_sha:0:7}"
     log_info "🔎 Confirmación visual (git ls-remote --heads origin dev):"
-    git ls-remote --heads origin dev 2>/dev/null || true
+    GIT_TERMINAL_PROMPT=0 git ls-remote --heads origin dev 2>/dev/null || true
     echo
 
     echo "👉 Siguiente paso: git promote staging"

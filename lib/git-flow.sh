@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/git-flow.sh
+# Librería de soporte (devtools)
 
 # ==============================================================================
 # 1. VALIDACIONES DE RAMAS

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/core/config.sh
+# Configuración central de runtime.
 
 # ==============================================================================
 # 1. DETECCIÓN DEL ENTORNO
 # ==============================================================================
 
 # --- FIX: DETECCIÓN ROBUSTA DE ROOT (Submódulos vs Superproyecto) ---
-# Intentamos obtener la raíz del superproyecto (si esto es un submódulo .devtools).
+# Intentamos obtener la raíz del superproyecto.
 # Si no, caemos al toplevel normal o al directorio actual.
 PROJECT_ROOT="$(git rev-parse --show-superproject-working-tree 2>/dev/null || echo "")"
 if [ -z "$PROJECT_ROOT" ]; then
@@ -19,32 +19,43 @@ fi
 # - WORKSPACE_ROOT: raíz del superproyecto (si existe); si no, vacío.
 # - PROJECT_ROOT (compat): se mantiene como “workspace” cuando hay superproyecto, o repo root si no.
 #
-# Esto permite que los scripts de versionado NO lean VERSION desde .devtools embebido por error,
-# y en su lugar usen siempre $REPO_ROOT/VERSION como fuente de verdad del repo actual.
+# Esto permite que los scripts de versionado usen siempre $REPO_ROOT/VERSION.
 export REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 export WORKSPACE_ROOT="$(git rev-parse --show-superproject-working-tree 2>/dev/null || echo "")"
 export PROJECT_ROOT
 
+# Cargar contrato (si está disponible) para resolver rutas dinámicas.
+__devtools_core_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=./contract.sh
+source "${__devtools_core_dir}/contract.sh"
+devtools_load_contract "${REPO_ROOT}" || true
+
 # Rutas de configuración con prioridad:
-# 1. Específica del toolset (.devtools)
-# 2. Local del repositorio (raíz)
-# 3. Global de usuario (home)
-DEVTOOLS_CONFIG="${PROJECT_ROOT}/.devtools/.git-acprc"
-LOCAL_CONFIG="${PROJECT_ROOT}/.git-acprc"
-USER_CONFIG="${HOME}/scripts/.git-acprc"
+# 1. Contrato: config.profile_file
+# 2. Compat: <repo>/<vendor_dir>/.git-acprc
+# 3. Compat: <repo>/.git-acprc
+CONTRACT_CONFIG="${DEVTOOLS_PROFILE_CONFIG:-}"
+VENDOR_DIR="${DEVTOOLS_VENDOR_DIR:-}"
+[[ -n "${VENDOR_DIR:-}" ]] || VENDOR_DIR=".devtools"
+if [[ "$VENDOR_DIR" == /* ]]; then
+  LEGACY_VENDOR_CONFIG="${VENDOR_DIR}/.git-acprc"
+else
+  LEGACY_VENDOR_CONFIG="${REPO_ROOT}/${VENDOR_DIR}/.git-acprc"
+fi
+LOCAL_CONFIG="${REPO_ROOT}/.git-acprc"
 
 # ==============================================================================
 # 2. CARGA DE CONFIGURACIÓN
 # ==============================================================================
-if [ -f "$DEVTOOLS_CONFIG" ]; then
+if [ -n "${CONTRACT_CONFIG:-}" ] && [ -f "$CONTRACT_CONFIG" ]; then
   # shellcheck disable=SC1090
-  source "$DEVTOOLS_CONFIG"
+  source "$CONTRACT_CONFIG"
+elif [ -f "$LEGACY_VENDOR_CONFIG" ]; then
+  # shellcheck disable=SC1090
+  source "$LEGACY_VENDOR_CONFIG"
 elif [ -f "$LOCAL_CONFIG" ]; then
   # shellcheck disable=SC1090
   source "$LOCAL_CONFIG"
-elif [ -f "$USER_CONFIG" ]; then
-  # shellcheck disable=SC1090
-  source "$USER_CONFIG"
 fi
 
 # ==============================================================================
@@ -58,7 +69,7 @@ export DAILY_GOAL="${DAILY_GOAL:-10}"
 
 # --- Identidades y GitHub ---
 # Inicializamos el array de perfiles de forma segura
-export PROFILES=("${PROFILES[@]:-}")
+PROFILES=("${PROFILES[@]:-}")
 export GH_AUTO_CREATE="${GH_AUTO_CREATE:-false}"
 export GH_DEFAULT_VISIBILITY="${GH_DEFAULT_VISIBILITY:-private}"
 
@@ -114,7 +125,11 @@ export SIMPLE_MODE=false
 
 # 4.1) Asegura main como rama por defecto para futuros repos
 # (Lo ponemos antes de las validaciones para asegurar que se ejecute siempre)
-git config --global init.defaultBranch main >/dev/null 2>&1 || true
+if [[ -z "${CI:-}" ]]; then
+  if [[ -z "$(git config --global --get init.defaultBranch 2>/dev/null || true)" ]]; then
+    git config --global init.defaultBranch main >/dev/null 2>&1 || true
+  fi
+fi
 
 # Si no hay perfiles definidos en la config, activamos modo simple
 if [ ${#PROFILES[@]} -eq 0 ]; then
@@ -199,9 +214,8 @@ normalize_profiles_v1() {
   done
 
   # Reemplazamos PROFILES por la versión normalizada
-  export PROFILES=("${normalized[@]}")
+  PROFILES=("${normalized[@]}")
 }
 
 # Ejecutamos normalización al cargar config (para todo el runtime)
 normalize_profiles_v1
-

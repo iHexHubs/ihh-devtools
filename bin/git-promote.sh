@@ -1,52 +1,17 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/bin/git-promote.sh
-#
 # Punto de entrada principal para promociones de código.
-# Orquesta la carga de librerías, validaciones de entorno y ejecución de workflows...
+#
+# Orquesta la carga de librerías, validaciones de entorno y ejecución de workflows.
 
-set -e
+set -euo pipefail
 
 # ==============================================================================
-# DISPATCHER DE CONTEXTO (repo raíz -> script correcto)
-# ------------------------------------------------------------------------------
-# Soporta ejecución desde aliases hardcodeados y evita mezclar runtime de otro repo.
+# DISPATCH DE CONTEXTO (repo raíz -> script correcto)
 # ==============================================================================
-if [[ "${DEVTOOLS_DISPATCH_DONE:-0}" != "1" ]]; then
-    __self_path="${BASH_SOURCE[0]}"
-    __self_real="$(cd "$(dirname "${__self_path}")" && pwd)/$(basename "${__self_path}")"
-    __repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-    __script_name="$(basename "${__self_path}")"
-
-    __dispatch_target=""
-    for __candidate in \
-        "${__repo_root}/bin/${__script_name}" \
-        "${__repo_root}/.devtools/bin/${__script_name}"
-    do
-        [[ -f "${__candidate}" ]] || continue
-        __candidate_real="$(cd "$(dirname "${__candidate}")" && pwd)/$(basename "${__candidate}")"
-        if [[ "${__candidate_real}" != "${__self_real}" ]]; then
-            __dispatch_target="${__candidate}"
-            break
-        fi
-        __dispatch_target="${__candidate}"
-        break
-    done
-
-    if [[ -z "${__dispatch_target:-}" ]]; then
-        echo "❌ No encontré ${__script_name} para dispatch (REPO_ROOT=${__repo_root})." >&2
-        exit 127
-    fi
-
-    export DEVTOOLS_DISPATCH_REPO_ROOT="${__repo_root}"
-    export DEVTOOLS_DISPATCH_TO="${__dispatch_target}"
-
-    if [[ "${__dispatch_target}" != "${__self_real}" ]]; then
-        echo "ℹ️  DISPATCH_REPO_ROOT=${DEVTOOLS_DISPATCH_REPO_ROOT}"
-        echo "ℹ️  DISPATCH_TO=${DEVTOOLS_DISPATCH_TO}"
-        export DEVTOOLS_DISPATCH_DONE=1
-        exec bash "${__dispatch_target}" "$@"
-    fi
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="${SCRIPT_DIR}/../lib"
+source "${LIB_DIR}/core/dispatch.sh"
+devtools_dispatch_if_needed "$@"
 
 # ==============================================================================
 # 0.0 DEFAULTS (set -u safe)
@@ -81,20 +46,66 @@ git_entry() {
         command git -C "${PROMOTE_ENTRY_DIR:-${REPO_ROOT:-$PWD}}" "$@"
 }
 
+promote_git_env_summary() {
+    local git_exec_path="${GIT_EXEC_PATH:-<unset>}"
+    local git_prefix="${GIT_PREFIX:-}"
+    local config_count_raw="${GIT_CONFIG_COUNT:-0}"
+    local config_count=0
+    local git_env_count="0"
+    local aliases=()
+    local alias_list="<none>"
+    local i=0
+    local key_var=""
+    local key_val=""
+
+    [[ -n "${git_prefix}" ]] || git_prefix="<vacio>"
+    git_env_count="$(env | grep -cE '^GIT_' || true)"
+
+    if [[ "${config_count_raw}" =~ ^[0-9]+$ ]]; then
+        config_count="${config_count_raw}"
+    fi
+
+    for ((i=0; i<config_count; i++)); do
+        key_var="GIT_CONFIG_KEY_${i}"
+        key_val="${!key_var:-}"
+        if [[ "${key_val}" == alias.* ]]; then
+            aliases+=("${key_val#alias.}")
+        fi
+    done
+
+    if [[ "${#aliases[@]}" -gt 0 ]]; then
+        alias_list="$(IFS=,; echo "${aliases[*]}")"
+    fi
+
+    printf '%s' "GIT env resumido: vars=${git_env_count} exec_path=${git_exec_path} prefix=${git_prefix} aliases=${#aliases[@]} [${alias_list}]"
+}
+
 ensure_local_checkout() {
     local local_branch="local"
     local current_root=""
     local sync_to_origin=0
+    local quiet_ui_mode=0
     current_root="$(git_entry rev-parse --show-toplevel 2>/dev/null || pwd)"
+    if declare -F ui_is_quiet_mode >/dev/null 2>&1 && ui_is_quiet_mode; then
+        quiet_ui_mode=1
+    fi
+
     log_info "🔧 ensure_local_checkout(): aterrizando en rama final 'local' (alineada a origin/local cuando exista)..."
-    log_info "🔎 promote target: ${TARGET_ENV:-?} args: ${TARGET_ENV:-} ${REST_ARGS[*]:-}"
-    log_info "🔎 PWD(wrapper)=$(pwd)"
-    log_info "🔎 REPO_ROOT=${REPO_ROOT:-<unset>}"
-    log_info "🔎 GIT_* en workflow: $(env | grep -E '^GIT_' | tr '\n' ' ' || true)"
-    log_info "🔎 git-dir(entry): $(git_entry rev-parse --git-dir 2>/dev/null || echo '?')"
-    log_info "🔎 rama(entry) PRE: $(git_entry branch --show-current 2>/dev/null || echo '?')"
-    log_info "🔎 worktrees(entry):"
-    git_entry worktree list 2>/dev/null || true
+    if [[ "$quiet_ui_mode" -eq 1 ]]; then
+        local worktrees_count="0"
+        worktrees_count="$(git_entry worktree list 2>/dev/null | wc -l | tr -d '[:space:]')"
+        log_info "ℹ️ Git env: repo_root=${REPO_ROOT:-<unset>} rama_pre=$(git_entry branch --show-current 2>/dev/null || echo '?') worktrees=${worktrees_count:-0}"
+        log_info "ℹ️ Target=${TARGET_ENV:-?} | Source SHA=${DEVTOOLS_PROMOTE_FROM_SHA:-<unset>}"
+    else
+        log_info "🔎 promote target: ${TARGET_ENV:-?} args: ${TARGET_ENV:-} ${REST_ARGS[*]:-}"
+        log_info "🔎 PWD(wrapper)=$(pwd)"
+        log_info "🔎 REPO_ROOT=${REPO_ROOT:-<unset>}"
+        log_info "🔎 $(promote_git_env_summary)"
+        log_info "🔎 git-dir(entry): $(git_entry rev-parse --git-dir 2>/dev/null || echo '?')"
+        log_info "🔎 rama(entry) PRE: $(git_entry branch --show-current 2>/dev/null || echo '?')"
+        log_info "🔎 worktrees(entry):"
+        git_entry worktree list 2>/dev/null || true
+    fi
 
     # Limpieza defensiva: worktrees temporales huérfanos que bloquean refs/heads/local.
     local wt_path=""
@@ -141,7 +152,7 @@ ensure_local_checkout() {
     fi
 
     if [[ "${sync_to_origin}" == "1" ]]; then
-        git_entry fetch origin "${local_branch}" >/dev/null 2>&1 || true
+        GIT_TERMINAL_PROMPT=0 git_entry fetch origin "${local_branch}" >/dev/null 2>&1 || true
         if git_entry reset --hard "origin/${local_branch}" >/dev/null 2>&1; then
             log_info "🔄 '${local_branch}' quedó alineada a origin/${local_branch}."
         else
@@ -205,6 +216,14 @@ cleanup_on_exit() {
     local exit_code=$?
     trap - EXIT INT TERM
 
+    git_safe() {
+        if declare -F git_entry >/dev/null 2>&1; then
+            git_entry "$@"
+        else
+            git "$@"
+        fi
+    }
+
     # Doctor no debe intentar borrar ramas ni aterrizar raro
     if [[ "${TARGET_ENV:-}" == "doctor" ]]; then
         exit "$exit_code"
@@ -219,13 +238,13 @@ cleanup_on_exit() {
         # 1) aterrizar en rama destino si aplica
         if [[ -n "${DEVTOOLS_LAND_ON_SUCCESS_BRANCH:-}" ]]; then
             ui_info "🛬 Finalizando flujo (éxito): quedando en '${DEVTOOLS_LAND_ON_SUCCESS_BRANCH}'..."
-            if ! git checkout "${DEVTOOLS_LAND_ON_SUCCESS_BRANCH}" >/dev/null 2>&1; then
+            if ! git_safe checkout "${DEVTOOLS_LAND_ON_SUCCESS_BRANCH}" >/dev/null 2>&1; then
                 # Intentar tracking si existe en origin
                 ensure_local_branch_tracks_remote "${DEVTOOLS_LAND_ON_SUCCESS_BRANCH}" "origin" >/dev/null 2>&1 || true
-                git checkout "${DEVTOOLS_LAND_ON_SUCCESS_BRANCH}" >/dev/null 2>&1 || true
+                git_safe checkout "${DEVTOOLS_LAND_ON_SUCCESS_BRANCH}" >/dev/null 2>&1 || true
             fi
             local cur_branch
-            cur_branch="$(git branch --show-current 2>/dev/null || echo "")"
+            cur_branch="$(git_safe branch --show-current 2>/dev/null || echo "")"
             if [[ "$cur_branch" == "${DEVTOOLS_LAND_ON_SUCCESS_BRANCH}" ]]; then
                 landed_ok=1
             else
@@ -250,7 +269,7 @@ cleanup_on_exit() {
         git_restore_branch_safely "${DEVTOOLS_PROMOTE_FROM_BRANCH:-}"
     else
         ui_warn "Finalizando script. Volviendo a ${DEVTOOLS_PROMOTE_FROM_BRANCH:-}..."
-        git checkout "${DEVTOOLS_PROMOTE_FROM_BRANCH:-}" >/dev/null 2>&1 || true
+        git_safe checkout "${DEVTOOLS_PROMOTE_FROM_BRANCH:-}" >/dev/null 2>&1 || true
     fi
 
     exit "$exit_code"
@@ -262,7 +281,7 @@ trap 'cleanup_on_exit' EXIT INT TERM
 # 2. PARSEO DE ARGUMENTOS
 # ==============================================================================
 # Soporte simple para flags globales antes del comando
-while [[ "$1" == -* ]]; do
+while [[ "${1:-}" == -* ]]; do
     case "$1" in
         -y|--yes)
             export DEVTOOLS_ASSUME_YES=1
@@ -329,7 +348,7 @@ fi
 # Regla: "Primero seguridad, luego el menú".
 # Este bloque corre SIEMPRE (excepto en doctor/diagnóstico) antes de tocar ramas.
 # - Valida que estamos en un repo.
-# - Valida que origin existe y apunta a github.com.
+# - Valida que origin exista. Si DEVTOOLS_REQUIRE_GITHUB=1, exige github.com.
 # - (Opcional/recomendado) hace fetch estricto para no operar con refs viejas.
 # Luego muestra el 🧯 MENÚ DE SEGURIDAD y define DEVTOOLS_PROMOTE_STRATEGY.
 
@@ -362,7 +381,7 @@ if [[ "${TARGET_ENV:-}" != "doctor" ]]; then
         else
             # Fetch preferido (si falla por red, degradamos de forma explícita según target).
             fetch_rc=0
-            git fetch origin --prune || fetch_rc=$?
+            GIT_TERMINAL_PROMPT=0 git fetch origin --prune || fetch_rc=$?
             if [[ "$fetch_rc" -ne 0 ]]; then
                 log_warn "FETCH FAILED: remote=origin rc=${fetch_rc} target=${TARGET_ENV:-?}"
                 if [[ "${TARGET_ENV:-}" == "local" ]]; then
@@ -463,7 +482,7 @@ case "$TARGET_ENV" in
 
         if [[ "$local_ok" -eq 1 ]]; then
             if [[ -f "${LIB_DIR}/ci-workflow.sh" ]]; then
-                # Reusar el mismo flujo post-push (Entornos + Rincón del Detective)
+                # Reusar el mismo flujo post-push de verificación de entorno.
                 # Usa base 'local' para evitar PRs accidentales a ramas protegidas.
                 source "${LIB_DIR}/ci-workflow.sh"
 

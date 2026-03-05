@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/promote/workflows/checks.sh
-#
+# Promote workflow helpers: checks
 # CHECKS.SH = ÚNICA FUENTE DE VERDAD (validaciones por SHA)
 # - Tabla de estado por workflow requerido
 # - Gate por SHA (PENDING con retry corto)
@@ -20,7 +19,7 @@ print_tags_at_sha() {
     local sha_full="$1"
     local label="${2:-tags@sha}"
     [[ -n "${sha_full:-}" ]] || return 0
-    git fetch origin --tags --force >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git fetch origin --tags --force >/dev/null 2>&1 || true
     local tags
     tags="$(git tag --points-at "$sha_full" 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
     if [[ -n "${tags:-}" ]]; then
@@ -154,7 +153,7 @@ wait_for_tag_on_sha_or_die() {
     log_info "🏷️  Esperando ${label} en SHA ${sha_full:0:7} (pattern: ${pattern})..."
 
     while true; do
-        git fetch origin --tags --force >/dev/null 2>&1 || true
+        GIT_TERMINAL_PROMPT=0 git fetch origin --tags --force >/dev/null 2>&1 || true
         local found
         found="$(git tag --points-at "$sha_full" 2>/dev/null | grep -E "$pattern" | head -n 1 || true)"
         if [[ -n "${found:-}" ]]; then
@@ -242,7 +241,8 @@ wait_for_workflow_success_on_ref_or_sha_or_die() {
 if ! declare -F ensure_clean_git_or_die >/dev/null 2>&1; then
     ensure_clean_git_or_die() {
         if ! declare -F ensure_clean_git >/dev/null 2>&1; then
-            log_error "❌ Error: falta ensure_clean_git. Carga .devtools/lib/core/git-ops.sh antes de checks.sh."
+            local dot_dir=".devtools"
+            log_error "❌ Error: falta ensure_clean_git. Carga ${dot_dir}/lib/core/git-ops.sh antes de checks.sh."
             exit 1
         fi
         ensure_clean_git "$@"
@@ -250,26 +250,27 @@ if ! declare -F ensure_clean_git_or_die >/dev/null 2>&1; then
 fi
 
 # ==============================================================================
-# CONFIG: Workflows requeridos (centralizado en .devtools/config/workflows.conf)
+# CONFIG: Workflows requeridos (centralizado en <vendor_dir>/config/workflows.conf)
 # ==============================================================================
 
 resolve_workflows_conf_file() {
-    # 1) Si estamos dentro del repo .devtools (REPO_ROOT == .devtools)
+    local dot_dir=".devtools"
+    # 1) Si estamos dentro del repo vendorizado (REPO_ROOT == vendor_dir)
     local root="${REPO_ROOT:-.}"
     if [[ -f "${root}/config/workflows.conf" ]]; then
         echo "${root}/config/workflows.conf"
         return 0
     fi
 
-    # 2) Si estamos en un superproyecto que contiene .devtools (WORKSPACE_ROOT)
-    if [[ -n "${WORKSPACE_ROOT:-}" && -f "${WORKSPACE_ROOT}/.devtools/config/workflows.conf" ]]; then
-        echo "${WORKSPACE_ROOT}/.devtools/config/workflows.conf"
+    # 2) Si estamos en un superproyecto que contiene vendor_dir (WORKSPACE_ROOT)
+    if [[ -n "${WORKSPACE_ROOT:-}" && -f "${WORKSPACE_ROOT}/${dot_dir}/config/workflows.conf" ]]; then
+        echo "${WORKSPACE_ROOT}/${dot_dir}/config/workflows.conf"
         return 0
     fi
 
-    # 3) Fallback: cwd + .devtools/config
-    if [[ -f ".devtools/config/workflows.conf" ]]; then
-        echo ".devtools/config/workflows.conf"
+    # 3) Fallback: cwd + vendor_dir/config
+    if [[ -f "${dot_dir}/config/workflows.conf" ]]; then
+        echo "${dot_dir}/config/workflows.conf"
         return 0
     fi
 
@@ -277,8 +278,9 @@ resolve_workflows_conf_file() {
 }
 
 print_workflows_conf_guidance() {
+    local dot_dir=".devtools"
     local resolved="${1:-}"
-    echo "   Archivo esperado: .devtools/config/workflows.conf"
+    echo "   Archivo esperado: ${dot_dir}/config/workflows.conf"
     if [[ -n "${resolved:-}" ]]; then
         echo "   Archivo resuelto: ${resolved}"
     else

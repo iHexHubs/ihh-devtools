@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/promote/workflows/to-local.sh
-#
+# Promote workflow: to-local
 # Flujo LOCAL:
 # - Gate (task ci + task ci:act)
 # - Calcular tag local (rev.N sobre el ultimo tag dev)
@@ -25,4 +24,3 @@ source "${SCRIPT_DIR}/to-local/50-k8s.sh"
 source "${SCRIPT_DIR}/to-local/60-argocd.sh"
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/to-local/90-main.sh"
-

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/core/commit-summary.sh
+# Resumen de commits para flujos release/promote.
 # Utilidades para resumir commits por tipo y scope (Conventional Commits).
 
 # ==============================================================================
@@ -64,15 +64,33 @@ commit_summary_collect() {
         }
         {
             subject=$1; body=$2;
-            if (subject ~ /^chore\(release\):[[:space:]]*actualizar changelog/i) next;
+            lower=tolower(subject);
+            if (lower ~ /^chore\(release\):[[:space:]]*actualizar changelog/) next;
+
             type="otros"; scope=""; breaking=0; clean=subject;
-            if (match(subject, /^([A-Za-z0-9]+)(\(([^)]+)\))?(!)?:[[:space:]]*(.+)$/, m)) {
-                type=tolower(m[1]);
-                scope=m[3];
-                clean=m[5];
-                if (m[4] == "!") breaking=1;
+
+            # header: antes de ":" ; clean: despues de ":"
+            header=subject;
+            sub(/:.*/, "", header);
+            clean=subject;
+            sub(/^[^:]*:[[:space:]]*/, "", clean);
+
+            # breaking por "!" en el header o BREAKING CHANGE en body
+            if (index(header, "!") > 0) breaking=1;
+            if (tolower(body) ~ /breaking change/) breaking=1;
+
+            # type: header sin scope y sin "!"
+            t=header;
+            sub(/\(.*/, "", t);
+            sub(/!.*/, "", t);
+            t=tolower(trim(t));
+            if (t != "") type=t;
+
+            # scope si existe: (scope)
+            if (match(header, /\([^)]*\)/)) {
+                scope=substr(header, RSTART+1, RLENGTH-2);
             }
-            if (body ~ /BREAKING CHANGE/) breaking=1;
+
             clean=trim(clean);
             if (clean == "") clean=subject;
             clean=trim(clean);

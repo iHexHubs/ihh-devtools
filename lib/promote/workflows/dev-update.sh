@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/promote/workflows/dev-update.sh
-#
+# Promote workflow: dev-update
 # NUEVO: modo SHA exacto (overwrite) hacia feature/dev-update
 # Reglas:
 # - git promote feature/<rama> o git promote feature/dev-update
@@ -18,7 +17,7 @@ __ensure_target_branch_exists_or_create() {
     local remote="${2:-origin}"
     local base_ref="${3:-}"
 
-    git fetch "$remote" --prune >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git fetch "$remote" --prune >/dev/null 2>&1 || true
 
     # Si ya existe local, ok
     if git show-ref --verify --quiet "refs/heads/${branch}"; then
@@ -39,7 +38,7 @@ __ensure_target_branch_exists_or_create() {
     fi
 
     # Crear remoto y upstream (evita el error "ref remota no encontrada" luego)
-    git push -u "$remote" "$branch" >/dev/null 2>&1 || return 1
+    GIT_TERMINAL_PROMPT=0 git push -u "$remote" "$branch" >/dev/null 2>&1 || return 1
     return 0
 }
 
@@ -66,7 +65,7 @@ promote_dev_update_apply() {
     [[ -n "${source:-}" ]] || die "No pude detectar rama fuente."
 
     # Resolver SHA fuente (local o remoto)
-    git fetch origin "$source" >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git fetch origin "$source" >/dev/null 2>&1 || true
     local source_ref="$source"
     if ! git show-ref --verify --quiet "refs/heads/${source}"; then
         if git show-ref --verify --quiet "refs/remotes/origin/${source}"; then

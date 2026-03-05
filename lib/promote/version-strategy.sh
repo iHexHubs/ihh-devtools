@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/promote/version-strategy.sh
-#
+# Promote module: version-strategy
 # Este módulo maneja las estrategias de versionado y etiquetado (Tagging).
 # Determina dónde se encuentra el archivo de versión y quién es el responsable
 # de crear los tags (el script local o un workflow de GitHub).
@@ -20,7 +19,7 @@ resolve_repo_version_file() {
         return 0
     fi
 
-    # Backward-compat (histórico): relativo a .devtools/bin (puede apuntar a .devtools/VERSION)
+    # Backward-compat (histórico): relativo al bin vendorizado (puede apuntar a vendor/VERSION)
     # Nota: SCRIPT_DIR debe venir del script principal que hace el source.
     if [[ -n "${SCRIPT_DIR:-}" && -f "${SCRIPT_DIR}/../VERSION" ]]; then
         echo "${SCRIPT_DIR}/../VERSION"
@@ -217,7 +216,7 @@ promote_tag_exists_remote() {
     local tag="$1"
     local remote="${2:-origin}"
     local refs
-    refs="$(git ls-remote --tags "$remote" "refs/tags/${tag}" 2>/dev/null)"
+    refs="$(GIT_TERMINAL_PROMPT=0 git ls-remote --tags "$remote" "refs/tags/${tag}" 2>/dev/null)"
     local rc=$?
     if [[ "$rc" -ne 0 ]]; then
         return 2

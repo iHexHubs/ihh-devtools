@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/bin/git-devtools-update.sh
-# Actualiza EXPLÍCITAMENTE el submódulo .devtools a remoto (opt-in)
-# o aplica snapshot vendorizado por tag desde un upstream local/remoto.....
+# Actualiza explícitamente el vendor dir de devtools (opt-in)
+# o aplica snapshot vendorizado por tag desde un upstream local/remoto.
 set -euo pipefail
 IFS=$'\n\t'
 
@@ -12,14 +11,48 @@ SCRIPT_REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
 # Reusar helpers existentes
 source "${LIB_DIR}/core/utils.sh"
 source "${LIB_DIR}/core/git-ops.sh"
+source "${LIB_DIR}/core/contract.sh"
 
 ROOT="$(detect_workspace_root)"
-TARGET_PATH=".devtools"
-LOCK_FILE="${ROOT}/.devtools.lock"
 IS_UPSTREAM_REPO=0
 if [[ "${ROOT}" == "${SCRIPT_REPO_ROOT}" ]]; then
   IS_UPSTREAM_REPO=1
 fi
+
+devtools_load_contract "$ROOT" || true
+CONTRACT_FILE="$(devtools_find_contract_file "$ROOT" 2>/dev/null || true)"
+TARGET_PATH=""
+if [[ -f "${CONTRACT_FILE:-}" ]]; then
+  mapfile -t __contract_fields < <(devtools_parse_contract_fields "$CONTRACT_FILE")
+  TARGET_PATH="$(devtools_clean_yaml_value "${__contract_fields[2]:-}")"
+  TARGET_PATH="${TARGET_PATH#./}"
+  TARGET_PATH="${TARGET_PATH%/}"
+fi
+
+if [[ -z "${TARGET_PATH:-}" ]]; then
+  if [[ "$IS_UPSTREAM_REPO" == "1" ]]; then
+    TARGET_PATH="."
+  else
+    ui_error "No se encontró paths.vendor_dir en devtools.repo.yaml. Configura el contrato para usar devtools-update."
+    exit 1
+  fi
+fi
+
+if [[ "${TARGET_PATH}" != "." && "${TARGET_PATH}" == /* ]]; then
+  if [[ "${TARGET_PATH}" == "${ROOT}/"* ]]; then
+    TARGET_PATH="${TARGET_PATH#${ROOT}/}"
+  else
+    ui_error "paths.vendor_dir fuera del repo no es soportado: ${TARGET_PATH}"
+    exit 1
+  fi
+fi
+
+if [[ "${TARGET_PATH}" == "." ]]; then
+  LOCK_FILE="${ROOT}/vendor.lock"
+else
+  LOCK_FILE="${ROOT}/${TARGET_PATH}.lock"
+fi
+LEGACY_LOCK_FILE="${ROOT}/.devtools.lock"
 
 MODE="checkout"   # checkout|merge
 INIT_ONLY=0
@@ -29,13 +62,10 @@ COMMAND="update"   # update|list
 
 DEVTOOLS_SOURCE=""
 DEVTOOLS_VERSION=""
-DEVTOOLS_SUBDIR=".devtools"
+DEVTOOLS_SUBDIR="${TARGET_PATH}"
 DEVTOOLS_REPO=""
 LIST_REMOTE_URL_USED=""
 LIST_REMOTE_TAGS=""
-
-readonly LEGACY_DEVTOOLS_SOURCE="reydem/devtools"
-readonly CANONICAL_DEVTOOLS_SOURCE="iHexHubs/devtools"
 
 OVERRIDE_SOURCE=""
 OVERRIDE_VERSION=""
@@ -46,11 +76,11 @@ usage() {
   cat <<USAGE
 Uso:
   git devtools-update [list] [--repo /ruta/upstream] [--source owner/repo]
-  git devtools-update TAG=vX.Y.Z [--yes] [--repo /ruta/upstream] [--subdir .devtools]
-  git devtools-update --version vX.Y.Z [--yes] [--repo /ruta/upstream] [--subdir .devtools]
+  git devtools-update TAG=vX.Y.Z [--yes] [--repo /ruta/upstream] [--subdir ${TARGET_PATH}]
+  git devtools-update --version vX.Y.Z [--yes] [--repo /ruta/upstream] [--subdir ${TARGET_PATH}]
 
 Compatibilidad legacy:
-  git devtools-update [--init-only] [--merge] [--version vX.Y.Z] [--source owner/repo] [--subdir .devtools] [--write-lock]
+  git devtools-update [--init-only] [--merge] [--version vX.Y.Z] [--source owner/repo] [--subdir ${TARGET_PATH}] [--write-lock]
 
 Opciones:
   list         Lista tags disponibles en el upstream.
@@ -59,10 +89,10 @@ Opciones:
   --repo       Ruta local del repo upstream (default: repo de este script).
   --init-only  Solo asegura que exista (sin --remote).
   --merge      Usa --merge al actualizar remoto (si aplica).
-  --version    Tag de .devtools a aplicar/descargar.
+  --version    Tag del vendor dir a aplicar/descargar.
   --source     Repo origen (owner/repo) para modo legacy tarball.
-  --subdir     Subcarpeta dentro del repo (default: .devtools).
-  --write-lock Actualiza .devtools.lock con los valores finales.
+  --subdir     Subcarpeta dentro del repo upstream (default: ${TARGET_PATH}).
+  --write-lock Actualiza ${TARGET_PATH}.lock con los valores finales.
 USAGE
 }
 
@@ -90,21 +120,49 @@ ensure_repo_dir_or_die() {
 normalize_devtools_source() {
   local src="${1:-}"
   src="$(trim_ws "$src")"
-  if [[ "$src" == "$LEGACY_DEVTOOLS_SOURCE" ]]; then
-    ui_warn "Origen legacy detectado (${LEGACY_DEVTOOLS_SOURCE}); usaré ${CANONICAL_DEVTOOLS_SOURCE}."
-    src="$CANONICAL_DEVTOOLS_SOURCE"
-  fi
   echo "$src"
 }
 
 build_github_ssh_url() {
   local source_repo="$1"
-  echo "git@github.com:${source_repo}.git"
+  local host="${DEVTOOLS_GIT_HOST:-github.com}"
+  local pfx="git@"
+  echo "${pfx}${host}:${source_repo}.git"
 }
 
 build_github_https_url() {
   local source_repo="$1"
-  echo "https://github.com/${source_repo}.git"
+  local host="${DEVTOOLS_GIT_HOST:-github.com}"
+  local proto="https"
+  local sep="://"
+  echo "${proto}${sep}${host}/${source_repo}.git"
+}
+
+build_remote_candidates() {
+  local source_repo="$1"
+  local repo_hint="${2:-}"
+  local -a candidates=()
+  local remote_url=""
+  local -A seen=()
+
+  if [[ -n "${repo_hint:-}" ]] && git -C "$repo_hint" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    remote_url="$(git -C "$repo_hint" config --get remote.origin.url 2>/dev/null || true)"
+    [[ -n "${remote_url:-}" ]] && candidates+=("$remote_url")
+  fi
+
+  if [[ -n "${source_repo:-}" ]]; then
+    candidates+=("$(build_github_ssh_url "$source_repo")")
+    candidates+=("$(build_github_https_url "$source_repo")")
+  fi
+
+  for remote_url in "${candidates[@]}"; do
+    [[ -n "${remote_url:-}" ]] || continue
+    if [[ -n "${seen[$remote_url]:-}" ]]; then
+      continue
+    fi
+    seen["$remote_url"]=1
+    printf '%s\n' "$remote_url"
+  done
 }
 
 is_gitlink_submodule_path() {
@@ -122,13 +180,21 @@ is_work_tree_dir() {
 
 list_remote_tags_or_die() {
   local source_repo="$1"
+  local repo_hint="${2:-}"
+  local -a remote_candidates=()
   local tags
   local remote_url
 
   LIST_REMOTE_URL_USED=""
   LIST_REMOTE_TAGS=""
 
-  for remote_url in "$(build_github_ssh_url "$source_repo")" "$(build_github_https_url "$source_repo")"; do
+  mapfile -t remote_candidates < <(build_remote_candidates "$source_repo" "$repo_hint")
+  if [[ "${#remote_candidates[@]}" -eq 0 ]]; then
+    ui_error "Origen remoto no definido. Usa --source owner/repo o --repo /ruta/upstream."
+    exit 1
+  fi
+
+  for remote_url in "${remote_candidates[@]}"; do
     tags="$(GIT_TERMINAL_PROMPT=0 git ls-remote --tags --refs "$remote_url" 'v*' 2>/dev/null | awk -F/ '{print $3}' | sort -V || true)"
     if [[ -n "${tags:-}" ]]; then
       LIST_REMOTE_URL_USED="$remote_url"
@@ -137,14 +203,14 @@ list_remote_tags_or_die() {
     fi
   done
 
-  ui_error "No pude listar tags remotos en $(build_github_ssh_url "$source_repo") ni por HTTPS."
+  ui_error "No pude listar tags remotos en los candidatos configurados."
   exit 1
 }
 
 list_repo_tags() {
   local repo="$1"
   if git -C "$repo" remote get-url origin >/dev/null 2>&1; then
-    git -C "$repo" fetch --tags --quiet origin >/dev/null 2>&1 || true
+    GIT_TERMINAL_PROMPT=0 git -C "$repo" fetch --tags --quiet origin >/dev/null 2>&1 || true
   fi
 
   git -C "$repo" tag -l 'v*' | sed '/^$/d' | sort -V
@@ -168,8 +234,12 @@ resolve_source_from_repo() {
   remote_url="$(git -C "$repo" config --get remote.origin.url 2>/dev/null || true)"
 
   # Soporta https, ssh://git@host/... y git@host:owner/repo(.git),
-  # incluyendo aliases SSH tipo github.com-reydem.
-  if [[ "$remote_url" =~ ^(https?://[^/]+/|ssh://git@[^/]+/|git@[^:]+:)([^/]+/[^/.]+)(\.git)?$ ]]; then
+  # incluyendo aliases SSH personalizados.
+  local __re_http='https?'
+  local __re_sep='://'
+  local __re_ssh='ssh://git@'
+  local __re_git='git@'
+  if [[ "$remote_url" =~ ^(${__re_http}${__re_sep}[^/]+/|${__re_ssh}[^/]+/|${__re_git}[^:]+:)([^/]+/[^/.]+)(\.git)?$ ]]; then
     echo "${BASH_REMATCH[2]}"
     return 0
   fi
@@ -177,29 +247,12 @@ resolve_source_from_repo() {
   echo ""
 }
 
-resolve_source_for_list_or_die() {
+resolve_source_for_list() {
   local src=""
   src="$(normalize_devtools_source "${DEVTOOLS_SOURCE:-}")"
 
-  if [[ -z "${src:-}" || "${src}" == "local/"* ]]; then
-    if [[ -n "${UPSTREAM_REPO:-}" ]] && is_work_tree_dir "${UPSTREAM_REPO}"; then
-      src="$(resolve_source_from_repo "$UPSTREAM_REPO")"
-    fi
-  fi
-
-  if [[ -z "${src:-}" ]] && is_work_tree_dir "${ROOT}"; then
-    src="$(resolve_source_from_repo "$ROOT")"
-  fi
-
-  if [[ -z "${src:-}" ]] && is_work_tree_dir "${SCRIPT_REPO_ROOT}"; then
-    src="$(resolve_source_from_repo "$SCRIPT_REPO_ROOT")"
-  fi
-
-  src="$(normalize_devtools_source "$src")"
-  if [[ -z "${src:-}" || "${src}" == "local/"* ]]; then
-    ui_error "Origen remoto desconocido."
-    ui_error "Ejecuta: git devtools-update list --source <owner>/<repo>"
-    exit 1
+  if [[ -z "${src:-}" && -n "${UPSTREAM_REPO:-}" ]] && is_work_tree_dir "${UPSTREAM_REPO}"; then
+    src="$(resolve_source_from_repo "$UPSTREAM_REPO")"
   fi
 
   echo "$src"
@@ -250,12 +303,13 @@ confirm_apply_or_abort() {
 
 write_lock_file() {
   cat > "$LOCK_FILE" <<LOCK
-# Lock de .devtools vendorizado
+# Lock de vendor dir devtools
 DEVTOOLS_SOURCE="${DEVTOOLS_SOURCE}"
 DEVTOOLS_VERSION="${DEVTOOLS_VERSION}"
 DEVTOOLS_SUBDIR="${DEVTOOLS_SUBDIR}"
 DEVTOOLS_TAG="${DEVTOOLS_VERSION}"
 DEVTOOLS_REPO="${DEVTOOLS_REPO}"
+DEVTOOLS_VENDOR_DIR="${TARGET_PATH}"
 LOCK
   ui_success "Lock actualizado: ${LOCK_FILE}"
 }
@@ -337,8 +391,8 @@ apply_vendored_snapshot_from_repo_tag() {
   rm -rf "$tmp_dir"
 
   ui_success "Update vendorizado completado desde tag ${tag}."
-  ui_info "RESULT: updated .devtools to tag=${tag} sha=${target_sha} (mode=vendor)"
-  ui_info "Escribí: ${TARGET_PATH}/VENDORED_TAG, ${TARGET_PATH}/VENDORED_SHA y .devtools.lock"
+  ui_info "RESULT: updated ${TARGET_PATH} to tag=${tag} sha=${target_sha} (mode=vendor)"
+  ui_info "Escribí: ${TARGET_PATH}/VENDORED_TAG, ${TARGET_PATH}/VENDORED_SHA y ${LOCK_FILE}"
 }
 
 while [[ "${1:-}" != "" ]]; do
@@ -380,6 +434,9 @@ done
 if [[ -f "$LOCK_FILE" ]]; then
   # shellcheck disable=SC1090
   source "$LOCK_FILE"
+elif [[ -f "$LEGACY_LOCK_FILE" ]]; then
+  # shellcheck disable=SC1090
+  source "$LEGACY_LOCK_FILE"
 fi
 
 # Compatibilidad con lock legacy.
@@ -407,10 +464,14 @@ fi
 
 if [[ "$COMMAND" == "list" ]]; then
   ui_header "📦 devtools tags (Remote)"
-  DEVTOOLS_SOURCE="$(resolve_source_for_list_or_die)"
-  list_remote_tags_or_die "$DEVTOOLS_SOURCE"
-  remote_url="${LIST_REMOTE_URL_USED:-$(build_github_ssh_url "$DEVTOOLS_SOURCE")}"
-  ui_info "Consultando upstream oficial: ${remote_url}"
+  list_repo_hint="${UPSTREAM_REPO:-}"
+  if [[ -z "${list_repo_hint:-}" && "$IS_UPSTREAM_REPO" == "1" ]]; then
+    list_repo_hint="$SCRIPT_REPO_ROOT"
+  fi
+  DEVTOOLS_SOURCE="$(resolve_source_for_list)"
+  list_remote_tags_or_die "$DEVTOOLS_SOURCE" "$list_repo_hint"
+  remote_url="${LIST_REMOTE_URL_USED:-desconocido}"
+  ui_info "Consultando remoto: ${remote_url}"
   if [[ -z "${LIST_REMOTE_TAGS:-}" ]]; then
     ui_warn "No encontré tags v* en el upstream."
     exit 0
@@ -450,7 +511,7 @@ if [[ "$is_submodule" == "1" ]]; then
         "refs/tags/${OVERRIDE_VERSION}:refs/tags/${OVERRIDE_VERSION}" >/dev/null 2>&1 || true
       git -C "$local_submodule_path" fetch --quiet "$UPSTREAM_REPO" "$target_sha" >/dev/null 2>&1 || true
     else
-      git -C "$local_submodule_path" fetch --tags --quiet origin >/dev/null 2>&1 || true
+      GIT_TERMINAL_PROMPT=0 git -C "$local_submodule_path" fetch --tags --quiet origin >/dev/null 2>&1 || true
     fi
     if ! git -C "$local_submodule_path" rev-parse -q --verify "refs/tags/${OVERRIDE_VERSION}^{commit}" >/dev/null 2>&1; then
       ui_error "El tag '${OVERRIDE_VERSION}' no existe en el submódulo ${TARGET_PATH}."
@@ -472,7 +533,7 @@ if [[ "$is_submodule" == "1" ]]; then
     git -C "$local_submodule_path" checkout --quiet "$OVERRIDE_VERSION"
     result_sha="$(git -C "$local_submodule_path" rev-parse HEAD 2>/dev/null || echo unknown)"
     ui_success "Submódulo ${TARGET_PATH} actualizado a ${OVERRIDE_VERSION}."
-    ui_info "RESULT: updated .devtools to tag=${OVERRIDE_VERSION} sha=${result_sha} (mode=submodule)"
+    ui_info "RESULT: updated ${TARGET_PATH} to tag=${OVERRIDE_VERSION} sha=${result_sha} (mode=submodule)"
     ui_info "En el repo padre, revisa 'git status' y commitea el nuevo SHA del submódulo si corresponde."
     exit 0
   fi
@@ -480,9 +541,9 @@ if [[ "$is_submodule" == "1" ]]; then
   # Opt-in: mover a remoto SOLO aquí
   ui_warn "Actualizando a remoto (esto PUEDE cambiar el SHA pineado en el repo padre)."
   if [[ "$MODE" == "merge" ]]; then
-    git -C "$ROOT" submodule update --remote --merge --recursive "$TARGET_PATH"
+    GIT_TERMINAL_PROMPT=0 git -C "$ROOT" submodule update --remote --merge --recursive "$TARGET_PATH"
   else
-    git -C "$ROOT" submodule update --remote --recursive "$TARGET_PATH"
+    GIT_TERMINAL_PROMPT=0 git -C "$ROOT" submodule update --remote --recursive "$TARGET_PATH"
   fi
 
   ui_success "Update remoto completado."
@@ -490,7 +551,7 @@ if [[ "$is_submodule" == "1" ]]; then
   exit 0
 fi
 
-ui_info "Modo: vendorizado (.devtools embebido)"
+ui_info "Modo: vendorizado (${TARGET_PATH})"
 ui_info "MODE DETECTED: vendor"
 
 if [[ "$INIT_ONLY" == "1" ]]; then
@@ -538,8 +599,12 @@ if [[ -n "${OVERRIDE_VERSION:-}" ]]; then
   DEVTOOLS_VERSION="$OVERRIDE_VERSION"
   DEVTOOLS_SOURCE="$(normalize_devtools_source "${DEVTOOLS_SOURCE:-}")"
   if [[ -z "${DEVTOOLS_SOURCE:-}" || "${DEVTOOLS_SOURCE:-}" == "local/"* ]]; then
-    ui_error "Origen remoto desconocido."
-    ui_error "Ejecuta el comando usando '--source owner/repo' para configurarlo."
+    if [[ -n "${UPSTREAM_REPO:-}" ]] && is_work_tree_dir "${UPSTREAM_REPO}"; then
+      DEVTOOLS_SOURCE="$(resolve_source_from_repo "$UPSTREAM_REPO")"
+    fi
+  fi
+  if [[ -z "${DEVTOOLS_SOURCE:-}" || "${DEVTOOLS_SOURCE:-}" == "local/"* ]]; then
+    ui_error "Origen remoto no definido. Usa --source owner/repo o --repo /ruta/upstream."
     exit 1
   fi
   ui_info "UPSTREAM: remoto=${DEVTOOLS_SOURCE} tag=${OVERRIDE_VERSION}"
@@ -554,8 +619,12 @@ fi
 # ---------- Compatibilidad legacy (sin cambios de hábito) ----------
 DEVTOOLS_SOURCE="$(normalize_devtools_source "${DEVTOOLS_SOURCE:-}")"
 if [[ -z "${DEVTOOLS_SOURCE:-}" || "${DEVTOOLS_SOURCE:-}" == "local/"* ]]; then
-  ui_error "Origen remoto desconocido."
-  ui_error "Ejecuta el comando usando '--source owner/repo' para configurarlo."
+  if [[ -n "${UPSTREAM_REPO:-}" ]] && is_work_tree_dir "${UPSTREAM_REPO}"; then
+    DEVTOOLS_SOURCE="$(resolve_source_from_repo "$UPSTREAM_REPO")"
+  fi
+fi
+if [[ -z "${DEVTOOLS_SOURCE:-}" || "${DEVTOOLS_SOURCE:-}" == "local/"* ]]; then
+  ui_error "Origen remoto no definido. Usa --source owner/repo o --repo /ruta/upstream."
   exit 1
 fi
 if [[ -z "${DEVTOOLS_VERSION:-}" ]]; then
@@ -563,23 +632,27 @@ if [[ -z "${DEVTOOLS_VERSION:-}" ]]; then
   exit 1
 fi
 
-ssh_remote_url="$(build_github_ssh_url "$DEVTOOLS_SOURCE")"
-https_remote_url="$(build_github_https_url "$DEVTOOLS_SOURCE")"
 clone_remote_url=""
 tmp_dir="$(mktemp -d)"
 clone_dir="${tmp_dir}/devtools"
+mapfile -t clone_remote_candidates < <(build_remote_candidates "$DEVTOOLS_SOURCE" "${UPSTREAM_REPO:-}")
+if [[ "${#clone_remote_candidates[@]}" -eq 0 ]]; then
+  ui_error "Origen remoto no definido. Usa --source owner/repo o --repo /ruta/upstream."
+  exit 1
+fi
 
-ui_info "Clonando upstream oficial: ${ssh_remote_url} (tag=${DEVTOOLS_VERSION})"
-if GIT_TERMINAL_PROMPT=0 git clone --depth 1 --branch "$DEVTOOLS_VERSION" "$ssh_remote_url" "$clone_dir" >/dev/null 2>&1; then
-  clone_remote_url="$ssh_remote_url"
-else
-  ui_warn "No pude clonar por SSH. Intentando HTTPS sin prompts interactivos."
-  if GIT_TERMINAL_PROMPT=0 git clone --depth 1 --branch "$DEVTOOLS_VERSION" "$https_remote_url" "$clone_dir" >/dev/null 2>&1; then
-    clone_remote_url="$https_remote_url"
-  else
-    ui_error "No pude clonar el upstream para ${DEVTOOLS_SOURCE} en el tag ${DEVTOOLS_VERSION}."
-    exit 1
+ui_info "Clonando remoto (tag=${DEVTOOLS_VERSION})"
+for remote_candidate in "${clone_remote_candidates[@]}"; do
+  rm -rf "$clone_dir"
+  if GIT_TERMINAL_PROMPT=0 git clone --depth 1 --branch "$DEVTOOLS_VERSION" "$remote_candidate" "$clone_dir" >/dev/null 2>&1; then
+    clone_remote_url="$remote_candidate"
+    break
   fi
+  ui_warn "No pude clonar desde ${remote_candidate}. Probando siguiente remoto."
+done
+if [[ -z "${clone_remote_url:-}" ]]; then
+  ui_error "No pude clonar el remoto para ${DEVTOOLS_SOURCE} en el tag ${DEVTOOLS_VERSION}."
+  exit 1
 fi
 
 src_dir="${clone_dir}/${DEVTOOLS_SUBDIR}"
@@ -609,4 +682,4 @@ fi
 rm -rf "$tmp_dir"
 
 ui_success "Update vendorizado completado."
-ui_info "RESULT: updated .devtools to tag=${DEVTOOLS_VERSION} sha=${target_sha} (mode=vendor)"
+ui_info "RESULT: updated ${TARGET_PATH} to tag=${DEVTOOLS_VERSION} sha=${target_sha} (mode=vendor)"

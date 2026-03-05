@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/ui/styles.sh
+# Estilos UI compartidos.
 
 # ==============================================================================
 # PALETA DE COLORES (Basado en tu script original)
@@ -42,24 +42,24 @@ fi
 # 1. ELEMENTOS ESTRUCTURALES (Banners y Headers)
 # ==============================================================================
 
-# El banner principal del "Rincón del Detective"
-show_detective_banner() {
+# Banner principal del setup.
+show_setup_banner() {
     if have_gum_ui; then
         clear
         gum style \
             --foreground "$COLOR_PRIMARY" --border-foreground "$COLOR_PRIMARY" --border double \
             --align center --width 50 --margin "1 2" --padding "2 4" \
-            "🕵️‍♂️ BIENVENIDO A EL RINCÓN DEL DETECTIVE" \
-            "Setup de Entorno PMBOK - Asistente Integral"
+            "BIENVENIDO A DEVTOOLS SETUP" \
+            "Asistente de configuración de entorno"
         echo ""
-        gum style --foreground "$COLOR_INFO" "Vamos a configurar tu identidad y seguridad paso a paso."
+        gum style --foreground "$COLOR_INFO" "Configuraremos identidad y seguridad paso a paso."
         echo ""
     else
         # Fallback Text-Only
         echo -e "${ANSI_MAGENTA}"
         echo "══════════════════════════════════════════════════"
-        echo "   🕵️‍♂️  BIENVENIDO A EL RINCÓN DEL DETECTIVE"
-        echo "   Setup de Entorno PMBOK - Asistente Integral"
+        echo "   BIENVENIDO A DEVTOOLS SETUP"
+        echo "   Asistente de configuración de entorno"
         echo "══════════════════════════════════════════════════"
         echo -e "${ANSI_RESET}"
         echo "Iniciando configuración..."
@@ -80,17 +80,21 @@ ui_step_header() {
 # Cajas de Alerta (Ej: "ACCESO DENEGADO" o "LISTO")
 # Uso: ui_alert_box "TÍTULO" "Mensaje línea 1" "Mensaje línea 2" ...
 ui_alert_box() {
+    local color="$COLOR_PRIMARY"
     local title="$1"
     shift
-    local color="${1:-$COLOR_PRIMARY}" # Si el primer argumento es un código de color, úsalo, si no, default
     
     # Fallback colors map
     local ansi_color="$ANSI_MAGENTA"
 
-    # Detección inteligente: si el primer argumento parece un color (número), lo extraemos
+    # Soporta: ui_alert_box "196" "TITULO" ...  (color primero)
     if [[ "$title" =~ ^[0-9]+$ ]]; then
         color="$title"
-        title="$1"
+        title="${1:-}"
+        shift || true
+    # Soporta: ui_alert_box "TITULO" "196" ...  (color segundo)
+    elif [[ "${1:-}" =~ ^[0-9]+$ ]]; then
+        color="$1"
         shift
     else
         # Si es un error/alerta crítica (detectado por palabras clave), usamos rojo
@@ -178,7 +182,7 @@ ui_text_highlight() {
     else echo -e "${ANSI_YELLOW}$1${ANSI_RESET}"; fi
 }
 
-# Link o texto primario (Ej: "👉 https://...")
+# Link o texto primario (ejemplo: "👉 Visita la documentación")
 ui_link() { 
     if have_gum_ui; then gum style --foreground "$COLOR_PRIMARY" "$1";
     else echo -e "${ANSI_BLUE}$1${ANSI_RESET}"; fi

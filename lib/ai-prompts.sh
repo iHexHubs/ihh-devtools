@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/ai-prompts.sh
+# Generador de prompts para IA (git-gp).
 
 # ==============================================================================
 # GENERADOR DE PROMPTS PARA IA (GIT-GP)

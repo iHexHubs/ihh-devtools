@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/promote/workflows/to-prod.sh
-#
+# Promote workflow: to-prod
 # CONTRATO: PROD CERO FRICCIÓN (default)
 # Objetivo: Menú (estrategia) → Push → Confirmación (git ls-remote) → Landing.
 # Incluye UI interactiva (TTY) para version final y notas de lanzamiento.
 # Comparación: se muestra panel solo en modo interactivo (TTY).
 
 promote_to_prod() {
+    local dot_dir=".devtools"
     if [[ "${DEVTOOLS_DRY_RUN:-0}" == "1" ]]; then
         log_info "⚗️  Simulacion (--dry-run) para PRODUCCION"
 
         # Best-effort: refrescar refs
-        git fetch origin main staging --prune >/dev/null 2>&1 || true
+        GIT_TERMINAL_PROMPT=0 git fetch origin main staging --prune >/dev/null 2>&1 || true
 
         local range tag last_tag
+        local reason="" commits="" motivo=""
         range="main..staging"
         last_tag="$(promote_last_tag_or_empty 2>/dev/null || true)"
         tag="$(promote_next_tag_prod)"
@@ -195,7 +196,7 @@ promote_to_prod() {
     generate_ai_prompt "staging" "$compare_ref"
 
     local notes_dir notes_file tmp_file
-    notes_dir="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}/.devtools/releases"
+    notes_dir="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}/${dot_dir}/releases"
     mkdir -p "$notes_dir"
     notes_file="${notes_dir}/prod.md"
     tmp_file="$(mktemp)"
@@ -255,7 +256,7 @@ promote_to_prod() {
     log_success "✅ Producción actualizada. SHA final: ${main_sha:0:7}"
     echo
     log_info "🔎 Confirmación visual (git ls-remote --heads origin main):"
-    git ls-remote --heads origin main 2>/dev/null || true
+    GIT_TERMINAL_PROMPT=0 git ls-remote --heads origin main 2>/dev/null || true
     echo
 
     if [[ "$tag_owner" == "Local" ]]; then

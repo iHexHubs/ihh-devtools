@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# /webapps/ihh-ecosystem/.devtools/lib/github-core.sh
+# Librería de soporte (devtools)
 
 # ==============================================================================
 # 1. VALIDACIONES DE HERRAMIENTAS (GH CLI)
@@ -7,15 +7,31 @@
 
 ensure_gh_cli() {
     if ! command -v gh >/dev/null 2>&1; then
-        log_error "No se encontró 'gh' (GitHub CLI)."
-        log_info "Instálalo para continuar: https://cli.github.com/"
-        exit 1
+        if declare -F log_error >/dev/null 2>&1; then
+            log_error "No se encontró 'gh' (GitHub CLI)."
+        else
+            echo "ERROR: falta 'gh' (GitHub CLI)." >&2
+        fi
+        if declare -F log_info >/dev/null 2>&1; then
+            log_info "Instala 'gh' (GitHub CLI) para continuar."
+        else
+            echo "Instala 'gh' para continuar." >&2
+        fi
+        return 1 2>/dev/null || exit 1
     fi
 
-    if ! gh auth status >/dev/null 2>&1; then
-        log_error "gh no está autenticado."
-        log_warn "Ejecuta: gh auth login"
-        exit 1
+    if ! GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh auth status --hostname github.com >/dev/null 2>&1; then
+        if declare -F log_error >/dev/null 2>&1; then
+            log_error "gh no está autenticado."
+        else
+            echo "ERROR: gh no autenticado." >&2
+        fi
+        if declare -F log_warn >/dev/null 2>&1; then
+            log_warn "Ejecuta: gh auth login"
+        else
+            echo "Ejecuta: gh auth login" >&2
+        fi
+        return 1 2>/dev/null || exit 1
     fi
 }
 
@@ -39,12 +55,12 @@ wait_for_pr_merge_and_get_sha() {
 
     while true; do
         local merged state
-        merged="$(GH_PAGER=cat gh pr view "$pr_number" --json merged --jq '.merged' 2>/dev/null || echo "false")"
-        state="$(GH_PAGER=cat gh pr view "$pr_number" --json state --jq '.state' 2>/dev/null || echo "")"
+        merged="$(GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh pr view "$pr_number" --json merged --jq '.merged' 2>/dev/null || echo "false")"
+        state="$(GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh pr view "$pr_number" --json state --jq '.state' 2>/dev/null || echo "")"
 
         if [[ "$merged" == "true" ]]; then
             local merge_sha
-            merge_sha="$(GH_PAGER=cat gh pr view "$pr_number" --json mergeCommit --jq '.mergeCommit.oid' 2>/dev/null || echo "")"
+            merge_sha="$(GH_PAGER=cat GH_NO_UPDATE_NOTIFIER=1 gh pr view "$pr_number" --json mergeCommit --jq '.mergeCommit.oid' 2>/dev/null || echo "")"
 
             if [[ -n "${merge_sha:-}" && "${merge_sha:-null}" != "null" ]]; then
                 echo "$merge_sha"
