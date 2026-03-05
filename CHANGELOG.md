@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.0-rc.5+build.1
+
+
+### Features
+
+
+- deshabilitar gate de `prod` por defecto y permitir exigirlo con `DEVTOOLS_PROMOTE_PROD_ENFORCE_CI` (9f5a4af)
+
+
+
+
+
 ## v0.1.0-rc.4+build.1
 
 
