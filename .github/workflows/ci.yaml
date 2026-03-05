@@ -3,12 +3,7 @@ name: ci
 on:
   push:
     branches:
-      - main
       - dev
-      - "feature/**"
-      - "fix/**"
-      - "hotfix/**"
-  pull_request:
   workflow_dispatch:
 
 jobs:
