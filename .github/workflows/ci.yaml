@@ -9,6 +9,7 @@ on:
       - "fix/**"
       - "hotfix/**"
   pull_request:
+  workflow_dispatch:
 
 jobs:
   ci:
