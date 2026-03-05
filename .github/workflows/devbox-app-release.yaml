@@ -3,7 +3,7 @@ name: devbox-app-release
 on:
   push:
     tags:
-      - "ihh-devtools-v*"
+      - "ihh-devtools-release-v*"
 
 jobs:
   publish-images:
