@@ -1,4 +1,4 @@
-# Runtime artifacts.
+# Runtime artifacts
 run/tunnels.log
 run/tunnels.pids
 devbox.lock
