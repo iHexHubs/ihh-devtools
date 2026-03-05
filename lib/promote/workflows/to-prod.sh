@@ -235,11 +235,16 @@ promote_to_prod() {
         log_warn "No existe overlay de main en este repo. Omitiendo validación de registry para prod."
     fi
 
-    if ! declare -F gate_required_workflows_on_sha_or_die >/dev/null 2>&1; then
-        die "No se encontró gate_required_workflows_on_sha_or_die (faltó source de workflows/checks.sh)."
+    local skip_prod_ci="${DEVTOOLS_PROMOTE_PROD_SKIP_CI:-0}"
+    if [[ "${skip_prod_ci}" == "1" ]]; then
+        log_warn "⚠️ PROD: CI/Gate deshabilitado por DEVTOOLS_PROMOTE_PROD_SKIP_CI=1"
+    else
+        if ! declare -F gate_required_workflows_on_sha_or_die >/dev/null 2>&1; then
+            die "No se encontró gate_required_workflows_on_sha_or_die (faltó source de workflows/checks.sh)."
+        fi
+        gate_required_workflows_on_sha_or_die "$staging_sha" "staging" \
+            || die "Gate por SHA falló para staging (${staging_sha:0:7}). Abortando promote a prod."
     fi
-    gate_required_workflows_on_sha_or_die "$staging_sha" "staging" \
-        || die "Gate por SHA falló para staging (${staging_sha:0:7}). Abortando promote a prod."
 
     local strategy="${DEVTOOLS_PROMOTE_STRATEGY:-ff-only}"
     local main_sha="" rc=0
