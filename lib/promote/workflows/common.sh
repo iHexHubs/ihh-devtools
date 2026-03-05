@@ -323,6 +323,17 @@ prepare_changelog_commit() {
     export DEVTOOLS_CHANGELOG_FILE="${output_file}"
     export DEVTOOLS_CHANGELOG_UPDATED="0"
 
+    local contamination_pattern=""
+    contamination_pattern='(/webapps/|/home/|/Users/|\.devtools/|github\.com/|git@github\.com:)'
+    local contamination_matches=""
+    local contamination_filtered=""
+    contamination_matches="$(grep -nE "$contamination_pattern" "$output_file" || true)"
+    contamination_filtered="$(printf '%s\n' "$contamination_matches" | grep -vE '^[0-9]+:.*\.devtools/releases/(prod|staging)\.md' || true)"
+    if [[ -n "$contamination_filtered" ]]; then
+        printf '%s\n' "$contamination_filtered"
+        die "CHANGELOG contaminado: se detectó patrón prohibido en ${output_file}"
+    fi
+
     if git diff --quiet -- "$output_file"; then
         log_warn "El changelog no cambió (${output_file}). Omitiendo commit."
         return 0
