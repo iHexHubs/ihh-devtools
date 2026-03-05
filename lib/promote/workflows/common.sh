@@ -324,7 +324,7 @@ prepare_changelog_commit() {
     export DEVTOOLS_CHANGELOG_UPDATED="0"
 
     local contamination_pattern=""
-    contamination_pattern="(/web""apps\\/|/ho""me/|/Us""ers/|\\.dev""tools\\/|git""hub\\.com/|git@gi""thub\\.com:)"
+    contamination_pattern='(/webapps/|/home/|/Users/|\.devtools/|github\.com/|git@github\.com:)'
     if grep -nE "$contamination_pattern" "$output_file"; then
         die "CHANGELOG contaminado: se detectó patrón prohibido en ${output_file}"
     fi

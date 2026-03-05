@@ -30,6 +30,8 @@ commit_preprocessors = [
 commit_parsers = [
   { message = "^chore\\(gitignore\\):", skip = true },
   { message = "^chore\\(release\\):", skip = true },
+  { message = "^chore\\(devtools\\):", skip = true },
+  { message = "\\.devtools/", skip = true },
   { message = "^feat", group = "Features" },
   { message = "^fix", group = "Fixes" },
   { message = "^docs", group = "Docs" },
