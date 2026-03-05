@@ -96,6 +96,43 @@ tasks:
             act -W "$WF" -j ci --pull=false -P ubuntu-latest="$ACT_IMAGE"
           '
 
+  app:devbox:ci:
+    desc: "Validaciones de devbox-app (backend + frontend)"
+    cmds:
+      - task app:devbox:backend:test
+      - task app:devbox:frontend:build
+
+  app:devbox:backend:test:
+    desc: "Ejecuta tests de Django en devbox-app/backend"
+    cmds:
+      - |-
+          bash -euo pipefail -c '
+            BACKEND_DIR="devbox-app/backend"
+            VENV_DIR="${BACKEND_DIR}/.venv-ci"
+
+            [ -d "$BACKEND_DIR" ] || { echo "error: no existe ${BACKEND_DIR}"; exit 1; }
+            command -v python3 >/dev/null 2>&1 || { echo "error: python3 no esta instalado"; exit 1; }
+
+            python3 -m venv "$VENV_DIR"
+            "$VENV_DIR/bin/python" -m pip install --disable-pip-version-check --upgrade pip
+            "$VENV_DIR/bin/python" -m pip install --disable-pip-version-check -r "${BACKEND_DIR}/requirements.txt"
+            PYTHONPATH="$BACKEND_DIR" "$VENV_DIR/bin/python" -m pytest -q "${BACKEND_DIR}/tests"
+          '
+
+  app:devbox:frontend:build:
+    desc: "Compila frontend de devbox-app"
+    cmds:
+      - |-
+          bash -euo pipefail -c '
+            FRONTEND_DIR="devbox-app/frontend"
+
+            [ -d "$FRONTEND_DIR" ] || { echo "error: no existe ${FRONTEND_DIR}"; exit 1; }
+            command -v npm >/dev/null 2>&1 || { echo "error: npm no esta instalado"; exit 1; }
+
+            npm --prefix "$FRONTEND_DIR" ci
+            npm --prefix "$FRONTEND_DIR" run build
+          '
+
   apps:sync:
     desc: "Sincroniza apps declaradas en el registry de build"
     cmds:
