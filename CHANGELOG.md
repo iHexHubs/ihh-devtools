@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.0-rc.1+build.5
+
+
+### Fixes
+
+
+- insert release section without duplicates; disable split_commits (35b682a)
+
+
+
+
+
 ## v0.1.0-rc.1+build.4
 
 
