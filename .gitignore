@@ -16,3 +16,4 @@ node_modules/
 dist/
 devbox-app/.env
 .devtools/releases/staging.md
+.devtools/releases/prod.md
