@@ -204,12 +204,18 @@ generate_changelog_for_component() {
             "${range_opts[@]}" \
             -o "$output_file"
     elif command -v devbox >/dev/null 2>&1; then
-        devbox run git-cliff --config "$config_file" \
-            "${scope_opts[@]}" \
-            --tag-pattern "$tag_pattern" \
-            --tag "$tag" \
-            "${range_opts[@]}" \
-            -o "$output_file"
+        local devbox_env=""
+        devbox_env="$(devbox shell --print-env 2>/dev/null)" \
+            || die "No pude obtener entorno de Devbox para ejecutar git-cliff."
+        (
+            eval "$devbox_env"
+            git-cliff --config "$config_file" \
+                "${scope_opts[@]}" \
+                --tag-pattern "$tag_pattern" \
+                --tag "$tag" \
+                "${range_opts[@]}" \
+                -o "$output_file"
+        ) || die "Falló git-cliff usando entorno de Devbox."
     else
         die "No se encontró git-cliff ni devbox para ejecutarlo."
     fi

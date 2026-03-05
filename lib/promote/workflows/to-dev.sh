@@ -603,24 +603,31 @@ promote_to_dev() {
 
     GIT_TERMINAL_PROMPT=0 git fetch origin dev staging --prune >/dev/null 2>&1 || true
     local dev_before_sha=""
-    local range_to_sha=""
+    local staging_head_sha=""
+    local source_sha_for_dev=""
+    local staging_sync_strategy="merge-theirs"
     dev_before_sha="$(git rev-parse origin/dev 2>/dev/null || true)"
     [[ -n "${dev_before_sha:-}" ]] || die "No pude resolver origin/dev para calcular rango de changelog."
+    staging_head_sha="$(git rev-parse origin/staging 2>/dev/null || true)"
+    [[ -n "${staging_head_sha:-}" ]] || die "No pude resolver origin/staging para calcular rango de changelog."
+    source_sha_for_dev="$staging_head_sha"
 
-    if [[ "${source_branch_original}" == "staging" ]]; then
-        range_to_sha="$source_sha"
-    else
-        # Compatibilidad con flujo habitual local->dev:
-        # al promover desde una rama no-staging, el changelog se calcula contra la fuente real.
-        range_to_sha="$source_sha"
-        if [[ "${promote_dev_direct}" != "1" && "${DEVTOOLS_ALLOW_PROMOTE_DEV_FROM_NON_STAGING:-0}" != "1" ]]; then
-            log_warn "Fuente '${source_branch_original}' no es staging; uso source_sha para rango (${dev_before_sha:0:7}..${range_to_sha:0:7})."
+    # Si la fuente no coincide con origin/staging, primero alineamos staging y usamos ese SHA.
+    if [[ "${source_sha}" != "${staging_head_sha}" ]]; then
+        if [[ "${source_branch_original}" != "staging" ]]; then
+            log_warn "Fuente '${source_branch_original}' no es staging; alineando staging con source_sha=${source_sha:0:7}."
+        else
+            log_info "Rama staging local adelantada; sincronizando origin/staging con source_sha=${source_sha:0:7}."
         fi
+        source_sha_for_dev="$(update_branch_to_sha_with_strategy "staging" "$source_sha" "origin" "$staging_sync_strategy")" \
+            || die "No pude alinear staging con source_sha=${source_sha:0:7}."
+        staging_head_sha="$source_sha_for_dev"
+    elif [[ "${source_branch_original}" != "staging" ]]; then
+        log_info "Fuente '${source_branch_original}' ya coincide con origin/staging (${staging_head_sha:0:7})."
     fi
-    [[ -n "${range_to_sha:-}" ]] || die "No pude resolver SHA final para calcular rango de changelog."
 
     local range
-    range="${dev_before_sha}..${range_to_sha}"
+    range="${dev_before_sha}..${staging_head_sha}"
 
     local suggested_tag final_tag
     suggested_tag="$(promote_next_tag_dev "$range")"
@@ -676,7 +683,7 @@ promote_to_dev() {
     local promote_component
     promote_component="$(resolve_promote_component "$range")"
     log_info "🧩 Componente changelog: ${promote_component}"
-    log_info "🔎 CHANGELOG DEBUG: from_ref=${dev_before_sha} to_ref=${range_to_sha} range=${range}"
+    log_info "🔎 CHANGELOG DEBUG: from_ref=${dev_before_sha} to_ref=${staging_head_sha} range=${range}"
 
     # Tag real: se crea/pushea al final, solo después de Push OK a dev.
 
@@ -710,7 +717,7 @@ promote_to_dev() {
     # Aplicar estrategia sobre dev local; el push se hace luego del amend del changelog.
     local final_sha="" rc=0 dev_push_ok=0
     while true; do
-        if final_sha="$(update_branch_to_sha_with_strategy "dev" "$source_sha" "origin" "$strategy" "0")"; then
+        if final_sha="$(update_branch_to_sha_with_strategy "dev" "$source_sha_for_dev" "origin" "$strategy" "0")"; then
             rc=0
         else
             rc=$?
@@ -748,7 +755,7 @@ promote_to_dev() {
 
     log_success "✅ Push OK: ${source_branch} -> origin/dev (strategy=${strategy}, sha=${final_sha:0:7})"
     dev_push_ok=1
-    if ! target_after_sha="$(promote_dev_verify_target_advanced_or_die "dev" "$source_sha" "$target_before_sha")"; then
+    if ! target_after_sha="$(promote_dev_verify_target_advanced_or_die "dev" "$source_sha_for_dev" "$target_before_sha")"; then
         return 2
     fi
     moved="yes"
