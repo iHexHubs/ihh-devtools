@@ -18,7 +18,18 @@ filter_unconventional = true
 split_commits = false
 tag_pattern = "v[0-9].*"
 
+commit_preprocessors = [
+  { pattern = "\\.devtools/", replace = "devtools/" },
+  { pattern = "/webapps/[^ )]+", replace = "<path>" },
+  { pattern = "/home/[^ )]+", replace = "<path>" },
+  { pattern = "/Users/[^ )]+", replace = "<path>" },
+  { pattern = "git@github\\.com:", replace = "github:" },
+  { pattern = "github\\.com/", replace = "github/" }
+]
+
 commit_parsers = [
+  { message = "^chore\\(gitignore\\):", skip = true },
+  { message = "^chore\\(release\\):", skip = true },
   { message = "^feat", group = "Features" },
   { message = "^fix", group = "Fixes" },
   { message = "^docs", group = "Docs" },
