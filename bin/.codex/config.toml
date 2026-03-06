@@ -1,0 +1,3 @@
+[mcp_servers.narsil]
+command = "narsil-mcp"
+args = ["--repos", ".", "--git", "--call-graph"]
