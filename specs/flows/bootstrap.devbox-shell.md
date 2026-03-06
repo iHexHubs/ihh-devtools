@@ -163,9 +163,23 @@ y materializado por Devbox en `.devbox/gen/scripts/.hooks.sh`.
 - archivo: `bin/setup-wizard.sh`
 - función: verificación o setup
 - qué hace:
-  por la presencia de `.devtools/.setup_completed`, el branch más probable hoy es `--verify-only`
+  resuelve `REAL_ROOT`, carga contrato, calcula `VENDOR_DIR`, intenta resolver `PROFILE_CONFIG_FILE` y define `MARKER_FILE`.
+  Si existe `MARKER_FILE` y no se pasa `--force`, entra en `VERIFY_ONLY=true`.
 
 #### Paso 7
+- archivo: `bin/setup-wizard.sh`
+- función: fallback de profile config
+- qué hace:
+  intenta resolver el profile file con `devtools_profile_config_file "$REAL_ROOT"`.
+  Si eso devuelve vacío, cae explícitamente a `${VENDOR_DIR_ABS}/.git-acprc`.
+
+#### Paso 8
+- archivo: `bin/setup-wizard.sh`
+- función: fast path de verificación
+- qué hace:
+  en modo `verify-only` valida GH CLI, prueba SSH contra el host configurado en el profile file y sale sin recorrer el setup completo.
+
+#### Paso 9
 - archivo: `devbox.json`
 - función: bloque final del `init_hook`
 - qué hace:
@@ -175,12 +189,16 @@ y materializado por Devbox en `.devbox/gen/scripts/.hooks.sh`.
 - Decisión 1:
   cómo se resuelve el `root` real del workspace (`git rev-parse` o `pwd`)
 - Decisión 2:
-  si existe `.devtools/.setup_completed`, el wizard probablemente entra en `--verify-only`
+  si existe `MARKER_FILE` y no se pasó `--force`, el wizard fuerza `VERIFY_ONLY=true`
 - Decisión 3:
-  si hay TTY, muestra selector de rol; si no, evita esa interacción
+  si `devtools_profile_config_file "$REAL_ROOT"` devuelve vacío, el wizard usa fallback a `${VENDOR_DIR_ABS}/.git-acprc`
 - Decisión 4:
-  si existe `starship`, usa `STARSHIP_CONFIG`; si no, cae a `PROMPT/PS1`
+  si no hay TTY y no se pidió `--verify-only`, el wizard también fuerza `VERIFY_ONLY=true`
 - Decisión 5:
+  si hay TTY, muestra selector de rol; si no, evita esa interacción
+- Decisión 6:
+  si existe `starship`, usa `STARSHIP_CONFIG`; si no, cae a `PROMPT/PS1`
+- Decisión 7:
   si encuentra scripts corporativos, inyecta aliases efímeros de Git
 
 #### Side effects observados
@@ -421,16 +439,19 @@ bootstrap.devbox-shell
 La parte de submódulos y ciertos paths de perfil parecen mezcla de compatibilidad y drift, pero aún no está confirmado como legacy real.
 
 #### Qué entendí bien
-- el bootstrap es más grande que un simple shell env
-- el núcleo está en `devbox.json` y su hook generado
-- el wizard sí es parte del flujo
-- hay side effects persistentes potenciales
+- el bootstrap de `devbox shell` sí dispara `setup-wizard.sh`
+- el wizard tiene dos caminos claros: `verify-only` y full path
+- la entrada a `verify-only` no depende solo del usuario; también depende de:
+  - existencia del marker
+  - ausencia de `--force`
+  - falta de TTY
+- el wizard tiene un fallback explícito a `.devtools/.git-acprc`
+- el estado actual observado del workspace encaja con ese fallback
 
 #### Qué no entendí aún
-- el branch exacto del wizard en runtime
-- el peso real del hook de Poetry
-- si la lógica de submódulo sigue siendo necesaria hoy
-- si `.devtools/.git-acprc` es transición o estado definitivo
+- por qué `devtools_profile_config_file "$REAL_ROOT"` no terminó resolviendo `.git-acprc` en raíz
+- si `.devtools/.git-acprc` es fallback vigente, compatibilidad histórica o estado transicional
+- si `step-04-profile.sh` escribe siempre sobre el mismo path o depende del branch
 
 #### Siguiente archivo o branch a revisar
 `bin/setup-wizard.sh`, centrado en:
