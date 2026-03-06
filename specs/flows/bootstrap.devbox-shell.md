@@ -311,18 +311,20 @@ Pendiente de confirmación fina.
 Por ahora, el código de aliases corporativos parece más de despacho y lookup que de ejecución directa en este flujo.
 
 #### Compatibilidades heredadas detectadas
-- el hook intenta trabajar con `.devtools` como si pudiera venir de submódulo
-- hace `submodule sync/update` aunque en esta raíz no hay `.gitmodules`
-- existe tolerancia a múltiples rutas candidatas para encontrar scripts corporativos
+- `contract.sh` trata explícitamente varios paths de profile config como defaults/legacy equivalentes.
+- Entre esos paths está `${repo_root}/${vendor_dir}/.git-acprc`.
+- Esto confirma compatibilidad heredada entre profile file en raíz y profile file dentro de vendor dir.
+- `step-04-profile.sh` no migra ni sincroniza ambos paths; solo escribe en el `rc_file` ya resuelto.
 
 #### Documentación que no coincide con el código
 Pendiente de revisar formalmente en este flujo.
 Sí hay una deriva observable entre contrato y estado persistido real del perfil.
 
 #### Sospechas de legacy
-- lógica de submódulos puede ser fallback defensivo o legado
-- la resolución de scripts a través de múltiples candidatos parece acumulación histórica
-- puede haber drift entre `profile_file: .git-acprc` y el uso real de `.devtools/.git-acprc`
+- La lógica de submódulos sigue pareciendo defensiva o heredada, pero aún no está cerrada del todo.
+- En cambio, la convivencia entre `.git-acprc` y `.devtools/.git-acprc` ya no es solo sospecha:
+  hay compatibilidad heredada explícita en `contract.sh`.
+- Lo que sigue abierto no es si existe esa compatibilidad, sino cuál path domina efectivamente en este repo y por qué.
 
 ### Minuto 35–40: valida con una ejecución segura
 
@@ -436,22 +438,22 @@ bootstrap.devbox-shell
 - specs y tests
 
 #### Sospecha de legacy
-La parte de submódulos y ciertos paths de perfil parecen mezcla de compatibilidad y drift, pero aún no está confirmado como legacy real.
+La compatibilidad entre `.git-acprc` en raíz y `${vendor_dir}/.git-acprc` está explícitamente codificada.
+Lo que aún falta determinar es si el path en vendor dir sigue siendo ruta viva principal en este repo
+o si quedó como fallback de compatibilidad.
 
 #### Qué entendí bien
-- el bootstrap de `devbox shell` sí dispara `setup-wizard.sh`
-- el wizard tiene dos caminos claros: `verify-only` y full path
-- la entrada a `verify-only` no depende solo del usuario; también depende de:
-  - existencia del marker
-  - ausencia de `--force`
-  - falta de TTY
-- el wizard tiene un fallback explícito a `.devtools/.git-acprc`
-- el estado actual observado del workspace encaja con ese fallback
+- `setup-wizard.sh` intenta respetar el path resuelto por contrato.
+- `devtools_profile_config_file` no calcula el path por sí sola; devuelve `DEVTOOLS_PROFILE_CONFIG` después de cargar contrato.
+- `step-04-profile.sh` es agnóstico al path y escribe en el `rc_file` que recibe.
+- `${vendor_dir}/.git-acprc` está reconocido por el código como path legacy/fallback.
+- El path canónico hoy, según código real, es `DEVTOOLS_PROFILE_CONFIG`.
 
 #### Qué no entendí aún
-- por qué `devtools_profile_config_file "$REAL_ROOT"` no terminó resolviendo `.git-acprc` en raíz
-- si `.devtools/.git-acprc` es fallback vigente, compatibilidad histórica o estado transicional
-- si `step-04-profile.sh` escribe siempre sobre el mismo path o depende del branch
+- qué valor concreto trae el contrato de este repo para `profile_file`
+- por qué el workspace actual terminó persistiendo en `.devtools/.git-acprc`
+- si ese estado vino de una corrida vieja del wizard, de fallback activo o de una transición incompleta
+- si hoy el branch normal del repo todavía puede seguir escribiendo en vendor dir en algunos escenarios concretos
 
 #### Siguiente archivo o branch a revisar
 `bin/setup-wizard.sh`, centrado en:
