@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.0-rc.6+build.2
+
+
+### Docs
+
+
+- documentar plantilla universal para analizar flujos (ed29a7a)
+
+
+
+
+
 ## v0.1.0-rc.6+build.1
 
 
