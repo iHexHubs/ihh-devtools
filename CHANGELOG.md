@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.1.0-rc.6+build.1
+
+
+### Docs
+
+
+- documentar propósito y alcance de `gh-policy-check.sh` y `vendorize.sh` (c349eec)
+
+- versionar diagramas del repo en `repo.dot` y `repo.drawio.xml` (56869b3)
+
+- agregar diagramas de `git-promote` en `git-promote.dot` y `git-promote.drawio.xml` (49538d6)
+
+
+
+
+
 ## v0.1.0-rc.5+build.1
 
 
