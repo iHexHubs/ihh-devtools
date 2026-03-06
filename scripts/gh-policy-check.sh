@@ -1,5 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# ==============================================================================
+# Script: gh-policy-check.sh
+#
+# DESCRIPCIÓN (Qué hace):
+# Escanea todos los archivos de GitHub Actions (.yml o .yaml) del repositorio 
+# en busca de patrones de texto prohibidos (como 'release-please', 'git tag', 
+# 'push --tags' o 'create-release'). Filtra los falsos positivos permitiendo 
+# explícitamente el prefijo de ramas de bots ('release-please--').
+#
+# PROPÓSITO (Para qué sirve):
+# Sirve como una barrera de seguridad y cumplimiento normativo (compliance). 
+# Evita que los desarrolladores automaticen la creación de versiones (releases) 
+# o etiquetas (tags) directamente desde sus workflows individuales. Garantiza 
+# que todo el equipo utilice un proceso de lanzamiento centralizado, seguro 
+# y estandarizado por la organización.
+# ==============================================================================
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
