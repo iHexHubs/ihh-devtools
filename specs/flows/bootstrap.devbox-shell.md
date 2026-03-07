@@ -595,6 +595,10 @@ Estas condiciones deberían mantenerse siempre en el contrato del flujo:
 - El bootstrap no debe depender de README ni de documentación para funcionar.
 - Los flujos de `apps`, `promote`, `acp` y similares quedan fuera del contrato
   principal de `bootstrap.devbox-shell`.
+- La persistencia estable aceptada del flujo se limita a:
+  - `.git-acprc` en la raíz del repo
+  - `.devtools/.setup_completed`
+- La creación inicial de `.env` puede existir como scaffolding local de primer bootstrap, pero no debe redefinir el contrato principal.
 
 ### Failure modes
 
@@ -631,6 +635,7 @@ Este flujo no es responsable de:
 - limpiar o eliminar automáticamente compatibilidades heredadas
 - reescribir contrato, README o tests por sí mismo
 - corregir drift histórico fuera del bootstrap inmediato
+- tratar como contractuales mutaciones persistentes oportunistas del workspace, como limpieza de aliases locales o `chmod +x` sobre scripts encontrados
 
 ### Ejemplos
 
@@ -991,17 +996,24 @@ Impacto contractual:
 - Por eso puede persistir estado heredado aunque el contrato apunte a un path más canónico.
 
 #### Drift 3: bootstrap efímero vs side effects persistentes
-- El flujo parece “de shell”, pero hoy incorpora efectos persistentes potenciales:
-  - marker file
-  - profile file
-  - posibles cambios en Git local
-  - posible update/sync de `.devtools`
-- Eso indica que el bootstrap actual mezcla entorno efímero con setup persistente.
+- El flujo parece “de shell”, pero hoy incorpora efectos persistentes potenciales.
+- Según el contrato que se está consolidando, la persistencia estable aceptada debe limitarse a:
+  - el profile file contractual en `.git-acprc` en raíz
+  - el marker `.devtools/.setup_completed`
+- La creación inicial de `.env` puede tolerarse como scaffolding de primer bootstrap.
+- Otras mutaciones persistentes del workspace o del repo no deben definir el contrato principal del flujo.
 
 #### Drift 4: submódulo / vendor dir
 - El hook contiene lógica defensiva de submódulo y búsqueda múltiple de scripts.
 - En este repo esa parte no quedó plenamente justificada como núcleo del flujo.
 - Hoy debe tratarse como zona defensiva o compatibilidad, no como centro del contrato.
+
+#### Drift 5: mutaciones persistentes disfrazadas de efímeras
+- El hook contiene un bloque presentado como “Configuración EFÍMERA”.
+- Sin embargo, dentro de ese bloque hay mutaciones persistentes reales, por ejemplo:
+  - `git config --local --unset alias.*`
+  - `chmod +x` sobre scripts encontrados
+- Esto indica una diferencia entre la intención declarada del flujo y su efecto real sobre el workspace.
 
 ### Legacy seams
 
@@ -1031,7 +1043,8 @@ Descripción:
 
 Estado:
 - fallback vivo
-- posible deuda de simplificación futura
+- compatibilidad heredada operativa
+- no debe confundirse con persistencia contractual principal
 
 #### Seam 3: lógica de submódulo
 Archivos:
@@ -1079,13 +1092,15 @@ Si este flujo cambia en el futuro, no se debería romper lo siguiente:
 - la degradación segura a `verify-only` por marker o ausencia de TTY no debe perderse
 - la ausencia de Starship no debe romper el shell
 - el bootstrap no debe empezar a depender de flujos ajenos como `apps sync` o `promote`
+- la persistencia estable aceptada del flujo debe limitarse a `.git-acprc` en raíz y `.devtools/.setup_completed`
+- cualquier otra mutación persistente debe quedar clasificada como soporte temporal o drift explícito
 
 ### Promotion gate to spec-as-source
 
 Para promover este flujo a `spec-as-source`, todavía falta:
 
 - convertir este mapeo en contrato autoritativo breve y estable
-- decidir qué side effects persistentes quedan oficialmente aceptados
+- cerrado: la persistencia estable aceptada se limita a `.git-acprc` en raíz y `.devtools/.setup_completed`
 - marcar explícitamente qué ramas son soporte y cuáles son deuda/compatibilidad
 - conectar acceptance candidates con tests Bats
 - definir si el wizard sigue siendo parte intrínseca del bootstrap o si en el futuro debería separarse como flujo adyacente
