@@ -1,6 +1,6 @@
 # Flow: bootstrap.devbox-shell
 
-- maturity: spec-anchored
+- maturity: spec-as-source
 - status: active
 - priority: current
 - source-of-truth: this file
@@ -599,6 +599,9 @@ Estas condiciones deberían mantenerse siempre en el contrato del flujo:
   - `.git-acprc` en la raíz del repo
   - `.devtools/.setup_completed`
 - La creación inicial de `.env` puede existir como scaffolding local de primer bootstrap, pero no debe redefinir el contrato principal.
+- El wizard forma parte intrínseca del bootstrap actual del repo.
+- Su invocación pertenece al contrato principal del flujo, aunque su ejecución sea de fallo blando.
+- Los mecanismos de bypass, warning por ausencia y degradación segura deben tratarse como soporte del flujo, no como su núcleo contractual.
 
 ### Failure modes
 
@@ -767,6 +770,7 @@ Responsabilidad dentro del contrato:
   - existe marker y no hay `--force`
 - ejecutar el fast path de verificación
 - ejecutar el full path solo cuando corresponde
+- actuar como gatekeeper intrínseco del bootstrap, aunque sin romper el shell si falla
 
 #### `lib/core/contract.sh`
 Rol:
@@ -833,11 +837,12 @@ Archivo:
 - `bin/setup-wizard.sh`
 
 Anclaje:
-- el hook llama a `setup-wizard.sh`
+- el hook llama a `setup-wizard.sh` automáticamente durante `devbox shell`
 
 Contrato que sostiene:
-- el wizard sí forma parte del bootstrap actual del repo
-- no es un flujo separado del todo; hoy está embebido en el bootstrap
+- el wizard forma parte intrínseca del bootstrap actual del repo
+- no es un flujo manual posterior
+- hoy funciona como gatekeeper de fallo blando: participa del camino principal, pero no aborta el shell si falla
 
 #### Paso 5: resolución contractual
 Archivo:
@@ -984,6 +989,21 @@ Qué rama modela:
 Impacto contractual:
 - la interacción mejora la UX, pero no define el núcleo funcional del bootstrap
 
+#### Rama H: wizard presente / ausente / bypass
+Archivos:
+- `devbox.json`
+- `.devbox/gen/scripts/.hooks.sh`
+- `bin/setup-wizard.sh`
+
+Qué rama modela:
+- si el wizard existe y no está saltado por `DEVTOOLS_SKIP_WIZARD`, el bootstrap lo ejecuta
+- si falta, el hook emite warning
+- si falla, el shell continúa por tolerancia explícita del hook
+
+Impacto contractual:
+- la invocación del wizard pertenece al contrato principal actual
+- la tolerancia al fallo, el bypass y el warning por ausencia deben tratarse como soporte o compatibilidad
+
 ### Drift notes
 
 #### Drift 1: canónico vs estado observado
@@ -1014,6 +1034,12 @@ Impacto contractual:
   - `git config --local --unset alias.*`
   - `chmod +x` sobre scripts encontrados
 - Esto indica una diferencia entre la intención declarada del flujo y su efecto real sobre el workspace.
+
+#### Drift 6: wizard intrínseco pero de fallo blando
+- El wizard pertenece al camino principal actual del bootstrap.
+- Sin embargo, el hook lo ejecuta con tolerancia explícita al fallo (`|| true`).
+- Esto genera una tensión entre “parte central del flujo” y “componente no bloqueante”.
+- La spec debe conservar ambas cosas: centralidad funcional y fallo blando explícito.
 
 ### Legacy seams
 
@@ -1103,15 +1129,105 @@ Para promover este flujo a `spec-as-source`, todavía falta:
 - cerrado: la persistencia estable aceptada se limita a `.git-acprc` en raíz y `.devtools/.setup_completed`
 - marcar explícitamente qué ramas son soporte y cuáles son deuda/compatibilidad
 - conectar acceptance candidates con tests Bats
-- definir si el wizard sigue siendo parte intrínseca del bootstrap o si en el futuro debería separarse como flujo adyacente
+- cerrado: el wizard sigue siendo parte intrínseca del bootstrap actual, como gatekeeper de fallo blando
 - cerrado: el path contractual sano esperado es `${repo_root}/.git-acprc`
-
-No iniciado.
 
 ## 4. Spec-as-source
 
-No iniciado.
+### Contrato canónico
 
+El flujo `bootstrap.devbox-shell` define el bootstrap oficial del entorno local
+del repo cuando el usuario ejecuta `devbox shell`.
+
+Su comportamiento canónico es este:
+
+- Devbox localiza `devbox.json` y usa su `shell.init_hook` como entrypoint local
+  del bootstrap.
+- El bootstrap resuelve primero el `root` real del workspace antes de tomar
+  decisiones sobre paths, marker o profile file.
+- El bootstrap del repo prepara el entorno de shell necesario para trabajar en
+  el proyecto, incluyendo variables de entorno, ajuste de `PATH`, prompt y
+  ayudas de sesión.
+- El wizard forma parte intrínseca del contrato principal actual del flujo,
+  aunque opera como gatekeeper de fallo blando.
+- Si existe marker de setup y no se pasó `--force`, el flujo debe preferir la
+  ruta `verify-only`.
+- Si no hay TTY, el flujo debe degradar a `verify-only` o a una ruta segura
+  equivalente.
+- El path canónico del profile file en estado sano de este repo es
+  `.git-acprc` en la raíz del repo.
+- `${vendor_dir}/.git-acprc` se conserva sólo como fallback operativo de
+  compatibilidad heredada cuando la resolución contractual de `profile_file`
+  devuelve vacío.
+- `step-04-profile.sh` no decide política de path; sólo escribe en el path ya
+  resuelto.
+- La ausencia de `starship` no debe romper el shell; debe existir fallback a
+  `PROMPT` o `PS1`.
+
+### Tests obligatorios
+
+La validación mínima de este flujo debe cubrir, como base contractual:
+
+- A1. `devbox.json` define el bootstrap principal mediante `shell.init_hook`.
+- A2. `.devbox/gen/scripts/.hooks.sh` materializa el hook efectivo del
+  workspace.
+- A3. El hook resuelve `root` antes de derivar `DT_ROOT` y `DT_BIN`.
+- A4. El hook busca `setup-wizard.sh`, respeta `DEVTOOLS_SKIP_WIZARD` y lo
+  ejecuta como gatekeeper no fatal.
+- A5. `setup-wizard.sh` resuelve `PROFILE_CONFIG_FILE` vía
+  `devtools_profile_config_file "$REAL_ROOT"` y sólo cae a
+  `${VENDOR_DIR_ABS}/.git-acprc` si el valor queda vacío.
+- A6. `contract.sh` trata `${repo_root}/${vendor_dir}/.git-acprc` como
+  compatibilidad heredada, manteniendo `DEVTOOLS_PROFILE_CONFIG` como fuente
+  canónica del path.
+- A7. `step-04-profile.sh` escribe en el `rc_file` recibido y no recalcula el
+  path canónico.
+- A8. El wizard entra en `verify-only` si existe marker y no se pasó `--force`.
+- A9. El wizard degrada a `verify-only` cuando no hay TTY.
+- A10. La ausencia de `starship` tiene fallback explícito y no rompe el flujo.
+
+### Protocolo de cambio
+
+Cuando este flujo cambie:
+
+1. actualizar primero esta spec
+2. actualizar después el código
+3. actualizar después los tests Bats
+4. documentar explícitamente cualquier drift, compatibilidad o deprecación
+
+Ningún cambio debería volver a presentar `${vendor_dir}/.git-acprc` como path
+principal sin actualizar antes esta spec.
+
+Ningún cambio debería introducir nuevas mutaciones persistentes del workspace
+como parte del contrato principal sin dejarlas explícitas aquí.
+
+### Notas de deprecación
+
+- `${vendor_dir}/.git-acprc` sigue siendo path operativo sólo como fallback de
+  compatibilidad heredada.
+- La convivencia entre root-profile y vendor-profile no debe tratarse como
+  diseño principal del flujo.
+- La lógica defensiva de submódulo y búsqueda múltiple de scripts sigue siendo
+  soporte o compatibilidad hasta que se demuestre lo contrario.
+- Mutaciones persistentes como `git config --local --unset alias.*`,
+  `chmod +x` sobre scripts encontrados o `submodule sync/update` no forman parte
+  de la persistencia contractual principal del flujo.
+- La persistencia estable aceptada del bootstrap se limita a:
+  - `.git-acprc` en la raíz del repo
+  - `.devtools/.setup_completed`
+- La creación inicial de `.env` puede tolerarse como scaffolding local de primer
+  bootstrap, pero no redefine el contrato principal.
+
+### Historial de revisión
+
+- 2026-03-06: flujo promovido a `spec-as-source` tras cerrar:
+  - entrypoint local en `devbox.json`
+  - wizard como parte intrínseca del bootstrap actual
+  - path canónico sano en `.git-acprc` de raíz
+  - vendor profile como fallback heredado
+  - persistencia contractual limitada a `.git-acprc` y `.devtools/.setup_completed`
+  - plan mínimo de validación con Bats
+  
 ## Promotion log
 
 - stage: discovery
@@ -1124,4 +1240,8 @@ No iniciado.
 
 - stage: spec-anchored
   date: 2026-03-06
-  reason: contrato amarrado a devbox.json, hooks generados, wizard, contract.sh y step-04-profile.sh
+  reason: contrato amarrado a devbox.json, hook generado, wizard, contract.sh y step-04-profile.sh
+
+- stage: spec-as-source
+  date: 2026-03-06
+  reason: path canónico, persistencia contractual, rol del wizard y estrategia mínima de validación quedaron definidos
