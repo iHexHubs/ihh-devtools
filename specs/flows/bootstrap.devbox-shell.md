@@ -31,7 +31,7 @@ side effects aceptados, sus compatibilidades heredadas y su validación mínima.
 Bootstrap del entorno con `devbox shell`.
 
 #### Por qué estoy revisando este flujo
-Será la primera adopción formal del repo en la ruta:
+Fue la primera adopción formal del repo en la ruta:
 `discovery -> spec-first -> spec-anchored -> spec-as-source`.
 
 #### Qué quiero poder explicar al final
@@ -451,17 +451,12 @@ o si quedó como fallback de compatibilidad.
 - `${vendor_dir}/.git-acprc` está reconocido por el código como path legacy/fallback.
 - El path canónico hoy, según código real, es `DEVTOOLS_PROFILE_CONFIG`.
 
-#### Qué no entendí aún
-- por qué el workspace actual terminó persistiendo en `.devtools/.git-acprc`
-- si ese estado vino de una corrida vieja del wizard, de fallback activo o de una transición incompleta
-- en qué escenarios reales del repo sigue activándose el fallback a `${vendor_dir}/.git-acprc`
-
 #### Qué queda como investigación residual
 - por qué el workspace observado persistió en `.devtools/.git-acprc`
 - si ese estado proviene de una corrida vieja del wizard, de fallback activo o de una transición incompleta
 - en qué escenarios reales del repo sigue activándose el fallback a `${vendor_dir}/.git-acprc`
 
-#### Siguiente archivo o branch a revisar
+#### Próxima investigación opcional
 `bin/setup-wizard.sh`, centrado en:
 - branch `--verify-only`
 - relación con `lib/wizard/step-04-profile.sh`
@@ -1102,7 +1097,7 @@ Estado:
 #### Aún no validado del todo
 - en qué escenarios reales del repo sigue activándose el fallback a vendor profile
 - qué peso real tiene el hook de Poetry en el bootstrap observable
-- qué parte de la lógica de submódulo sigue siendo necesaria en workspaces reale
+- qué parte de la lógica de submódulo sigue siendo necesaria en workspaces reales
 
 ### Refactor safety notes
 
