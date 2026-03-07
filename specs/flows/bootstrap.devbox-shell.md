@@ -450,10 +450,9 @@ o si quedó como fallback de compatibilidad.
 - El path canónico hoy, según código real, es `DEVTOOLS_PROFILE_CONFIG`.
 
 #### Qué no entendí aún
-- qué valor concreto trae el contrato de este repo para `profile_file`
 - por qué el workspace actual terminó persistiendo en `.devtools/.git-acprc`
 - si ese estado vino de una corrida vieja del wizard, de fallback activo o de una transición incompleta
-- si hoy el branch normal del repo todavía puede seguir escribiendo en vendor dir en algunos escenarios concretos
+- en qué escenarios reales del repo sigue activándose el fallback a `${vendor_dir}/.git-acprc`
 
 #### Siguiente archivo o branch a revisar
 `bin/setup-wizard.sh`, centrado en:
@@ -692,8 +691,6 @@ equivalentes:
 
 Todavía quedan abiertas estas preguntas antes de pasar a `spec-anchored`:
 
-- qué valor concreto resuelve hoy el contrato de este repo para
-  `DEVTOOLS_PROFILE_CONFIG`
 - en qué escenarios reales del repo sigue activándose el fallback a
   `${vendor_dir}/.git-acprc`
 - qué peso real tiene el hook de Poetry en el bootstrap observable
@@ -985,9 +982,9 @@ Impacto contractual:
 ### Drift notes
 
 #### Drift 1: canónico vs estado observado
-- El contrato apunta a un path canónico resuelto por `DEVTOOLS_PROFILE_CONFIG`.
+- En este repo, el path contractual sano esperado es `${repo_root}/.git-acprc`.
 - El workspace observado contiene `.devtools/.git-acprc`.
-- Esto no contradice el código: el vendor profile sigue existiendo como fallback/compatibilidad explícita.
+- Esto confirma drift local o activación de fallback heredado, no cambio del path canónico.
 
 #### Drift 2: path contractual vs path persistido local
 - `step-04-profile.sh` no corrige ni migra automáticamente entre root-profile y vendor-profile.
@@ -1092,7 +1089,7 @@ Para promover este flujo a `spec-as-source`, todavía falta:
 - marcar explícitamente qué ramas son soporte y cuáles son deuda/compatibilidad
 - conectar acceptance candidates con tests Bats
 - definir si el wizard sigue siendo parte intrínseca del bootstrap o si en el futuro debería separarse como flujo adyacente
-- dejar asentado cuál es el path contractual concreto esperado para este repo en estado sano
+- cerrado: el path contractual sano esperado es `${repo_root}/.git-acprc`
 
 No iniciado.
 
