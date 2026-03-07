@@ -1,6 +1,6 @@
 # Flow: bootstrap.devbox-shell
 
-- maturity: discovery
+- maturity: spec-anchored
 - status: active
 - priority: current
 - source-of-truth: this file
@@ -1103,5 +1103,13 @@ No iniciado.
 ## Promotion log
 
 - stage: discovery
-- date: pending
-- reason: initial scaffold
+  date: 2026-03-06
+  reason: flujo real identificado y documentado con evidencia estática
+
+- stage: spec-first
+  date: 2026-03-06
+  reason: contrato intencional definido para bootstrap.devbox-shell
+
+- stage: spec-anchored
+  date: 2026-03-06
+  reason: contrato amarrado a devbox.json, hooks generados, wizard, contract.sh y step-04-profile.sh
