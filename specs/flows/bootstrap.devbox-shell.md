@@ -497,9 +497,602 @@ Antes de promover a `spec-first`, falta cerrar estas dudas:
 
 ## 2. Spec-first
 
-No iniciado.
+### Intención
+
+Definir el contrato intencional del flujo `bootstrap.devbox-shell` para que
+`devbox shell` prepare un entorno de trabajo reproducible, verificable y seguro
+para el repo, separando claramente:
+
+- lo que pertenece al entorno efímero de shell
+- lo que pertenece a validaciones del setup local
+- lo que pertenece a compatibilidades heredadas
+
+El objetivo de este flujo no es ejecutar tareas de negocio ni promover cambios
+de Git, sino dejar al operador dentro de un shell listo para trabajar con las
+herramientas, variables y ayudas mínimas del proyecto.
+
+### Contrato visible para el usuario
+
+Cuando un usuario ejecuta `devbox shell` dentro del repo:
+
+- Devbox debe encontrar la configuración del proyecto desde `devbox.json`.
+- El shell resultante debe exponer las herramientas declaradas por Devbox.
+- El bootstrap del repo puede aplicar variables de entorno, `PATH`, prompt y
+  ayudas de shell necesarias para trabajar dentro del proyecto.
+- El bootstrap puede verificar si el setup local ya existe y, si corresponde,
+  ejecutar una validación rápida del estado.
+- Si el setup previo ya está marcado como completo, el flujo debe preferir una
+  ruta de verificación (`verify-only`) en lugar de repetir un setup completo.
+- El flujo debe poder operar en modo no interactivo degradando a verificación y
+  evitando pasos que dependan de TTY.
+- El usuario debe recibir señales visibles de estado: carga del entorno,
+  validación del setup y problemas críticos detectados.
+- Las compatibilidades heredadas pueden seguir existiendo, pero no deben definir
+  el contrato principal del flujo.
+
+### Preconditions
+
+Para considerar válido este flujo, se asume que:
+
+- el usuario ejecuta `devbox shell` dentro del repo o en un subdirectorio desde
+  el cual Devbox pueda encontrar `devbox.json`
+- el binario `devbox` está disponible
+- `git` está disponible
+- el repo es detectable como workspace Git válido
+- el entorno puede materializar o reutilizar `.devbox/`
+- si el flujo entra en validación del wizard, las herramientas mínimas de esa
+  ruta deben existir
+- el flujo puede encontrar el `root` real del workspace antes de tomar
+  decisiones de contrato y paths
+
+### Inputs
+
+Los inputs relevantes de este flujo son:
+
+- el comando `devbox shell`
+- el archivo `devbox.json`
+- el estado del workspace Git
+- el estado de `.devtools/`
+- la existencia o no de `.devtools/.setup_completed`
+- el valor resuelto por contrato para `DEVTOOLS_PROFILE_CONFIG`
+- la disponibilidad de TTY
+- la presencia de herramientas auxiliares como `gh`, `ssh`, `gum`, `starship`
+- variables de entorno como:
+  - `DEVTOOLS_SKIP_VERSION_CHECK`
+  - `DEVTOOLS_SKIP_WIZARD`
+  - `DEVBOX_ENV_NAME`
+  - `DEVTOOLS_ALLOW_ABSOLUTE_PATHS`
+
+### Outputs
+
+Los outputs esperados del flujo son:
+
+- un shell Devbox funcional para el repo
+- variables de entorno exportadas
+- `PATH` ajustado para incluir herramientas del repo y de `.devtools`
+- aliases efímeros o comportamiento equivalente para herramientas corporativas
+- prompt configurado con Starship o con fallback de shell
+- mensajes visibles de bootstrap y estado
+- una verificación rápida del setup cuando aplique
+- errores explícitos si faltan dependencias críticas del branch activo
+
+### Invariants
+
+Estas condiciones deberían mantenerse siempre en el contrato del flujo:
+
+- `devbox.json` es la fuente primaria del bootstrap del repo.
+- El entrypoint local del repo para este flujo es `shell.init_hook`.
+- El flujo debe resolver primero el `root` real del workspace antes de tomar
+  decisiones sobre vendor dir, marker o profile file.
+- El path canónico del profile file es el resuelto por
+  `DEVTOOLS_PROFILE_CONFIG`.
+- `${vendor_dir}/.git-acprc` debe considerarse compatibilidad o fallback, no
+  fuente principal del contrato.
+- `step-04-profile.sh` no debe decidir la política del path; solo debe escribir
+  en el path ya resuelto.
+- Si existe marker de setup y no se fuerza reparación, el flujo debe evitar el
+  setup completo y preferir verificación.
+- Si no hay TTY, el flujo debe evitar interacción y degradar con seguridad.
+- El bootstrap no debe depender de README ni de documentación para funcionar.
+- Los flujos de `apps`, `promote`, `acp` y similares quedan fuera del contrato
+  principal de `bootstrap.devbox-shell`.
+
+### Failure modes
+
+Los fallos esperados y su significado son:
+
+- Devbox no encuentra `devbox.json`:
+  el flujo no pertenece al repo actual o no fue lanzado desde el lugar correcto.
+- falta una herramienta crítica del branch activo:
+  el bootstrap no puede garantizar un entorno válido.
+- falla la detección del repo:
+  el wizard no puede validar ni resolver contrato correctamente.
+- falla autenticación de `gh` en modo verificación:
+  el entorno existe, pero el setup operativo no está sano.
+- falla la prueba SSH en modo verificación:
+  el entorno existe, pero la identidad o conectividad requerida no está sana.
+- el profile file resuelto es inválido o queda vacío:
+  el flujo puede caer a fallback, pero eso debe tratarse como compatibilidad,
+  no como comportamiento ideal.
+- no se encuentra `setup-wizard.sh`:
+  el shell puede cargar parcialmente, pero el contrato de validación queda roto.
+- falta `starship`:
+  no debe romper el flujo; debe existir un fallback de prompt.
+- falta TTY:
+  no debe romper el flujo; debe entrar en ruta no interactiva segura.
+
+### No-goals
+
+Este flujo no es responsable de:
+
+- ejecutar `apps sync`
+- ejecutar `git-promote`, `git-acp` o workflows derivados
+- garantizar que el setup completo se repita en cada entrada al shell
+- decidir políticas de negocio de apps o despliegue
+- limpiar o eliminar automáticamente compatibilidades heredadas
+- reescribir contrato, README o tests por sí mismo
+- corregir drift histórico fuera del bootstrap inmediato
+
+### Ejemplos
+
+#### Ejemplo 1: entrada normal con setup ya existente
+El usuario entra al repo y ejecuta `devbox shell`.
+
+Resultado esperado:
+- Devbox carga paquetes y entorno
+- el hook del repo corre
+- se resuelve el workspace root
+- se detecta marker de setup
+- el wizard toma ruta `verify-only`
+- se validan GH y SSH
+- el shell queda listo con PATH, prompt y ayudas cargadas
+
+#### Ejemplo 2: entrada sin TTY
+El flujo es activado en un contexto no interactivo.
+
+Resultado esperado:
+- no se intenta selector interactivo de rol
+- el wizard no toma ruta full interactiva
+- se degrada a verificación o ruta segura equivalente
+- el flujo falla solo si faltan dependencias críticas de esa ruta segura
+
+#### Ejemplo 3: ausencia de Starship
+El usuario ejecuta `devbox shell` pero `starship` no está disponible.
+
+Resultado esperado:
+- el flujo no debe abortar
+- debe aplicar un fallback razonable a `PROMPT` o `PS1`
+
+#### Ejemplo 4: profile file canónico no resolvible
+El contrato no logra resolver un `DEVTOOLS_PROFILE_CONFIG` válido.
+
+Resultado esperado:
+- el código puede caer a `${vendor_dir}/.git-acprc`
+- esa caída debe entenderse como compatibilidad/fallback
+- no debe redefinir el contrato canónico del flujo
+
+### Acceptance candidates
+
+Estas afirmaciones deberían convertirse luego en validaciones Bats o checks
+equivalentes:
+
+- `devbox.json` define el bootstrap principal del flujo.
+- el flujo contiene un `shell.init_hook` activo.
+- el bootstrap resuelve el `root` real antes de cargar paths persistentes.
+- el wizard entra en `verify-only` si existe marker y no hay `--force`.
+- el wizard también degrada a verificación si no hay TTY.
+- el path canónico del profile file se toma de `DEVTOOLS_PROFILE_CONFIG`.
+- `${vendor_dir}/.git-acprc` es tratado como compatibilidad heredada.
+- `step-04-profile.sh` escribe en el path recibido, no decide el path canónico.
+- la ausencia de `starship` no rompe el shell.
+- `apps sync`, `promote` y `acp` no forman parte del contrato principal de este
+  flujo.
+
+### Preguntas abiertas
+
+Todavía quedan abiertas estas preguntas antes de pasar a `spec-anchored`:
+
+- qué valor concreto resuelve hoy el contrato de este repo para
+  `DEVTOOLS_PROFILE_CONFIG`
+- en qué escenarios reales del repo sigue activándose el fallback a
+  `${vendor_dir}/.git-acprc`
+- qué peso real tiene el hook de Poetry en el bootstrap observable
+- si la lógica de submódulo sigue siendo necesaria o solo defensiva
+- cuál es el mínimo conjunto de side effects persistentes aceptables para este
+  flujo
+- si el wizard debería seguir siendo parte obligatoria del bootstrap o pasar a
+  una responsabilidad separada en el futuro
+
+### Promotion gate to spec-anchored
+
+Para promover este flujo a `spec-anchored`, todavía falta:
+
+- mapear cada parte del contrato a archivos y funciones concretas
+- separar explícitamente:
+  - bootstrap Devbox
+  - bootstrap del repo
+  - validación de setup
+  - compatibilidad heredada
+- ubicar el punto exacto donde se impone `DEVTOOLS_PROFILE_CONFIG`
+- ubicar el punto exacto donde el vendor profile entra como fallback
+- decidir qué side effects persistentes son parte aceptada del contrato y cuáles
+  deben quedar marcados como drift o deuda
 
 ## 3. Spec-anchored
+
+### Code anchors
+
+#### `devbox.json`
+Rol:
+- fuente primaria de configuración del flujo
+- define paquetes, variables `env`, `shell.init_hook` y scripts auxiliares
+
+Responsabilidad dentro del contrato:
+- declarar el bootstrap local del repo
+- fijar las variables de entorno visibles al usuario
+- definir la secuencia principal del hook
+- decidir la existencia de ramas como:
+  - chequeo de versión
+  - resolución de root
+  - carga de aliases efímeros
+  - invocación del wizard
+  - selector de rol
+  - configuración del prompt
+
+#### `.devbox/gen/scripts/.hooks.sh`
+Rol:
+- artefacto generado por Devbox para este workspace
+
+Responsabilidad dentro del contrato:
+- mostrar el hook efectivo materializado para la sesión real
+- servir como evidencia de cómo Devbox expande y ejecuta el `shell.init_hook`
+- reflejar que el bootstrap observable no vive solo en `devbox.json`, sino en el hook generado que Devbox usa en runtime
+
+Límite:
+- no es la fuente conceptual principal del contrato
+- es evidencia de runtime generado, no la definición autoritativa del comportamiento del repo
+
+#### `bin/setup-wizard.sh`
+Rol:
+- gatekeeper operativo del setup local
+
+Responsabilidad dentro del contrato:
+- resolver el `REAL_ROOT`
+- cargar contrato antes de tomar decisiones de path
+- resolver `VENDOR_DIR`, `PROFILE_CONFIG_FILE` y `MARKER_FILE`
+- degradar a `verify-only` cuando:
+  - no hay TTY
+  - existe marker y no hay `--force`
+- ejecutar el fast path de verificación
+- ejecutar el full path solo cuando corresponde
+
+#### `lib/core/contract.sh`
+Rol:
+- núcleo de resolución contractual del repo
+
+Responsabilidad dentro del contrato:
+- resolver `DEVTOOLS_PROFILE_CONFIG`
+- resolver `vendor_dir`
+- distinguir path canónico vs defaults/legacy
+- normalizar paths y vaciarlos cuando no son válidos
+- exponer funciones accessor que otros módulos usan sin reimplementar la lógica contractual
+
+#### `lib/wizard/step-04-profile.sh`
+Rol:
+- escritor del profile file ya resuelto
+
+Responsabilidad dentro del contrato:
+- operar sobre `DEVTOOLS_WIZARD_RC_FILE`
+- crear o actualizar el archivo de perfil en el path recibido
+- no decidir política de ubicación
+- no redefinir el path canónico
+- no sincronizar root-profile y vendor-profile
+
+### Mapeo del camino feliz
+
+#### Paso 1: entrada al flujo
+Archivo:
+- `devbox.json`
+
+Anclaje:
+- el flujo parte externamente desde `devbox shell`
+- localmente, el repo se ancla en `devbox.json`
+
+Contrato que sostiene:
+- `devbox.json` es la fuente primaria del bootstrap del repo
+
+#### Paso 2: materialización del hook
+Archivo:
+- `.devbox/gen/scripts/.hooks.sh`
+
+Anclaje:
+- Devbox genera un script de hook efectivo para el workspace
+
+Contrato que sostiene:
+- el bootstrap observable del shell pasa por el hook generado
+- el `shell.init_hook` realmente entra en ejecución como parte del flujo
+
+#### Paso 3: bootstrap inicial del repo
+Archivo:
+- `devbox.json`
+
+Anclaje:
+- bloque `shell.init_hook`
+
+Contrato que sostiene:
+- resolver `root`
+- preparar `DT_ROOT` y `DT_BIN`
+- exportar `PATH`
+- preparar señales visibles de estado
+- iniciar la lógica propia del repo antes del prompt final
+
+#### Paso 4: entrada al wizard
+Archivo:
+- `bin/setup-wizard.sh`
+
+Anclaje:
+- el hook llama a `setup-wizard.sh`
+
+Contrato que sostiene:
+- el wizard sí forma parte del bootstrap actual del repo
+- no es un flujo separado del todo; hoy está embebido en el bootstrap
+
+#### Paso 5: resolución contractual
+Archivo:
+- `bin/setup-wizard.sh`
+- `lib/core/contract.sh`
+
+Anclaje:
+- `setup-wizard.sh` llama `devtools_load_contract "$REAL_ROOT"`
+- luego obtiene `PROFILE_CONFIG_FILE` con `devtools_profile_config_file`
+
+Contrato que sostiene:
+- el path canónico del profile file no se inventa localmente en el wizard
+- se obtiene desde la capa de contrato
+
+#### Paso 6: decisión sobre marker y modo de ejecución
+Archivo:
+- `bin/setup-wizard.sh`
+
+Anclaje:
+- cálculo de `MARKER_FILE`
+- branch `VERIFY_ONLY`
+
+Contrato que sostiene:
+- si ya existe marker y no hay `--force`, el flujo debe preferir verificación
+- si no hay TTY, el flujo debe degradar de forma segura
+
+#### Paso 7: fallback de profile path
+Archivo:
+- `bin/setup-wizard.sh`
+- `lib/core/contract.sh`
+
+Anclaje:
+- si `devtools_profile_config_file` queda vacío, el wizard cae a `${VENDOR_DIR_ABS}/.git-acprc`
+- `contract.sh` reconoce explícitamente defaults/legacy compatibles
+
+Contrato que sostiene:
+- el fallback existe
+- pero el fallback no redefine el path canónico del contrato
+
+#### Paso 8: escritura del profile file
+Archivo:
+- `lib/wizard/step-04-profile.sh`
+
+Anclaje:
+- usa `DEVTOOLS_WIZARD_RC_FILE`
+- si no está seteado, cae a `.git-acprc`
+
+Contrato que sostiene:
+- este módulo escribe en el path recibido
+- no elige el path canónico
+- no resuelve drift entre root y vendor dir
+
+#### Paso 9: cierre del shell
+Archivo:
+- `devbox.json`
+- `.devbox/gen/scripts/.hooks.sh`
+
+Anclaje:
+- selector de rol, `DEVBOX_ENV_NAME`, `devx()`, starship o fallback de prompt
+
+Contrato que sostiene:
+- el shell final debe quedar utilizable
+- el prompt no debe ser requisito duro
+- la experiencia interactiva depende de TTY y de herramientas disponibles
+
+### Mapeo de ramas
+
+#### Rama A: root resolution
+Archivos:
+- `devbox.json`
+- `bin/setup-wizard.sh`
+
+Qué rama modela:
+- uso de `git rev-parse` o fallback a `pwd`
+- detección del workspace real antes de decidir paths
+
+Impacto contractual:
+- el bootstrap debe operar sobre el root correcto antes de tocar contrato, marker o profile file
+
+#### Rama B: marker presente
+Archivo:
+- `bin/setup-wizard.sh`
+
+Qué rama modela:
+- si existe `MARKER_FILE` y no hay `--force`, entra en `verify-only`
+
+Impacto contractual:
+- el setup completo no debe repetirse innecesariamente
+
+#### Rama C: no TTY
+Archivo:
+- `bin/setup-wizard.sh`
+
+Qué rama modela:
+- degradación automática a `verify-only`
+
+Impacto contractual:
+- el flujo debe funcionar de forma segura en contexto no interactivo
+
+#### Rama D: profile file canónico resuelto
+Archivo:
+- `lib/core/contract.sh`
+
+Qué rama modela:
+- `DEVTOOLS_PROFILE_CONFIG` queda con un path válido después de cargar contrato
+
+Impacto contractual:
+- ese path es el canónico del flujo
+
+#### Rama E: profile file vacío o inválido
+Archivos:
+- `lib/core/contract.sh`
+- `bin/setup-wizard.sh`
+
+Qué rama modela:
+- `DEVTOOLS_PROFILE_CONFIG` queda vacío
+- el wizard cae a `${VENDOR_DIR_ABS}/.git-acprc`
+
+Impacto contractual:
+- entra en juego compatibilidad heredada
+- no cambia el contrato canónico
+
+#### Rama F: Starship disponible / no disponible
+Archivos:
+- `devbox.json`
+- `.devbox/gen/scripts/.hooks.sh`
+
+Qué rama modela:
+- inicialización de Starship o fallback a `PROMPT/PS1`
+
+Impacto contractual:
+- la personalización del prompt es opcional
+- el shell no debe fallar por ausencia de Starship
+
+#### Rama G: selector de rol interactivo
+Archivos:
+- `devbox.json`
+- `.devbox/gen/scripts/.hooks.sh`
+
+Qué rama modela:
+- si hay TTY, se pregunta rol
+- si no hay TTY, esa interacción no ocurre
+
+Impacto contractual:
+- la interacción mejora la UX, pero no define el núcleo funcional del bootstrap
+
+### Drift notes
+
+#### Drift 1: canónico vs estado observado
+- El contrato apunta a un path canónico resuelto por `DEVTOOLS_PROFILE_CONFIG`.
+- El workspace observado contiene `.devtools/.git-acprc`.
+- Esto no contradice el código: el vendor profile sigue existiendo como fallback/compatibilidad explícita.
+
+#### Drift 2: path contractual vs path persistido local
+- `step-04-profile.sh` no corrige ni migra automáticamente entre root-profile y vendor-profile.
+- Por eso puede persistir estado heredado aunque el contrato apunte a un path más canónico.
+
+#### Drift 3: bootstrap efímero vs side effects persistentes
+- El flujo parece “de shell”, pero hoy incorpora efectos persistentes potenciales:
+  - marker file
+  - profile file
+  - posibles cambios en Git local
+  - posible update/sync de `.devtools`
+- Eso indica que el bootstrap actual mezcla entorno efímero con setup persistente.
+
+#### Drift 4: submódulo / vendor dir
+- El hook contiene lógica defensiva de submódulo y búsqueda múltiple de scripts.
+- En este repo esa parte no quedó plenamente justificada como núcleo del flujo.
+- Hoy debe tratarse como zona defensiva o compatibilidad, no como centro del contrato.
+
+### Legacy seams
+
+#### Seam 1: root profile vs vendor profile
+Archivos:
+- `lib/core/contract.sh`
+- `bin/setup-wizard.sh`
+- `lib/wizard/step-04-profile.sh`
+
+Descripción:
+- el código admite convivencia entre `.git-acprc` y `${vendor_dir}/.git-acprc`
+- `contract.sh` marca el vendor profile como legacy/default compatible
+- el wizard y `step-04` no eliminan ni migran automáticamente esa convivencia
+
+Estado:
+- compatibilidad heredada explícita
+- no simple sospecha
+
+#### Seam 2: fallback contractual
+Archivos:
+- `lib/core/contract.sh`
+- `bin/setup-wizard.sh`
+
+Descripción:
+- si el profile path canónico queda vacío, el wizard cae al vendor dir
+- este seam mantiene el flujo operativo aun cuando la resolución canónica no domina
+
+Estado:
+- fallback vivo
+- posible deuda de simplificación futura
+
+#### Seam 3: lógica de submódulo
+Archivos:
+- `devbox.json`
+- `.devbox/gen/scripts/.hooks.sh`
+
+Descripción:
+- el bootstrap intenta sync/update de `.devtools` como si ese componente pudiera venir de submódulo o layout heredado
+
+Estado:
+- seam defensivo
+- todavía no confirmado como estrictamente necesario en este repo
+
+### Estado de validación
+
+#### Validado con evidencia fuerte
+- `devbox.json` es la fuente primaria del bootstrap
+- existe `shell.init_hook`
+- Devbox materializa ese hook en `.devbox/gen/scripts/.hooks.sh`
+- `setup-wizard.sh` forma parte del flujo real
+- `setup-wizard.sh` resuelve contrato antes de elegir profile file
+- existe branch `verify-only`
+- existe degradación por no TTY
+- `${vendor_dir}/.git-acprc` está codificado como compatibilidad/fallback
+- `step-04-profile.sh` escribe en el path recibido y no decide la política del path
+
+#### Validado parcialmente
+- el peso exacto del hook de Poetry en el bootstrap observable
+- la necesidad real de la lógica de submódulo en este repo
+- el branch operativo dominante en distintos workspaces, no solo en este checkout
+
+#### Aún no validado del todo
+- si el path contractual concreto de este repo hoy resuelve a raíz o a vendor dir en todos los escenarios
+- cuáles side effects persistentes deben considerarse aceptados por contrato y cuáles deberían quedar como drift
+
+### Refactor safety notes
+
+Si este flujo cambia en el futuro, no se debería romper lo siguiente:
+
+- `devbox.json` debe seguir siendo el punto primario de bootstrap local
+- el `root` real debe resolverse antes de cargar contrato o paths persistentes
+- `DEVTOOLS_PROFILE_CONFIG` debe seguir siendo la referencia canónica del profile file
+- `${vendor_dir}/.git-acprc` no debe reaparecer como path “principal” sin documentarlo explícitamente
+- `step-04-profile.sh` no debe absorber lógica contractual que hoy pertenece a `contract.sh`
+- la degradación segura a `verify-only` por marker o ausencia de TTY no debe perderse
+- la ausencia de Starship no debe romper el shell
+- el bootstrap no debe empezar a depender de flujos ajenos como `apps sync` o `promote`
+
+### Promotion gate to spec-as-source
+
+Para promover este flujo a `spec-as-source`, todavía falta:
+
+- convertir este mapeo en contrato autoritativo breve y estable
+- decidir qué side effects persistentes quedan oficialmente aceptados
+- marcar explícitamente qué ramas son soporte y cuáles son deuda/compatibilidad
+- conectar acceptance candidates con tests Bats
+- definir si el wizard sigue siendo parte intrínseca del bootstrap o si en el futuro debería separarse como flujo adyacente
+- dejar asentado cuál es el path contractual concreto esperado para este repo en estado sano
 
 No iniciado.
 
