@@ -1,18 +1,18 @@
-
-
 # Método de trabajo para analizar flujos
 
-Esta sección sirve para documentar un flujo real del proyecto mientras se inspecciona con editor, terminal o Codex.
+Esta guía sirve para documentar **un flujo real** dentro de cualquier repositorio mientras lo inspeccionas con editor, terminal, logs, debugger o una herramienta de ayuda como Codex.
 
-**Objetivo del método:**
+## Objetivo del método
 
 * entender un flujo concreto sin tener que entender todo el repositorio;
 * identificar entrypoints, decisiones, side effects y archivos relevantes;
-* detectar ruido, código heredado o zonas que no participan en el flujo;
-* dejar una ficha reutilizable para otros repositorios.
+* separar núcleo, soporte y ruido;
+* detectar posibles zonas legacy o ramas que ya no participan en el flujo;
+* dejar una ficha reutilizable para futuras revisiones.
 
-**Regla principal:**
-analizar **un flujo a la vez**.
+## Regla principal
+
+Analiza **un flujo a la vez**.
 
 ---
 
@@ -21,11 +21,13 @@ analizar **un flujo a la vez**.
 ## Metadatos del flujo
 
 * **Repositorio:**
+* **Tipo de proyecto:** CLI / API / frontend / worker / monorepo / librería / script / otro
 * **Fecha:**
 * **Autor de la revisión:**
 * **Nombre del flujo:**
 * **Pregunta principal que quiero responder:**
-* **Comando o entrada real del usuario:**
+* **Entrada real del usuario o trigger real:**
+* **Entorno revisado:** local / dev / staging / CI / producción / lectura estática
 * **Nivel de confianza actual:** bajo / medio / alto
 
 ---
@@ -34,7 +36,7 @@ analizar **un flujo a la vez**.
 
 ### Propósito
 
-Definir exactamente qué flujo se quiere entender y qué se espera obtener al terminar.
+Definir exactamente qué flujo quieres entender y qué necesitas poder explicar al terminar.
 
 ### Plantilla
 
@@ -62,26 +64,30 @@ Encontrar por dónde entra el control al sistema para este flujo.
 
 * **Entry point probable:**
 * **Archivo del entrypoint:**
-* **Función del entrypoint:**
-* **Comando o trigger que lo activa:**
+* **Función, handler, ruta o comando inicial:**
+* **Trigger que lo activa:**
 * **Cómo confirmé que este es el entrypoint:**
-* **Archivos candidatos alternativos que descarté:**
+* **Candidatos alternativos que descarté:**
 
 ### Señales a buscar
 
 * `main()`
+* handlers HTTP
+* controladores
+* routers
 * `case`
 * `dispatch`
 * `source`
 * `exec`
 * subcomandos
-* scripts en `bin/`
-* tareas o aliases en `Taskfile`, `Makefile`, scripts CI
+* jobs o consumers
+* scripts en `bin/` o `scripts/`
+* tareas en `Makefile`, `Taskfile`, `package.json`, CI/CD, cron, workers, colas, hooks
 
 ### Resultado esperado de esta fase
 
 * un entrypoint principal;
-* 2–5 archivos iniciales a revisar.
+* entre 2 y 5 archivos iniciales a revisar.
 
 ---
 
@@ -95,20 +101,24 @@ Identificar los archivos esenciales del flujo antes de entrar a detalles.
 
 * **Archivo 1:**
 
-  * rol: entrypoint / dispatcher / lógica / config / helper / side effect
+  * rol: entrypoint / router / controller / service / use case / config / helper / side effect
   * por qué entra en el flujo:
+
 * **Archivo 2:**
 
   * rol:
   * por qué entra en el flujo:
+
 * **Archivo 3:**
 
   * rol:
   * por qué entra en el flujo:
+
 * **Archivo 4:**
 
   * rol:
   * por qué entra en el flujo:
+
 * **Archivo 5:**
 
   * rol:
@@ -117,9 +127,10 @@ Identificar los archivos esenciales del flujo antes de entrar a detalles.
 ### Preguntas guía
 
 * ¿este archivo decide algo?
-* ¿este archivo solo redirige?
+* ¿este archivo solo enruta o delega?
 * ¿este archivo transforma datos?
-* ¿este archivo toca red, disco, git, docker, k8s, etc.?
+* ¿este archivo valida entrada?
+* ¿este archivo accede a red, disco, base de datos, colas, caché o procesos externos?
 * ¿este archivo parece ser solo soporte?
 
 ### Resultado esperado de esta fase
@@ -143,31 +154,31 @@ Reconstruir la secuencia principal de ejecución sin meterse todavía en ramas r
 * **Paso 1:**
 
   * archivo:
-  * función:
+  * función / método / handler:
   * qué hace:
 
 * **Paso 2:**
 
   * archivo:
-  * función:
+  * función / método / handler:
   * qué hace:
 
 * **Paso 3:**
 
   * archivo:
-  * función:
+  * función / método / handler:
   * qué hace:
 
 * **Paso 4:**
 
   * archivo:
-  * función:
+  * función / método / handler:
   * qué hace:
 
 * **Paso 5:**
 
   * archivo:
-  * función:
+  * función / método / handler:
   * qué hace:
 
 ### Decisiones importantes en el camino feliz
@@ -176,18 +187,28 @@ Reconstruir la secuencia principal de ejecución sin meterse todavía en ramas r
 * **Decisión 2:**
 * **Decisión 3:**
 
+### Datos que entran y salen
+
+* **Input principal del flujo:**
+* **Transformaciones importantes:**
+* **Output esperado:**
+* **Estado persistido o publicado:**
+
 ### Side effects observados
 
 * **Filesystem:**
-* **Git:**
-* **Red:**
+* **Base de datos:**
+* **Red / APIs externas:**
+* **Colas / eventos / mensajería:**
 * **Procesos externos:**
+* **Logs / métricas / tracing:**
 * **Variables de entorno relevantes:**
 
 ### Resultado esperado de esta fase
 
 * un flujo principal claro;
-* lista de decisiones y side effects.
+* lista de decisiones y side effects;
+* idea básica del movimiento de datos.
 
 ---
 
@@ -204,17 +225,19 @@ Separar lo esencial de lo accesorio.
 * **Archivos que parecen ruido para este flujo:**
 * **Funciones que parecen wrappers o duplicaciones:**
 * **Compatibilidades heredadas detectadas:**
+* **Configuraciones que influyen pero no explican el flujo:**
 * **Documentación que no coincide con el código:**
-* **Sospechas de legacy (sin afirmar todavía):**
+* **Sospechas de legacy, sin afirmarlo todavía:**
 
 ### Señales típicas
 
 * funciones nunca usadas en el flujo revisado;
-* helpers enormes de los que solo se usan 1–2 funciones;
+* helpers enormes de los que solo se usan 1 o 2 funciones;
 * varias formas de hacer lo mismo;
-* nombres legacy;
-* “fallbacks” que ya parecen camino principal;
-* ramas documentadas que no coinciden con el comportamiento actual.
+* nombres que sugieren transición o compatibilidad;
+* fallbacks que parecen haberse vuelto el camino principal;
+* ramas documentadas que no coinciden con el comportamiento actual;
+* código marcado como temporal que sigue siendo crítico.
 
 ### Resultado esperado de esta fase
 
@@ -227,12 +250,12 @@ Separar lo esencial de lo accesorio.
 
 ### Propósito
 
-Confirmar que el flujo reconstruido existe de verdad en runtime.
+Confirmar que el flujo reconstruido existe de verdad en runtime o al menos en ejecución controlada.
 
 ### Plantilla
 
-* **Comando de validación usado:**
-* **Modo seguro usado:** dry-run / help / test / lectura de logs / otro
+* **Comando, request, evento o prueba de validación usada:**
+* **Modo seguro usado:** dry-run / help / verbose / entorno local / test / lectura de logs / mock / inspección estática
 * **Salida observada:**
 * **Coincide con el flujo trazado:** sí / no / parcialmente
 * **Qué parte quedó confirmada:**
@@ -242,11 +265,14 @@ Confirmar que el flujo reconstruido existe de verdad en runtime.
 ### Ejemplos de validación segura
 
 * `--help`
-* `DEVTOOLS_DRY_RUN=1 ...`
+* `--dry-run`
 * tests existentes
 * modo verbose
-* lectura de logs
-* inspección de archivos temporales o stdout/stderr
+* inspección de logs
+* ejecución con mocks
+* llamada local contra entorno controlado
+* lectura de stdout/stderr
+* inspección de archivos temporales o registros de auditoría
 
 ### Resultado esperado de esta fase
 
@@ -266,9 +292,10 @@ Dejar una ficha corta, útil y reutilizable.
 * **Nombre del flujo:**
 * **Entry point real:**
 * **Secuencia principal:**
-* **Archivo/funcción que toma la primera decisión fuerte:**
+* **Archivo o función que toma la primera decisión fuerte:**
 * **Archivos esenciales:**
 * **Archivos de soporte:**
+* **Dependencias externas involucradas:**
 * **Side effects principales:**
 * **Variables de entorno relevantes:**
 * **Errores o branches importantes:**
@@ -276,21 +303,22 @@ Dejar una ficha corta, útil y reutilizable.
 * **Sospecha de legacy:**
 * **Qué entendí bien:**
 * **Qué no entendí aún:**
-* **Siguiente archivo o branch a revisar:**
+* **Siguiente archivo, branch o ejecución a revisar:**
 
 ---
 
 # Plantilla rápida de una sola página
 
-Usar esta versión cuando se quiera una revisión express.
+Úsala cuando quieras una revisión express.
 
 ## Ficha rápida de flujo
 
 * **Flujo:**
 * **Entry point:**
-* **Comando real:**
+* **Entrada real o trigger real:**
 * **Camino feliz:**
 * **Primera decisión importante:**
+* **Datos que entran y salen:**
 * **Side effects:**
 * **Archivos esenciales:**
 * **Archivos que puedo ignorar por ahora:**
@@ -300,9 +328,9 @@ Usar esta versión cuando se quiera una revisión express.
 
 ---
 
-# Cómo usar esta plantilla con Codex
+# Cómo usar esta plantilla con Codex o con otra IA
 
-Prompt recomendado:
+## Prompt inicial recomendado
 
 ```text
 No quiero cambios de código.
@@ -316,12 +344,12 @@ Flujo objetivo: [poner aquí el flujo]
 Dime:
 1. entrypoint más probable
 2. 3 a 5 archivos clave
-3. función central
+3. función o módulo central
 4. side effects esperados
 5. qué puedo ignorar por ahora
 ```
 
-Prompt para continuar:
+## Prompt para continuar la revisión
 
 ```text
 No implementes nada.
@@ -337,32 +365,79 @@ Con base en eso:
 3. dime qué archivo debo abrir ahora
 ```
 
+## Prompt para validar hipótesis
+
+```text
+No cambies código.
+
+Esta es mi hipótesis del flujo:
+[pegar secuencia]
+
+Quiero que me digas:
+1. qué parte parece correcta
+2. qué parte no está sustentada todavía
+3. qué ejecución segura o lectura puntual me confirmaría el siguiente paso
+```
+
 ---
 
-# Notas de revisión para este repositorio
+# Registro de flujos candidatos
+
+Usa esta parte para tener pendientes dentro de cualquier repo.
 
 ## Flujo candidato 1
 
-* **Nombre:** `devtools apps sync`
-* **Entrada:** `bin/devtools apps sync`
+* **Nombre:**
+* **Entrada o trigger:**
 * **Estado de revisión:** pendiente / en curso / revisado
 
 ## Flujo candidato 2
 
-* **Nombre:** `git-promote`
-* **Entrada:** `bin/git-promote.sh`
+* **Nombre:**
+* **Entrada o trigger:**
 * **Estado de revisión:** pendiente / en curso / revisado
 
 ## Flujo candidato 3
 
-* **Nombre:** `git-acp + post-push`
-* **Entrada:** `bin/git-acp.sh`
+* **Nombre:**
+* **Entrada o trigger:**
 * **Estado de revisión:** pendiente / en curso / revisado
 
-```
+## Flujo candidato 4
 
-Si quieres, te lo puedo devolver en una segunda pasada ya **adaptado a `ihh-devtools`**, con secciones prellenadas para:
-- `devtools apps sync`
-- `git-promote`
-- `git-acp`
-```
+* **Nombre:**
+* **Entrada o trigger:**
+* **Estado de revisión:** pendiente / en curso / revisado
+
+---
+
+# Criterios prácticos para que siga siendo genérica
+
+## Qué sí meter
+
+* entrypoint real;
+* camino feliz;
+* decisiones clave;
+* side effects;
+* archivos esenciales;
+* cosas que puedes ignorar por ahora.
+
+## Qué no meter demasiado pronto
+
+* arquitectura completa del repo;
+* todas las dependencias;
+* toda la jerarquía de carpetas;
+* ramas raras no confirmadas;
+* refactors o soluciones antes de entender el flujo.
+
+---
+
+# Idea base del método
+
+La idea no es entender todo el sistema.
+La idea es poder responder bien esta pregunta:
+
+**“Cuando pasa X, ¿por dónde entra, qué decide, qué toca y dónde termina?”**
+
+---
+
