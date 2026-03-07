@@ -10,17 +10,18 @@
 ## Metadatos del flujo
 
 - Repositorio: ihh-devtools
-- Fecha:
-- Autor de la revisión:
+- Fecha: 2026-03-06
+- Autor de la revisión: reydem
 - Nombre del flujo: bootstrap.devbox-shell
 - Pregunta principal que quiero responder: ¿Qué hace realmente `devbox shell` en este repo y cuáles son sus efectos reales sobre el entorno?
 - Comando o entrada real del usuario: `devbox shell`
-- Nivel de confianza actual: bajo
+- Nivel de confianza actual: alto
 
 ## Objetivo
 
-Entender el flujo de bootstrap del entorno que comienza con `devbox shell`
-y promoverlo gradualmente por las cuatro etapas de madurez.
+Documentar y fijar el contrato canónico del flujo de bootstrap del entorno que
+comienza con `devbox shell`, dejando explícitos su entrypoint real, sus
+side effects aceptados, sus compatibilidades heredadas y su validación mínima.
 
 ## 1. Discovery
 
@@ -322,9 +323,10 @@ Sí hay una deriva observable entre contrato y estado persistido real del perfil
 
 #### Sospechas de legacy
 - La lógica de submódulos sigue pareciendo defensiva o heredada, pero aún no está cerrada del todo.
-- En cambio, la convivencia entre `.git-acprc` y `.devtools/.git-acprc` ya no es solo sospecha:
+- La convivencia entre `.git-acprc` y `.devtools/.git-acprc` ya no es sospecha:
   hay compatibilidad heredada explícita en `contract.sh`.
-- Lo que sigue abierto no es si existe esa compatibilidad, sino cuál path domina efectivamente en este repo y por qué.
+- En estado sano del repo, el path canónico esperado sigue siendo `.git-acprc`
+  en raíz; el path en vendor dir queda como fallback operativo heredado.
 
 ### Minuto 35–40: valida con una ejecución segura
 
@@ -454,6 +456,11 @@ o si quedó como fallback de compatibilidad.
 - si ese estado vino de una corrida vieja del wizard, de fallback activo o de una transición incompleta
 - en qué escenarios reales del repo sigue activándose el fallback a `${vendor_dir}/.git-acprc`
 
+#### Qué queda como investigación residual
+- por qué el workspace observado persistió en `.devtools/.git-acprc`
+- si ese estado proviene de una corrida vieja del wizard, de fallback activo o de una transición incompleta
+- en qué escenarios reales del repo sigue activándose el fallback a `${vendor_dir}/.git-acprc`
+
 #### Siguiente archivo o branch a revisar
 `bin/setup-wizard.sh`, centrado en:
 - branch `--verify-only`
@@ -488,7 +495,7 @@ o si quedó como fallback de compatibilidad.
 
 ### Promotion gate to spec-first
 
-Antes de promover a `spec-first`, falta cerrar estas dudas:
+Cerrado:
 - confirmar cómo decide el wizard entre verify-only y setup completo
 - confirmar cómo resuelve realmente el profile file esperado
 - separar explícitamente qué parte del flujo pertenece a Devbox/Nix y qué parte pertenece al repo
@@ -697,31 +704,21 @@ equivalentes:
 
 ### Preguntas abiertas
 
-Todavía quedan abiertas estas preguntas antes de pasar a `spec-anchored`:
+Todavía quedan abiertas estas preguntas residuales:
 
 - en qué escenarios reales del repo sigue activándose el fallback a
   `${vendor_dir}/.git-acprc`
 - qué peso real tiene el hook de Poetry en el bootstrap observable
 - si la lógica de submódulo sigue siendo necesaria o solo defensiva
-- cuál es el mínimo conjunto de side effects persistentes aceptables para este
-  flujo
-- si el wizard debería seguir siendo parte obligatoria del bootstrap o pasar a
-  una responsabilidad separada en el futuro
 
 ### Promotion gate to spec-anchored
 
-Para promover este flujo a `spec-anchored`, todavía falta:
-
-- mapear cada parte del contrato a archivos y funciones concretas
-- separar explícitamente:
-  - bootstrap Devbox
-  - bootstrap del repo
-  - validación de setup
-  - compatibilidad heredada
-- ubicar el punto exacto donde se impone `DEVTOOLS_PROFILE_CONFIG`
-- ubicar el punto exacto donde el vendor profile entra como fallback
-- decidir qué side effects persistentes son parte aceptada del contrato y cuáles
-  deben quedar marcados como drift o deuda
+Cerrado:
+- se mapeó el contrato a archivos y funciones concretas
+- se separó bootstrap Devbox, bootstrap del repo, validación de setup y compatibilidad heredada
+- se ubicó dónde se impone `DEVTOOLS_PROFILE_CONFIG`
+- se ubicó dónde entra el vendor profile como fallback
+- se clasificaron side effects persistentes entre contrato, soporte y drift
 
 ## 3. Spec-anchored
 
@@ -1103,8 +1100,9 @@ Estado:
 - el branch operativo dominante en distintos workspaces, no solo en este checkout
 
 #### Aún no validado del todo
-- si el path contractual concreto de este repo hoy resuelve a raíz o a vendor dir en todos los escenarios
-- cuáles side effects persistentes deben considerarse aceptados por contrato y cuáles deberían quedar como drift
+- en qué escenarios reales del repo sigue activándose el fallback a vendor profile
+- qué peso real tiene el hook de Poetry en el bootstrap observable
+- qué parte de la lógica de submódulo sigue siendo necesaria en workspaces reale
 
 ### Refactor safety notes
 
@@ -1123,14 +1121,13 @@ Si este flujo cambia en el futuro, no se debería romper lo siguiente:
 
 ### Promotion gate to spec-as-source
 
-Para promover este flujo a `spec-as-source`, todavía falta:
-
-- convertir este mapeo en contrato autoritativo breve y estable
-- cerrado: la persistencia estable aceptada se limita a `.git-acprc` en raíz y `.devtools/.setup_completed`
-- marcar explícitamente qué ramas son soporte y cuáles son deuda/compatibilidad
-- conectar acceptance candidates con tests Bats
-- cerrado: el wizard sigue siendo parte intrínseca del bootstrap actual, como gatekeeper de fallo blando
-- cerrado: el path contractual sano esperado es `${repo_root}/.git-acprc`
+Cerrado:
+- el mapeo fue condensado en contrato canónico breve y estable
+- la persistencia estable aceptada se limita a `.git-acprc` en raíz y `.devtools/.setup_completed`
+- las ramas de soporte y compatibilidad quedaron clasificadas
+- los acceptance candidates quedaron conectados con `tests/bootstrap_devbox_shell.bats`
+- el wizard quedó fijado como parte intrínseca del bootstrap actual, con fallo blando
+- el path contractual sano esperado quedó fijado en `${repo_root}/.git-acprc`
 
 ## 4. Spec-as-source
 
