@@ -128,7 +128,7 @@ y materializado por Devbox en `.devbox/gen/scripts/.hooks.sh`.
 ### Minuto 20–30: traza el camino feliz
 
 #### Secuencia principal del flujo
-`devbox shell -> devbox.json(shell.init_hook) -> .devbox/gen/scripts/.hooks.sh -> hook de Poetry -> resolución de root/.devtools -> sync/update defensivo de submódulo -> aviso de versión -> PATH + aliases efímeros Git -> setup-wizard.sh (--verify-only probable) -> mensajes de bienvenida -> selección de rol (si TTY) -> starship/prompt`
+`devbox shell -> devbox.json(shell.init_hook) -> .devbox/gen/scripts/.hooks.sh -> hook de Poetry -> resolución de root/.devtools -> sync/update defensivo de submódulo -> aviso de versión -> PATH + aliases efímeros Git -> setup-wizard.sh (verify-only o full path según marker, TTY y flags) -> mensajes de bienvenida -> selección de rol (si TTY) -> starship/prompt`
 
 #### Paso 1
 - archivo: `devbox.json`
@@ -441,8 +441,8 @@ bootstrap.devbox-shell
 
 #### Sospecha de legacy
 La compatibilidad entre `.git-acprc` en raíz y `${vendor_dir}/.git-acprc` está explícitamente codificada.
-Lo que aún falta determinar es si el path en vendor dir sigue siendo ruta viva principal en este repo
-o si quedó como fallback de compatibilidad.
+Lo que sigue abierto no es el path canónico, sino en qué escenarios reales sigue activándose
+el fallback heredado hacia el vendor dir.
 
 #### Qué entendí bien
 - `setup-wizard.sh` intenta respetar el path resuelto por contrato.
