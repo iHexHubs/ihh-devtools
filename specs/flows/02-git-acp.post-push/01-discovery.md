@@ -1,4 +1,3 @@
-################################################
 # Plantilla: discovery
 
 ## Propósito
@@ -13,12 +12,12 @@ Caso específico de este discovery:
 - Trigger real: el usuario ejecuta `git acp "<texto_aquí>"` dentro del entorno `devbox`, desde la ruta `/webapps/ihh-devtools`
 - Pregunta principal: ¿qué hace realmente `git acp "<texto_aquí>"` dentro de `devbox`, por dónde entra, qué decide, qué toca y dónde termina?
 - Frontera del análisis: no explicar Git en general; no analizar aliases, funciones o comandos distintos salvo que sean necesarios para entender `git acp "<texto_aquí>"`; no proponer mejoras, refactors ni implementación; describir únicamente el comportamiento real observado
-- Regla adicional 1: asume desde el inicio que `git acp "<texto_aquí>"` es una resolución de alias y reconstruye su resolución real **local** dentro de `devbox`
+- Regla adicional 1: asume desde el inicio que `git acp "<texto_aquí>"` es una resolución de alias y reconstruye su resolución real local dentro de `devbox`
 - Regla adicional 2: no salgas de la ruta `/webapps/ihh-devtools` ni del entorno `devbox`
 - Regla adicional 3: todo hallazgo debe quedar restringido al comportamiento observable de `git acp "<texto_aquí>"` ejecutado dentro de `devbox` y con cwd en `/webapps/ihh-devtools`
 - Regla adicional 4: si el alias delega a scripts, funciones, wrappers, subcomandos o config externa, síguelos solo mientras sigan siendo parte del flujo efectivo ejecutado desde `/webapps/ihh-devtools` dentro de `devbox`
 - Regla adicional 5: no abras discovery sobre otros repos, otros cwd, otras shells ni otros entornos fuera de `devbox`
-- Regla adicional 6: **no uses como evidencia de resolución local** aliases, configs o scripts globales fuera de `/webapps/ihh-devtools`, por ejemplo:
+- Regla adicional 6: no uses como evidencia de resolución local aliases, configs o scripts globales fuera de `/webapps/ihh-devtools`, por ejemplo:
   - `~/.gitconfig`
   - `~/.config/...`
   - `~/scripts/...`
@@ -99,7 +98,7 @@ Durante toda la fase discovery:
 - no debes proponer ni aceptar validaciones fuera de `devbox`
 - no debes seguir pistas que dependan de otro repo, otro cwd o una shell externa, salvo que aparezcan solo como contexto y sin abandonar el flujo principal
 - si existe configuración de alias en `devbox`, shell rc, scripts del repo o wrappers internos, debes priorizar la resolución efectiva usada desde `/webapps/ihh-devtools` dentro de `devbox`
-- si una pista viene de fuera del repo, solo puedes mencionarla como **descartada por fuera de frontera**, no como base del flujo local
+- si una pista viene de fuera del repo, solo puedes mencionarla como descartada por fuera de frontera, no como base del flujo local
 
 Tu trabajo consiste en avanzar por bloques estrictos y solo promover al siguiente cuando el anterior tenga evidencia suficiente.
 
@@ -405,7 +404,7 @@ Tu salida final de discovery debe rellenar esta plantilla sin inventar nada y de
 Instrucción operativa:
 Usa un identificador corto, estable y específico del flujo. No uses nombres vagos. Si durante el discovery aparece un identificador más preciso, actualízalo y deja constancia del cambio.
 
-**Estado actual:** confirmada
+**Estado:** confirmada
 
 ### Objetivo
 Descubrir el comportamiento real observado del flujo disparado por `git acp "<texto_aquí>"` ejecutado dentro de `devbox` y con cwd en `/webapps/ihh-devtools`, restringiendo el análisis a la resolución local efectiva del repo y descartando alias o scripts globales fuera de frontera.
@@ -413,7 +412,7 @@ Descubrir el comportamiento real observado del flujo disparado por `git acp "<te
 Instrucción operativa:
 Redáctalo en términos observables. No escribas intención futura ni contrato deseado. Debe describir qué intenta conseguir el flujo real según trigger, alias, comandos, handlers y efectos observados.
 
-**Estado actual:** confirmada
+**Estado:** confirmada
 
 ### Entry point
 Comando, alias, script, función o archivo donde empieza el flujo.
@@ -421,14 +420,12 @@ Comando, alias, script, función o archivo donde empieza el flujo.
 Instrucción operativa:
 Se completa después del Bloque 2. Debe quedar ligado a evidencia concreta: alias, path, comando, handler, ruta, main, subcomando, script o caller inicial. Debe reflejar la resolución efectiva local dentro de `devbox`.
 
-**Estado actual:** parcial
+**Estado:** parcial
 
 **Evidencia actual:**
-- `.git/config` local no contiene `alias.acp` ni `include/includeIf`
-- `devbox.json` contiene `shell.init_hook`
-- `devbox.json` prepara aliases efímeros de Git usando `GIT_CONFIG_VALUE_*`
-- esa resolución local busca candidatos dentro del repo
-- el único `git-acp*` local encontrado es `/webapps/ihh-devtools/bin/git-acp.sh`
+- Resolución local descartada en `.git/config`: no hay `alias.acp` local ni includes.
+- Resolución local probable en `devbox.json`: `shell.init_hook` genera alias efímero de Git vía `GIT_CONFIG_VALUE_*`.
+- Primer target local más probable: `/webapps/ihh-devtools/bin/git-acp.sh`.
 
 **Formulación actual:**
 - entrypoint local más probable: alias efímero generado por `devbox.json`
@@ -441,13 +438,13 @@ Cadena ordenada de handoff desde la entrada hacia funciones o archivos más prof
 Instrucción operativa:
 Se completa principalmente con Bloques 3 y 4. Debe listar la cadena real de delegación sin meter todavía ramas raras salvo que afecten de verdad al flujo principal. Mantén la cadena restringida al flujo efectivo observado desde `/webapps/ihh-devtools` dentro de `devbox`.
 
-**Estado actual:** parcial
+**Estado:** parcial
 
 **Cadena actual probable:**
-`git acp "<texto_aquí>"`  
--> `devbox.json` / `shell.init_hook`  
--> alias efímero Git en memoria (`GIT_CONFIG_VALUE_*`)  
--> `/webapps/ihh-devtools/bin/git-acp.sh`  
+`git acp "<texto_aquí>"`
+-> `devbox.json` / `shell.init_hook`
+-> alias efímero Git en memoria (`GIT_CONFIG_VALUE_*`)
+-> `/webapps/ihh-devtools/bin/git-acp.sh`
 -> posible redispatch según `devtools.repo.yaml`
 
 ### Camino feliz
@@ -456,7 +453,10 @@ Ruta normal observada, paso a paso.
 Instrucción operativa:
 Se completa en Bloque 4. Describe la secuencia principal como ejecución real o altamente sustentada. Si hay pasos no demostrados, márquelos como parciales.
 
-**Estado actual:** abierta
+**Estado:** abierta
+
+**Estado actual:**
+- Aún no reconstruido.
 
 ### Ramas importantes
 Flags, variables de entorno, bifurcaciones o rutas alternativas relevantes.
@@ -464,14 +464,14 @@ Flags, variables de entorno, bifurcaciones o rutas alternativas relevantes.
 Instrucción operativa:
 Incluye solo ramas relevantes para entender el flujo de `git acp "<texto_aquí>"` dentro de `devbox`. No metas ramas hipotéticas ni excepcionales que todavía no estén sustentadas. Si una rama se sospecha pero no se demostró, ubícala también en Unknowns.
 
-**Estado actual:** parcial
+**Estado:** parcial
 
 **Ramas observadas o probables:**
-- activación del flujo local vía `shell.init_hook` de `devbox.json`
-- búsqueda de targets locales en:
+- posible activación por `devbox` `shell.init_hook`
+- posible búsqueda de target en:
   - `.devtools/bin/git-acp.sh`
   - `bin/git-acp.sh`
-- preservación de `"$@"`, incluyendo `"<texto_aquí>"`
+- el argumento `"<texto_aquí>"` entra como parte de `"$@"`
 
 ### Side effects
 Git, red, sistema de archivos, subprocesos, cambios de entorno, etc.
@@ -479,12 +479,12 @@ Git, red, sistema de archivos, subprocesos, cambios de entorno, etc.
 Instrucción operativa:
 Describe solo efectos concretos observados o fuertemente inferidos desde el código y la validación. Deben quedar ligados a funciones, comandos, llamadas o archivos.
 
-**Estado actual:** parcial
+**Estado:** parcial
 
 **Side effects observados hasta ahora:**
-- `devbox.json` puede modificar `PATH`
-- `devbox.json` puede inyectar alias Git efímeros vía `GIT_CONFIG_VALUE_*`
-- `bin/git-acp.sh` hace `exec bash "${__dispatch_target}" "$@"`
+- modificación potencial de entorno por `devbox.json` (`PATH`, `GIT_CONFIG_VALUE_*`)
+- posible redispatch desde `bin/git-acp.sh`
+- `bin/git-acp.sh` contiene `exec bash "${__dispatch_target}" "$@"`
 
 ### Inputs
 Flags CLI, variables de entorno, archivos, config, supuestos sobre cwd.
@@ -492,11 +492,11 @@ Flags CLI, variables de entorno, archivos, config, supuestos sobre cwd.
 Instrucción operativa:
 Lista únicamente entradas necesarias o claramente relevantes para que el flujo de `git acp "<texto_aquí>"` ocurra dentro de `devbox` y con cwd en `/webapps/ihh-devtools`. Distingue inputs obligatorios de inputs opcionales cuando haya evidencia.
 
-**Estado actual:** parcial
+**Estado:** parcial
 
 **Inputs confirmados o probables:**
-- trigger: `git acp "<texto_aquí>"`
-- cwd: `/webapps/ihh-devtools`
+- `git acp "<texto_aquí>"`
+- cwd `/webapps/ihh-devtools`
 - `devbox.json`
 - `bin/git-acp.sh`
 - `devtools.repo.yaml`
@@ -509,7 +509,10 @@ Salida en consola, archivos creados, repos actualizados, exit codes, cambios de 
 Instrucción operativa:
 Describe resultados observables del flujo. No inventes outputs “esperados” si no hay evidencia. Si solo se conoce una parte, márcalo como parcial.
 
-**Estado actual:** abierta
+**Estado:** abierta
+
+**Estado actual:**
+- No demostrados.
 
 ### Preconditions
 Qué debe existir antes de correr el flujo.
@@ -517,7 +520,7 @@ Qué debe existir antes de correr el flujo.
 Instrucción operativa:
 Incluye dependencias, estado del repo, archivos, variables, credenciales, cwd, herramientas externas o supuestos del entorno que parezcan necesarios. Debes dejar explícito qué precondiciones dependen de `devbox` y cuáles del repo en `/webapps/ihh-devtools`.
 
-**Estado actual:** parcial
+**Estado:** parcial
 
 **Precondiciones observadas:**
 - existe `/webapps/ihh-devtools`
@@ -536,7 +539,10 @@ Fallos conocidos u observados.
 Instrucción operativa:
 Incluye errores vistos en código, guards, branches de salida, logs, exit codes o validaciones. No mezcles aquí hipótesis no sustentadas.
 
-**Estado actual:** abierta
+**Estado:** abierta
+
+**Estado actual:**
+- No reconstruidos aún.
 
 ### Archivos y funciones involucradas
 Listar solo las importantes.
@@ -544,7 +550,7 @@ Listar solo las importantes.
 Instrucción operativa:
 Esta sección debe salir de Bloques 3, 4 y 5. Divide mentalmente entre núcleo y soporte, pero aquí lista solo lo importante para explicar el flujo de `git acp "<texto_aquí>"` dentro de `devbox` y sin salir de `/webapps/ihh-devtools`.
 
-**Estado actual:** parcial
+**Estado:** parcial
 
 **Archivos ya implicados por evidencia:**
 - `/webapps/ihh-devtools/.git/config`
@@ -561,7 +567,7 @@ Qué todavía no está demostrado.
 Instrucción operativa:
 Todo lo que no esté confirmado debe quedar aquí o marcado como parcial en su sección correspondiente. Esta sección es obligatoria. Nunca la dejes vacía por comodidad.
 
-**Estado actual:** confirmada
+**Estado:** confirmada
 
 **Unknowns actuales:**
 - si el alias efímero de `devbox.json` está activo en la sesión actual
@@ -580,7 +586,7 @@ Todo lo que parece tolerado pero no central.
 Instrucción operativa:
 Se completa sobre todo en Bloque 5. Debe distinguir claramente entre sospecha y hecho. No propongas limpieza ni solución.
 
-**Estado actual:** parcial
+**Estado:** parcial
 
 **Sospecha actual:**
 - `bin/git-acp.sh` parece wrapper capaz de redispatchar a `vendor_dir`, pero eso todavía no prueba legacy ni compatibilidad heredada
@@ -597,7 +603,7 @@ Referencias concretas:
 Instrucción operativa:
 Cada afirmación importante de la plantilla debe poder rastrearse a evidencia concreta. Si una sección no tiene evidencia suficiente, márcala como parcial o unknown.
 
-**Estado actual:** confirmada
+**Estado:** confirmada
 
 **Evidencia reunida hasta ahora:**
 - `pwd` -> `/webapps/ihh-devtools`
@@ -623,21 +629,22 @@ No promociones a spec-first por sensación. Debes escribir explícitamente:
 - si los unknowns pendientes bloquean o no la promoción;
 - cuál sería la mínima aclaración necesaria para promover.
 
-**Estado actual:** confirmada
+**Estado:** confirmada
 
-**Lo suficientemente claro por ahora:**
+**Todavía no procede.**
+
+**Ya quedó suficientemente claro:**
 - no hay alias local en `.git/config`
 - la resolución local plausible vive en `devbox.json`
-- `bin/git-acp.sh` es el target local más probable dentro del repo
+- `bin/git-acp.sh` es el target local más probable
 
 **Sigue abierto:**
 - activación runtime real del alias efímero
 - columna vertebral después de `bin/git-acp.sh`
 - camino feliz
-- side effects completos
-- outputs y final del flujo
+- efectos y término del flujo
 
-**¿Bloquean promoción a spec-first?**
+**¿Bloquea promoción a spec-first?**
 - sí
 
 **Mínima aclaración necesaria para promover:**
@@ -702,7 +709,7 @@ Qué podemos ignorar por ahora
 
 Condición para pasar al siguiente bloque
 - confirmar mejor la activación runtime del alias efímero, o
-- aceptar como entrypoint local **probable** la cadena `devbox.json init_hook -> bin/git-acp.sh` y pasar a Bloque 3 marcando esa activación como parcial
+- aceptar como entrypoint local probable la cadena `devbox.json init_hook -> bin/git-acp.sh` y pasar a Bloque 3 marcando esa activación como parcial
 
 ---
 
