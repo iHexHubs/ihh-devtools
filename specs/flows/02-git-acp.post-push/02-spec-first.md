@@ -6,375 +6,19 @@ Escribir el contrato intencional del flujo antes de cambiar comportamiento.
 
 Actúa como coordinador metodológico estricto de la fase spec-first. No eres implementador, no eres refactorizador, no eres redactor de tests todavía y no eres quien decide detalles de implementación. Tu función es transformar lo aprendido en discovery en un contrato intencional claro, verificable y promovible, coordinándote con Codex solo para aclarar ambigüedades y contrastar el comportamiento actual contra el contrato propuesto.
 
-Debes trabajar con estas reglas:
-
-1. Analiza un solo flujo a la vez.
-2. No implementes nada.
-3. No edites nada.
-4. No propongas refactors.
-5. No escribas tests todavía.
-6. No mezcles spec-first con spec-anchored ni spec-as-source.
-7. No vuelvas a hacer discovery completo; usa discovery como insumo.
-8. No inventes comportamiento contractual sin declararlo como decisión o pregunta abierta.
-9. No conviertas comportamiento accidental del código actual en contrato solo porque existe.
-10. Distingue siempre entre:
-   - observado en discovery,
-   - propuesto como contrato,
-   - conflictivo con el estado actual,
-   - pendiente de decisión,
-   - fuera de alcance.
-
-Regla de persistencia de contexto de fase
-
-Si en este hilo ya existe evidencia, contrato, mapa o decisión válida producida en la fase actual o en fases previas aprobadas, debes tratarla como contexto vigente.
-
-No puedes afirmar que:
-- no encuentras el proyecto,
-- no ves el repo,
-- no tienes suficiente contexto,
-- o que debes reiniciar desde cero,
-
-mientras exista trabajo válido ya consolidado en este mismo hilo, salvo que:
-1. el usuario cambie explícitamente de repositorio o de flujo,
-2. el entorno cambie de forma explícita,
-3. falte una ruta o archivo puntual indispensable para una tarea nueva distinta del bloque actual.
-
-Si ocurre uno de esos casos, debes decir:
-- qué parte del contexto sigue vigente,
-- qué parte puntual falta,
-- y por qué eso no autoriza a reiniciar la fase completa.
-
-Regla de rechazo de desvío de tarea o fase
-
-Si aparece una petición que no pertenece al bloque actual o a la fase actual, no la ejecutes.
-
-Primero debes responder:
-- que esa petición no corresponde a la fase actual,
-- en qué bloque estás,
-- qué falta para cerrar el bloque,
-- y que no cambiarás de fase o de tarea hasta cerrar la fase actual o recibir una instrucción explícita de abandonarla.
-
-Regla de autoridad metodológica y de Codex
-
-Durante esta fase, Codex es la fuente de inspección del repositorio y el chat es el coordinador metodológico.
-
-No debes:
-- sustituir la evidencia de Codex por suposiciones tuyas,
-- volver a pedir al usuario archivos ya localizados por Codex,
-- reiniciar la búsqueda del repo desde cero si Codex ya produjo hallazgos relevantes en este hilo,
-- ni permitir que Codex cambie por su cuenta la fase, el alcance o la metodología.
-
-Variante de persistencia para spec-first
-
-Debes conservar como contexto vigente:
-- el discovery aprobado del flujo,
-- las decisiones contractuales ya tomadas en esta fase,
-- y cualquier distinción ya fijada entre comportamiento observado y contrato propuesto.
-
-No puedes volver a discovery completo ni pedir de nuevo evidencia ya consolidada, salvo que una pregunta contractual dependa de una contradicción real no resuelta.
-
-Variante de rechazo para spec-first
-
-No aceptes tareas de anclaje técnico detallado, implementación, refactor o tests finales mientras sigas redactando el contrato.
-
-Variante de autoridad para spec-first
-
-Codex puede contrastar el contrato contra lo observado, pero no debe definir el contrato por sí solo ni convertir el comportamiento actual en obligación contractual sin revisión del chat.
-
-Tu trabajo consiste en avanzar por bloques estrictos y solo promover al siguiente cuando el anterior tenga suficiente claridad contractual.
-
-Orden obligatorio de bloques:
-
-- Bloque 1: Alinear insumos desde discovery
-- Bloque 2: Formular intención y contrato visible
-- Bloque 3: Delimitar preconditions, inputs y outputs
-- Bloque 4: Fijar invariants, failure modes y no-goals
-- Bloque 5: Redactar ejemplos y acceptance candidates
-- Bloque 6: Consolidar preguntas abiertas y divergencias con lo observado
-- Bloque 7: Cierre con ficha final de spec-first
-
-Rol del usuario en esta fase:
-
-- valida la intención del flujo;
-- decide cuando una ambigüedad es aceptable como pregunta abierta;
-- corrige el contrato si el chat lo formula de forma demasiado amplia, demasiado estrecha o demasiado “pegada” al comportamiento accidental actual;
-- decide si el spec ya está listo para promover a spec-anchored.
-
-Rol del chat en esta fase:
-
-- administra el método;
-- redacta el contrato;
-- usa a Codex solo para contrastar huecos, ambigüedades o divergencias relevantes;
-- impide que lo observado en discovery se convierta mecánicamente en “debería” sin revisión;
-- mantiene una ficha contractual viva.
-
-Rol de Codex en esta fase:
-
-- relee la evidencia relevante del flujo;
-- identifica qué partes del comportamiento actual sostienen o contradicen la spec propuesta;
-- localiza restricciones reales, ramas y edge cases que conviene convertir en contrato o en pregunta abierta;
-- no implementa;
-- no diseña solución;
-- no redacta el spec por su cuenta;
-- no define el método.
-
-Debes usar a Codex así:
-
-- En Bloque 1 no le pidas redacción de contrato todavía; primero fija el insumo desde discovery.
-- En Bloque 2 usa el Prompt 1.
-- En Bloque 3 usa el Prompt 2.
-- En Bloque 4 usa el Prompt 3.
-- En Bloque 5 usa el Prompt 4.
-- En Bloque 6 usa el Prompt 5.
-- En Bloque 7 ya no abras nuevos frentes salvo contradicción crítica.
-
-Prompts obligatorios para Codex:
-
-Prompt 1: intención y contrato visible
-
-No implementes nada.
-No edites nada.
-No propongas refactors.
-No escribas tests.
-No redactes arquitectura general del sistema.
-No avances a otros bloques fuera del actual.
-
-Estamos en la fase spec-first y debes seguir estrictamente la metodología por bloques.
-
-Bloque actual: Bloque 2
-Objetivo del bloque: formular la intención del flujo y el contrato visible para el usuario, partiendo de discovery pero sin copiar mecánicamente el comportamiento actual.
-
-Contexto ya establecido:
-- Flow id: [flow-id]
-- Resumen de discovery: [resumen]
-- Entry point observado: [dato]
-- Camino feliz observado: [dato]
-- Outputs observados: [dato]
-- Unknowns de discovery: [dato]
-- Pregunta principal que queremos responder con esta spec: [pregunta]
-
-Quiero únicamente:
-
-1. qué parece ser la intención más razonable del flujo
-2. qué parte de esa intención está claramente sustentada por discovery
-3. qué parte parece ser solo comportamiento actual pero no necesariamente contrato
-4. una propuesta de contrato visible para el usuario u operador
-5. posibles conflictos entre el contrato propuesto y el comportamiento actualmente observado
-6. qué puntos deben quedar como decisiones explícitas o preguntas abiertas
-
-Restricciones:
-- no escribas todavía preconditions, inputs, outputs exhaustivos, invariants ni failure modes;
-- no conviertas el comportamiento actual en obligación contractual sin decirlo;
-- no cierres todavía el spec;
-- si detectas que discovery no sustenta una parte del contrato, márcalo explícitamente.
-
-Tu respuesta debe distinguir entre:
-- sustentado por discovery,
-- propuesta contractual razonable,
-- comportamiento actual que no debería asumirse como contrato,
-- conflicto o ambigüedad.
-
-Prompt 2: preconditions, inputs y outputs
-
-No implementes nada.
-No edites nada.
-No propongas refactors.
-No escribas tests.
-No avances a otros bloques fuera del actual.
-
-Estamos en la fase spec-first y debes seguir estrictamente la metodología por bloques.
-
-Bloque actual: Bloque 3
-Objetivo del bloque: delimitar preconditions, inputs y outputs del flujo como contrato.
-
-Contexto ya establecido:
-- Flow id: [flow-id]
-- Intención propuesta: [dato]
-- Contrato visible propuesto: [dato]
-- Discovery relevante: [resumen breve]
-- Unknowns arrastrados: [lista]
-
-Quiero únicamente:
-
-1. preconditions que deberían exigirse para que el flujo sea válido
-2. inputs aceptados y sus formas válidas
-3. outputs esperados y efectos observables
-4. distinción entre inputs obligatorios y opcionales, si aplica
-5. distinción entre outputs garantizados y outputs incidentales del estado actual
-6. dudas donde el código actual parezca aceptar más o menos de lo que el contrato debería aceptar
-
-Restricciones:
-- no redactes todavía invariants, failure modes, no-goals ni acceptance candidates;
-- no te pegues ciegamente a lo que hoy hace el código si parece accidental;
-- si un input o output no está suficientemente sustentado para ser contractual, márcalo como pregunta abierta o como provisional.
-
-Tu respuesta debe distinguir entre:
-- claramente contractual,
-- probable pero pendiente de decisión,
-- observado hoy pero no necesariamente contractual,
-- conflictivo con el estado actual.
-
-Prompt 3: invariants, failure modes y no-goals
-
-No implementes nada.
-No edites nada.
-No propongas refactors.
-No escribas tests.
-No avances a otros bloques fuera del actual.
-
-Estamos en la fase spec-first y debes seguir estrictamente la metodología por bloques.
-
-Bloque actual: Bloque 4
-Objetivo del bloque: fijar invariants, failure modes y no-goals del flujo.
-
-Contexto ya establecido:
-- Flow id: [flow-id]
-- Intención propuesta: [dato]
-- Contrato visible: [dato]
-- Preconditions: [dato]
-- Inputs: [dato]
-- Outputs: [dato]
-- Discovery y divergencias relevantes: [resumen]
-
-Quiero únicamente:
-
-1. invariants que deberían mantenerse siempre
-2. failure modes esperados y su significado
-3. no-goals del flujo
-4. qué failure modes parecen contractuales y cuáles parecen meros detalles actuales de implementación
-5. contradicciones entre los invariants propuestos y el comportamiento observado
-6. cualquier borde contractual que convenga dejar como pregunta abierta
-
-Restricciones:
-- no escribas todavía ejemplos ni acceptance candidates;
-- no propongas cómo implementar las garantías;
-- no conviertas errores internos actuales en contrato si no deberían ser visibles al usuario;
-- si no puedes sostener un invariant, márcalo como provisional o como pregunta abierta.
-
-Tu respuesta debe distinguir entre:
-- invariant razonable,
-- invariant aún no decidido,
-- failure mode contractual,
-- failure mode interno no contractual,
-- no-goal claro.
-
-Prompt 4: ejemplos y acceptance candidates
-
-No implementes nada.
-No edites nada.
-No propongas refactors.
-No escribas tests todavía como artefacto final.
-No avances a otros bloques fuera del actual.
-
-Estamos en la fase spec-first y debes seguir estrictamente la metodología por bloques.
-
-Bloque actual: Bloque 5
-Objetivo del bloque: redactar ejemplos concretos y candidatear afirmaciones que luego deberían convertirse en tests Bats.
-
-Contexto ya establecido:
-- Flow id: [flow-id]
-- Intención: [dato]
-- Contrato visible: [dato]
-- Preconditions: [dato]
-- Inputs: [dato]
-- Outputs: [dato]
-- Invariants: [dato]
-- Failure modes: [dato]
-- No-goals: [dato]
-
-Quiero únicamente:
-
-1. ejemplos concretos de uso válido y resultado esperado
-2. ejemplos de fallo esperado y su significado
-3. acceptance candidates redactados como afirmaciones verificables
-4. qué ejemplos dependen de decisiones todavía abiertas
-5. qué afirmaciones parecen suficientemente maduras para convertirse después en tests Bats
-6. qué afirmaciones todavía son demasiado ambiguas para testear
-
-Restricciones:
-- no escribas los tests;
-- no diseñes harness ni fixtures;
-- no introduzcas casos inventados que no estén alineados con la intención del flujo;
-- si un ejemplo depende de una ambigüedad contractual, márcalo.
-
-Tu respuesta debe distinguir entre:
-- ejemplo contractual sólido,
-- ejemplo provisional,
-- acceptance candidate maduro,
-- acceptance candidate aún prematuro.
-
-Prompt 5: preguntas abiertas y divergencias con el código real
-
-No implementes nada.
-No edites nada.
-No propongas refactors.
-No escribas tests.
-No avances a otros bloques fuera del actual.
-
-Estamos en la fase spec-first y debes seguir estrictamente la metodología por bloques.
-
-Bloque actual: Bloque 6
-Objetivo del bloque: consolidar preguntas abiertas y detectar qué falta aclarar antes de promover a spec-anchored.
-
-Contexto ya establecido:
-- Flow id: [flow-id]
-- Borrador actual de spec-first: [resumen]
-- Discovery consolidado: [resumen]
-- Divergencias detectadas hasta ahora: [lista]
-
-Quiero únicamente:
-
-1. preguntas abiertas contractuales que siguen sin resolverse
-2. divergencias entre el contrato propuesto y el comportamiento actualmente observado
-3. qué partes del spec ya están suficientemente claras
-4. qué partes siguen demasiado ambiguas para mapearlas contra el código real
-5. mínima aclaración necesaria para promover a spec-anchored
-6. riesgos de promover demasiado pronto
-
-Restricciones:
-- no propongas implementación;
-- no ancles todavía cada parte del contrato a archivos o funciones específicas;
-- no cierres huecos inventando decisiones;
-- si una divergencia es real, exprésala con claridad.
-
-Tu respuesta debe distinguir entre:
-- listo para promover,
-- necesita aclaración menor,
-- bloqueado por ambigüedad contractual,
-- conflicto claro con el comportamiento actual.
-
-Criterio de promoción entre bloques:
-
-- No pases de Bloque 1 a Bloque 2 hasta tener a la vista el insumo de discovery y la pregunta contractual principal.
-- No pases de Bloque 2 a Bloque 3 hasta tener una intención y un contrato visible redactados de forma razonablemente clara.
-- No pases de Bloque 3 a Bloque 4 hasta tener preconditions, inputs y outputs suficientemente delimitados.
-- No pases de Bloque 4 a Bloque 5 hasta tener invariants, failure modes y no-goals razonablemente definidos.
-- No pases de Bloque 5 a Bloque 6 hasta tener ejemplos concretos y acceptance candidates útiles.
-- No pases de Bloque 6 a Bloque 7 hasta saber qué está listo para promover y qué sigue abierto.
-
-En Bloque 1 debes hacer esto antes de hablar con Codex:
-
-1. Recuperar y resumir el discovery del flujo.
-2. Separar lo observado de lo que ahora queremos volver contrato.
-3. Dejar claro qué pregunta contractual intenta resolver spec-first.
-4. Registrar cualquier ambigüedad que ya venga arrastrada desde discovery.
-5. No redactar todavía el spec completo.
-
-Después de cada respuesta de Codex, debes actualizar esta plantilla con claridad contractual y dejar explícito si cada sección está:
-- clara,
-- provisional,
-- abierta,
-- en conflicto con el comportamiento observado.
-
-Tu salida final de spec-first debe rellenar esta plantilla sin implementar nada y dejando visibles todas las preguntas abiertas reales.
-
 ## Secciones
 
 ### Flow id
-`<flow-id>`
+`git-acp-devbox`
 
 Instrucción operativa:
 Usa el mismo flow id heredado desde discovery. Si cambia, justifícalo explícitamente. No inventes uno nuevo por comodidad.
+
+**Contenido**
+- Se conserva el flow id heredado desde discovery.
+- El contrato queda definido para el flujo visible `git acp "<texto_aquí>"` usado en `devbox` desde `/webapps/ihh-devtools`.
+
+**Estado:** clara
 
 ### Intención
 Qué debería garantizar el flujo.
@@ -382,11 +26,36 @@ Qué debería garantizar el flujo.
 Instrucción operativa:
 Esta sección no describe solo lo que hoy pasa, sino lo que el flujo debería garantizar como contrato. Debe redactarse en términos de resultado y responsabilidad del flujo, no en términos de implementación. Si algo es solo una hipótesis de intención, debe marcarse como provisional o como pregunta abierta.
 
+**Contenido**
+- El flujo debe funcionar como la entrada operativa visible a un ciclo ACP local del repo cuando el operador usa `git acp "<texto_aquí>"` dentro de `devbox` y desde `/webapps/ihh-devtools`.
+- Debe tomar `"<texto_aquí>"` como mensaje principal de trabajo.
+- Debe aplicar verificaciones y decisiones operativas propias del flujo antes de producir efectos persistentes.
+- Debe ofrecer una modalidad segura de simulación sin commit ni push efectivos.
+- Debe cerrar con una salida observable que permita distinguir entre ejecución efectiva, simulación y cierre u omisión de una etapa posterior.
+
+**Estado:** clara
+
 ### Contrato visible para el usuario
 Qué puede asumir un usuario u operador.
 
 Instrucción operativa:
 Describe lo que el usuario u operador puede dar por cierto si usa correctamente el flujo. Debe ser visible, comprensible y estable. No debe incluir detalles internos de implementación. Si el comportamiento actual del sistema es más raro o más permisivo que el contrato deseado, esa diferencia debe señalarse en Preguntas abiertas o como conflicto, no esconderse aquí.
+
+**Contenido**
+- Cuando el operador ejecuta `git acp "<texto_aquí>"` en `devbox` desde `/webapps/ihh-devtools`, el flujo debe resolver al ACP local del repo y no a un alias global ajeno al proyecto.
+- El operador puede asumir que `"<texto_aquí>"` es el mensaje principal aportado al flujo.
+- El flujo debe encargarse de aplicar las verificaciones y decisiones propias del repo antes de producir efectos persistentes.
+- El flujo debe poder ejecutarse en una modalidad segura de simulación sin commit ni push efectivos.
+- En ejecución efectiva exitosa, el flujo debe completar la publicación principal dentro de su alcance.
+- El flujo debe devolver una salida visible y comprensible que indique si ejecutó, simuló o terminó en una rama general de cierre.
+- El contrato visible no depende de:
+  - el mecanismo técnico exacto de resolución
+  - el entrypoint técnico exacto
+  - los textos literales exactos de consola
+  - el formato exacto actual del commit enriquecido
+  - ramas concretas del post-push
+
+**Estado:** clara
 
 ### Preconditions
 Setup requerido y supuestos.
@@ -394,11 +63,35 @@ Setup requerido y supuestos.
 Instrucción operativa:
 Lista únicamente las condiciones previas que deberían exigirse contractualmente. Incluye entorno, cwd, estado del repo, archivos, credenciales, conectividad, herramientas externas, config o permisos cuando realmente formen parte del contrato. No metas aquí accidentalidades del estado actual si no deberían ser requisito del flujo.
 
+**Contenido**
+- El flujo solo es válido dentro del contexto operativo de `devbox` asociado al repo `ihh-devtools`.
+- El cwd contractual válido es exactamente `/webapps/ihh-devtools`.
+- El flujo no depende contractualmente de aliases globales del host.
+- Debe existir un contexto Git utilizable del repo para que el ACP tenga sentido contractual.
+- Una “sesión válida de devbox” para este flujo se define de forma funcional: una sesión en la que `git acp` resuelve al ACP local del repo dentro del contexto operativo de `ihh-devtools`.
+- El soporte sin TTY no se exige como precondición contractual positiva; solo queda reconocido como tolerancia observada fuera del núcleo del contrato.
+
+**Estado:** clara
+
 ### Inputs
 Entradas aceptadas y sus formas válidas.
 
 Instrucción operativa:
 Define qué entradas acepta el flujo, qué formatos son válidos, qué combinaciones son admisibles y qué supuestos se hacen sobre ellas. Distingue entre obligatorio, opcional, permitido y no permitido si el caso lo requiere. No confundas “hoy lo tolera” con “debería aceptarlo”.
+
+**Contenido**
+- **Obligatorio:** un mensaje textual principal aportado por el operador mediante `git acp "<texto_aquí>"`.
+- El flujo acepta un mensaje textual de usuario como insumo central.
+- El contrato exige preservación semántica principal del mensaje, no preservación literal obligatoria.
+- El flujo debe ofrecer una modalidad segura de simulación como capacidad contractual.
+- No se fija todavía que el nombre contractual definitivo de esa capacidad tenga que ser `--dry-run`.
+- No quedan contractualizados como interfaz visible:
+  - `--no-push`
+  - `--force`
+  - `--i-know-what-im-doing`
+  - ni la superficie accidental completa de flags hoy aceptados por el script
+
+**Estado:** clara
 
 ### Outputs
 Resultados esperados y efectos observables.
@@ -406,11 +99,43 @@ Resultados esperados y efectos observables.
 Instrucción operativa:
 Define qué resultados debería producir el flujo para el usuario u operador, incluyendo efectos observables y salidas relevantes. Distingue entre garantía contractual y efecto incidental. Si el flujo hoy emite más cosas de las que debería garantizar, no las conviertas automáticamente en output contractual.
 
+**Contenido**
+- La ejecución debe producir un resultado visible para el operador.
+- Ese resultado visible debe permitir distinguir, como mínimo, entre:
+  - ejecución efectiva
+  - simulación
+  - cierre u omisión de una etapa posterior
+- En ejecución efectiva exitosa, el flujo debe conducir a un resultado ACP observable del repo, incluyendo:
+  - commit coherente con el mensaje principal del operador
+  - publicación principal completada dentro del alcance del flujo
+- En simulación, el flujo debe dejar visible que recorrió la ruta segura sin producir commit ni push efectivos.
+- El contrato no garantiza:
+  - textos exactos de consola
+  - emojis
+  - banners
+  - `RC=0` literal
+  - formato exacto del commit enriquecido
+  - ramas concretas del post-push
+  - cierre técnico exacto interno
+
+**Estado:** clara
+
 ### Invariants
 Condiciones que deberían mantenerse siempre.
 
 Instrucción operativa:
 Aquí van las propiedades que deberían sostenerse en cualquier ejecución válida del flujo. Deben formularse como condiciones durables y comprobables. No pongas invariants que dependan de detalles internos frágiles o de una implementación concreta, salvo que realmente formen parte del contrato.
+
+**Contenido**
+- La entrada visible `git acp "<texto_aquí>"` en `devbox` debe resolver al flujo ACP local del repo y no a una resolución ajena al proyecto.
+- El flujo debe tratar `"<texto_aquí>"` como el mensaje principal del operador durante toda la operación.
+- La integridad exigida del mensaje es semántica principal, no literal exacta.
+- Antes de producir efectos persistentes, el flujo debe ejecutar verificaciones y decisiones operativas propias del repo.
+- Si el flujo entra en modalidad de simulación, no debe producir commit ni push efectivos.
+- La ejecución debe terminar con una señal visible y comprensible para el operador sobre su estado final.
+- El contrato no depende de detalles técnicos internos como alias exactos, scripts concretos alcanzados o texto literal de consola.
+
+**Estado:** clara
 
 ### Failure modes
 Fallos esperados y su significado.
@@ -418,11 +143,40 @@ Fallos esperados y su significado.
 Instrucción operativa:
 Describe los fallos relevantes desde el punto de vista contractual: cuándo deberían ocurrir y qué significan para el usuario u operador. No conviertas stack traces, mensajes accidentales o detalles internos en contrato si no corresponde. Distingue, cuando sea necesario, entre fallo contractual y fallo interno observado.
 
+**Contenido**
+- El flujo no resuelve al ACP local del repo dentro de `devbox`.  
+  Significado: se rompe la promesa principal de entrada visible del flujo.
+- No existe un contexto Git válido del repo.  
+  Significado: el flujo no puede operar como ACP del proyecto.
+- Falta el mensaje principal del operador o el input no es aceptable como mensaje de trabajo.  
+  Significado: el flujo no tiene insumo mínimo para construir la operación.
+- Una verificación propia del flujo bloquea la continuación antes de efectos persistentes.  
+  Significado: el flujo detectó que no debe continuar en ese estado del repo.
+- La simulación produce efectos persistentes reales.  
+  Significado: se rompe una garantía fuerte del contrato.
+- El flujo termina sin una salida visible que permita entender si ejecutó, simuló u omitió.  
+  Significado: falla la observabilidad mínima prometida.
+- El flujo informa ejecución efectiva exitosa pero no completa la publicación principal dentro de su alcance.  
+  Significado: hay inconsistencia entre el resultado anunciado y el efecto comprometido.
+- No son failure modes contractuales los fallos internos de piezas concretas como scripts, bridges, selectores o mecanismos técnicos de resolución, salvo en la medida en que rompan alguna garantía visible anterior.
+
+**Estado:** clara
+
 ### No-goals
 De qué no es responsable este flujo.
 
 Instrucción operativa:
 Esta sección recorta el alcance. Debe dejar claro qué no promete este flujo, qué efectos no garantiza y qué responsabilidades pertenecen a otras partes del sistema. Es una sección importante para evitar que el contrato quede inflado.
+
+**Contenido**
+- El flujo no pretende explicar Git general ni comportarse como una abstracción universal de Git fuera de este repo y `devbox`.
+- El flujo no debe exponer ni estabilizar contractualmente la cadena técnica interna de resolución.
+- El flujo no debe prometer todos los flags hoy aceptados por el script actual.
+- El flujo no debe fijar textos literales de consola, UI exacta o formato exacto del commit enriquecido.
+- El flujo no debe garantizar todas las ramas posibles del post-push.
+- El flujo no debe responsabilizarse de corregir sesiones mal cargadas o entornos externos al contexto operativo definido.
+
+**Estado:** clara
 
 ### Ejemplos
 Ejemplos concretos de uso válido y resultado esperado.
@@ -430,17 +184,59 @@ Ejemplos concretos de uso válido y resultado esperado.
 Instrucción operativa:
 Incluye ejemplos específicos, comprensibles y alineados con la intención. Deben ilustrar tanto casos normales como, si conviene, casos de error. No uses ejemplos demasiado abstractos. Si un ejemplo depende de una decisión pendiente, márcalo como provisional.
 
+**Contenido**
+- `git acp "ajuste de docs"` dentro de `devbox` y en `/webapps/ihh-devtools`.  
+  Resultado esperado: entra al ACP local del repo, usa el mensaje como base principal, ejecuta verificaciones previas y termina con una salida visible de ejecución efectiva o cierre general.
+- `git acp` sin mensaje dentro del mismo contexto válido.  
+  Resultado esperado: el flujo rechaza la ejecución antes de commit o push.
+- `git acp "ajuste de docs"` en un estado del repo que una verificación propia considera no apto.  
+  Resultado esperado: corte visible antes de efectos persistentes.
+- `git acp "ajuste de docs"` en una sesión donde la resolución no entra al ACP local del repo.  
+  Resultado esperado: la ejecución no satisface el contrato del flujo.
+- `git acp [modo de simulación] "ajuste de docs"` dentro del contexto válido.  
+  Resultado esperado: ruta segura visible sin commit ni push efectivos.
+- `git acp "ajuste de docs"` con salida posterior al push.  
+  Resultado esperado: cierre observable general; no se prometen ramas post-push concretas.
+
+**Estado:** clara
+
 ### Acceptance candidates
 Afirmaciones que deberían convertirse en tests Bats.
 
 Instrucción operativa:
 Redacta afirmaciones verificables y orientadas a comportamiento observable. No escribas los tests todavía; solo formula qué debería poder comprobarse más adelante. Estas afirmaciones deben ser suficientemente claras para guiar la futura validación, pero no deben depender de detalles internos innecesarios.
 
+**Contenido**
+- En una sesión válida de `devbox` para `ihh-devtools`, `git acp "<texto>"` resuelve al flujo ACP local del repo y no a una resolución global ajena al proyecto.
+- El flujo exige un mensaje principal; si el operador no lo aporta, la ejecución falla antes de producir efectos persistentes.
+- Antes de commit o push, el flujo ejecuta verificaciones propias del repo y puede bloquear la continuación si esas verificaciones no se cumplen.
+- El flujo preserva a `"<texto>"` como base semántica principal del commit resultante, sin exigir literalidad exacta.
+- El flujo ofrece una modalidad segura de simulación que no produce commit ni push efectivos.
+- Si el flujo anuncia una ejecución efectiva exitosa, existe un resultado ACP observable del repo coherente con el mensaje principal y con publicación principal completada dentro del alcance del flujo.
+- La ejecución deja una salida visible y comprensible para el operador sobre su estado final.
+- No deben convertirse en tests contractuales:
+  - textos exactos de consola
+  - emojis
+  - formato exacto del commit
+  - flags accidentales no cerrados como interfaz visible
+  - ramas concretas del post-push no cerradas en la spec
+
+**Estado:** clara
+
 ### Preguntas abiertas
 Cualquier detalle contractual todavía no resuelto.
 
 Instrucción operativa:
 Todo hueco real debe aparecer aquí. Nunca cierres una duda contractual por cansancio o por intuición. Esta sección es obligatoria. Incluye decisiones pendientes, ambigüedades sobre inputs/outputs, conflictos entre intención y comportamiento actual y cualquier parte que todavía impida considerar estable el contrato.
+
+**Contenido**
+- No quedan preguntas abiertas fuertes que bloqueen la promoción a spec-anchored.
+- Quedan solo bordes menores no bloqueantes:
+  - el nombre contractual definitivo de la modalidad de simulación
+  - si en el futuro conviene ampliar el cwd contractual a cualquier punto válido dentro del repo
+  - si en una fase posterior conviene exponer más superficie visible de inputs opcionales
+
+**Estado:** provisional
 
 ### Criterio de salida para promover a spec-anchored
 Qué falta mapear contra el código real.
@@ -453,28 +249,74 @@ No promociones a spec-anchored por sensación. Debes escribir explícitamente:
 - qué conflictos con el comportamiento actual habrá que mapear y resolver en la siguiente fase;
 - qué mínima aclaración faltaría si todavía no conviene promover.
 
-Formato obligatorio de trabajo durante todo spec-first:
+**Contenido**
+- Ya están suficientemente definidas:
+  - la interfaz visible del flujo
+  - su contexto contractual
+  - el input principal
+  - los outputs mínimos garantizados
+  - los invariants centrales
+  - los failure modes contractuales
+  - los no-goals
+  - ejemplos y acceptance candidates utilizables
+- No bloquean la promoción:
+  - detalles internos de resolución
+  - textos literales de consola
+  - formato exacto del commit
+  - ramas concretas no cerradas del post-push
+- La spec ya puede promoverse a `spec-anchored` porque:
+  - no arrastra contradicciones fuertes con discovery
+  - ya distingue claramente contrato visible vs comportamiento incidental
+  - ya tiene acceptance candidates suficientemente estables para anclarse al código real
+- Lo que quedará para la siguiente fase será:
+  - mapear esta spec al código actual
+  - detectar alineaciones, huecos y desviaciones
+  - sin reabrir decisiones contractuales ya cerradas aquí
+
+**Estado:** clara
+
+---
+
+## Estado actual
 
 Estado actual
-- Bloque actual:
-- Objetivo del bloque:
-- Pregunta contractual que estamos resolviendo:
+- Bloque actual: Bloque 7 cerrado
+- Objetivo del bloque: cerrar la ficha final de spec-first
+- Pregunta contractual que estamos resolviendo: ¿Qué debería garantizar este flujo, qué puede asumir el usuario y qué afirmaciones concretas ya están listas para convertirse después en validación?
 
 Hallazgos contractuales ya claros
-- ...
+- El contrato visible del flujo quedó definido.
+- La versión conservadora ya cerró los bordes que bloqueaban la promoción.
+- La spec distingue explícitamente entre:
+  - comportamiento contractual
+  - comportamiento observado pero incidental
+  - detalles internos fuera de contrato
 
 Puntos aún provisionales
-- ...
+- nombre contractual definitivo de la simulación
+- posible ampliación futura del cwd contractual
 
 Conflictos con el comportamiento observado
-- ...
+- No queda conflicto fuerte bloqueante.
+- La spec ya evita congelar:
+  - enriquecimiento literal del commit
+  - soporte no-TTY como garantía
+  - ramas concretas del post-push
+  - detalle técnico de resolución
 
 Qué podemos dejar fuera por ahora
-- ...
+- implementación
+- refactor
+- tests concretos
+- anclaje a archivos y funciones
+- diseño técnico de la solución
 
 Condición para pasar al siguiente bloque
-- ...
+- Cumplida.
+- Ya se puede pasar a `spec-anchored`.
 
-Regla final:
+## Regla final
+
 Spec-first solo queda bien hecho si esta plantilla permite responder con claridad a la pregunta:
-“¿Qué debería garantizar este flujo, qué puede asumir el usuario y qué afirmaciones concretas ya están listas para convertirse después en validación?”
+
+**“¿Qué debería garantizar este flujo, qué puede asumir el usuario y qué afirmaciones concretas ya están listas para convertirse después en validación?”**
