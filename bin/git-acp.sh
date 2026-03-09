@@ -86,7 +86,9 @@ LIB_DIR="${SCRIPT_DIR}/../lib"
 
 # Orden de carga importante
 source "${LIB_DIR}/core/utils.sh"       # Helpers UI, Logs, TTY
+export DEVTOOLS_DEFER_PERSISTENT_CONFIG=1
 source "${LIB_DIR}/core/config.sh"      # Configuración y Defaults
+unset DEVTOOLS_DEFER_PERSISTENT_CONFIG
 source "${LIB_DIR}/ui/styles.sh"        # <--- FIX: CARGAMOS ESTILOS (ui_step_header, gum)
 source "${LIB_DIR}/git-flow.sh"         # Políticas de ramas
 source "${LIB_DIR}/ssh-ident.sh"        # Identidad SSH/GPG
@@ -126,22 +128,9 @@ git rev-parse --is-inside-work-tree &>/dev/null || {
 check_superrepo_guard "$0" "${ORIG_ARGS[@]}"
 
 # ==============================================================================
-# 3. SETUP DE IDENTIDAD
+# 3. PARSEO DE ARGUMENTOS DE COMANDO
 # ==============================================================================
 
-if ! $SIMPLE_MODE; then
-    # Lógica compleja de SSH/GPG delegada a la librería
-    setup_git_identity
-else
-    echo "⚡ Modo Estándar (Sin gestión de identidades avanzada)."
-fi
-
-# Si setup_git_identity no exportó push_target, usamos origin.
-: "${push_target:=origin}"
-
-# ==============================================================================
-# 4. PARSEO DE ARGUMENTOS DE COMANDO
-# ==============================================================================
 NO_PUSH=false
 DRY_RUN=false
 ARGS=()
@@ -155,18 +144,32 @@ while (( $# )); do
   esac
 done
 
-# Si no hay mensaje en argumentos, entramos en modo interactivo
-if [ ${#ARGS[@]} -eq 0 ] && ! $DRY_RUN; then
-  INTERACTIVE=true
-  if $SIMPLE_MODE; then 
-      echo "📝 Escribe tu mensaje de commit:"
-      read -r MSG
-      INTERACTIVE=false
-  fi
-else 
-  INTERACTIVE=false
-  MSG="${ARGS[*]}"
+MSG="${ARGS[*]:-}"
+if [[ -z "${MSG//[[:space:]]/}" ]]; then
+  log_error "Debes proporcionar un mensaje para git acp."
+  echo 'Uso: git acp "<texto_aquí>"' >&2
+  exit 1
 fi
+
+if declare -F devtools_apply_persistent_config_side_effects >/dev/null 2>&1; then
+  devtools_apply_persistent_config_side_effects
+fi
+
+# ==============================================================================
+# 4. SETUP DE IDENTIDAD
+# ==============================================================================
+
+if ! $SIMPLE_MODE; then
+    # Lógica compleja de SSH/GPG delegada a la librería
+    setup_git_identity
+else
+    echo "⚡ Modo Estándar (Sin gestión de identidades avanzada)."
+fi
+
+# Si setup_git_identity no exportó push_target, usamos origin.
+: "${push_target:=origin}"
+
+INTERACTIVE=false
 
 # ==============================================================================
 # 5. FUNCIONES CORE (Específicas de este script)

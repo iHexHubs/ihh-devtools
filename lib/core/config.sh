@@ -123,12 +123,18 @@ export DEVTOOLS_RP_PR_WAIT_POLL_SECONDS="${DEVTOOLS_RP_PR_WAIT_POLL_SECONDS:-2}"
 export push_target="origin"
 export SIMPLE_MODE=false
 
-# 4.1) Asegura main como rama por defecto para futuros repos
-# (Lo ponemos antes de las validaciones para asegurar que se ejecute siempre)
-if [[ -z "${CI:-}" ]]; then
-  if [[ -z "$(git config --global --get init.defaultBranch 2>/dev/null || true)" ]]; then
-    git config --global init.defaultBranch main >/dev/null 2>&1 || true
+# 4.1) Side effects persistentes explícitos
+# El caller puede diferirlos hasta después de sus validaciones tempranas.
+devtools_apply_persistent_config_side_effects() {
+  if [[ -z "${CI:-}" ]]; then
+    if [[ -z "$(git config --global --get init.defaultBranch 2>/dev/null || true)" ]]; then
+      git config --global init.defaultBranch main >/dev/null 2>&1 || true
+    fi
   fi
+}
+
+if [[ "${DEVTOOLS_DEFER_PERSISTENT_CONFIG:-0}" != "1" ]]; then
+  devtools_apply_persistent_config_side_effects
 fi
 
 # Si no hay perfiles definidos en la config, activamos modo simple
