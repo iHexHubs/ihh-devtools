@@ -357,10 +357,12 @@ Usa un identificador corto, estable y específico del flujo. No uses nombres vag
 
 **Contenido**
 - `git-acp-devbox`
-- Se mantiene como identificador provisional de trabajo.
-- Quedó **parcialmente desalineado** con lo observado en runtime, porque en esta sesión no se confirmó la entrada local por devbox; se confirmó otra entrada efectiva.
+- Se mantiene como identificador de trabajo.
+- Quedó alineado con el cierre final del discovery:
+  - el flujo observado relevante es `git acp "<texto_aquí>"` ejecutado dentro de una sesión de `devbox` correctamente cargada
+  - esa resolución sí aterrizó en el flujo local del repo
 
-**Estado: parcial**
+**Estado: confirmada**
 
 ### Objetivo
 Qué intenta lograr el usuario u operador.
@@ -369,8 +371,8 @@ Instrucción operativa:
 Redáctalo en términos observables. No escribas intención futura ni contrato deseado. Debe describir qué intenta conseguir el flujo real según trigger, comandos, handlers y efectos observados.
 
 **Contenido**
-- Observar qué pasa cuando alguien ejecuta `git acp "<texto_aquí>"` desde `/webapps/ihh-devtools`.
-- **Observado en runtime en esta sesión:** la resolución real de `git acp` fue global, no local.
+- Observar qué pasa cuando alguien ejecuta `git acp "<texto_aquí>"` desde `/webapps/ihh-devtools` dentro de `devbox`.
+- **Observado en runtime en la sesión correcta de devbox:** `git acp` resolvió al flujo local del repo, no al alias global ajeno al repo.
 - **Auditado localmente en el script del repo:** el núcleo del comportamiento tipo ACP quedó trazado desde `bin/git-acp.sh`.
 
 **Estado: confirmada**
@@ -382,11 +384,12 @@ Instrucción operativa:
 Se completa después del Bloque 2. Debe quedar ligado a evidencia concreta: path, comando, handler, ruta, main, subcomando, script o caller inicial.
 
 **Contenido**
-- **Observado en runtime en esta sesión:** `git acp` entró por el alias global visible en `git config`, no por el alias efímero local de `devbox.json`.
+- **Observado en runtime en una sesión correctamente cargada de devbox:** `git acp` entra por un `alias.acp` inyectado en scope `command` vía `GIT_CONFIG_*`.
+- Ese alias command-line resuelve al flujo local del repo y delega en `bin/git-acp.sh`.
 - **Auditado localmente en el repo:** el entrypoint local confirmado del script es `bin/git-acp.sh`.
-- Desalineación explícita: la entrada runtime del comando y el entrypoint local auditado no coincidieron en esta sesión.
+- La contradicción observada antes con el alias global quedó explicada como una sesión no equivalente a `devbox` correctamente cargado.
 
-**Estado: parcial**
+**Estado: confirmada**
 
 ### Dispatcher chain
 Cadena ordenada de handoff desde la entrada hacia funciones o archivos más profundos.
@@ -395,13 +398,14 @@ Instrucción operativa:
 Se completa principalmente con Bloques 3 y 4. Debe listar la cadena real de delegación sin meter todavía ramas raras salvo que afecten de verdad al flujo principal.
 
 **Contenido**
-- **Observado en runtime en esta sesión:**  
-  `git acp` → alias global `!~/scripts/git-acp.sh` → script global fuera del repo
+- **Observado en runtime en la sesión correcta de devbox:**  
+  `git acp` → `alias.acp` de scope `command` inyectado por devbox → wrapper shell inline → `bin/git-acp.sh`
 - **Auditado localmente en el repo:**  
   `bin/git-acp.sh` → dispatch inicial con `devtools.repo.yaml` → `lib/core/config.sh` → `lib/core/utils.sh` → `lib/git-flow.sh` → `lib/ssh-ident.sh` → `lib/ci-workflow.sh`
 - No apareció un target alterno en `.devtools/bin/git-acp.sh`.
+- **Contradicción runtime previa ya explicada:** en una sesión no equivalente, `git acp` había resuelto al alias global `!~/scripts/git-acp.sh`.
 
-**Estado: parcial**
+**Estado: confirmada**
 
 ### Camino feliz
 Ruta normal observada, paso a paso.
@@ -420,8 +424,11 @@ Se completa en Bloque 4. Describe la secuencia principal como ejecución real o 
   7. ejecuta `do_push`
   8. entra a `run_post_push_flow`
   9. cierra con `show_daily_progress`
-- **Observado en runtime en esta sesión:** este camino no quedó validado end-to-end desde `git acp`, porque el comando real no aterrizó en el script local del repo.
-- **Validación segura local observada:** `bash ./bin/git-acp.sh --dry-run 'codex-block6-validacion-segura'` sin TTY recorrió una ruta segura del script local y cerró con barra de progreso, sin commit/push.
+- **Observado en runtime con el comando real en sesión correcta de devbox:**  
+  `git acp --dry-run 'codex-block-reopen-devbox' </dev/null` sí aterrizó en el flujo local del repo, omitió selector interactivo por no-TTY y recorrió una ruta segura sin commit/push.
+- **Validación segura local observada además:**  
+  `bash ./bin/git-acp.sh --dry-run 'codex-block6-validacion-segura'` sin TTY recorrió una ruta segura del script local y cerró sin commit/push.
+- El camino completo con commit/push/post-push quedó **auditado localmente** y **parcialmente validado en runtime** por la vía segura.
 
 **Estado: parcial**
 
@@ -439,6 +446,10 @@ Incluye solo ramas relevantes para entender el flujo. No metas ramas hipotética
   - si la rama es protegida o `HEAD` está detached, puede cambiar de rama
   - si el push falla, intenta `pull --rebase`
 - **Observado en runtime concreto:**
+  - en sesión correcta de devbox, `git acp --dry-run ... </dev/null`:
+    - entró al flujo local
+    - omitió selector de identidad por no-TTY
+    - dejó explícita la simulación
   - del post-push sí quedó validada una rama interactiva concreta:
     - `7) 🚪 Salir (Seguir trabajando)`
     - mapeo: `skip`
@@ -462,10 +473,13 @@ Describe solo efectos concretos observados o fuertemente inferidos desde el cód
   - `git push`
   - posible `git push -u`, `git pull --rebase`, `git fetch --tags --force`
 - **Observado en runtime seguro:**
+  - con `git acp --dry-run ... </dev/null` dentro de la sesión correcta de devbox no hubo commit/push
   - con `bash ./bin/git-acp.sh --dry-run ...` sin TTY no hubo commit/push
   - en la rama `skip` del post-push no hubo acciones de CI/PR observables
-- **Observado en runtime del comando real `git acp`:**
-  - el alias global intentó tocar `/home/reydem/.gitconfig` y falló por permisos
+- **Observado en la carga de entorno correcta:**
+  - devbox inyectó `GIT_CONFIG_*` en memoria para la resolución local del alias
+- **Contradicción runtime previa ya explicada:**
+  - en una sesión no equivalente, el alias global intentó tocar `/home/reydem/.gitconfig` y falló por permisos
 
 **Estado: parcial**
 
@@ -476,18 +490,23 @@ Instrucción operativa:
 Lista únicamente entradas necesarias o claramente relevantes para que el flujo ocurra. Distingue inputs obligatorios de inputs opcionales cuando haya evidencia.
 
 **Contenido**
-- Trigger observado: `git acp "<texto_aquí>"` desde `/webapps/ihh-devtools`
+- Trigger observado: `git acp "<texto_aquí>"` desde `/webapps/ihh-devtools` dentro de `devbox`
 - Inputs auditados del script local:
   - `"$@"`
   - flags `--dry-run`, `--no-push`, `--force`
   - TTY / no-TTY
   - rama actual
   - config en `.devtools/.git-acprc`
-- Inputs runtime no observados en esta sesión:
-  - `GIT_CONFIG_COUNT`
+- Inputs runtime observados en la sesión correcta:
+  - `DEVBOX_ENV_NAME`
+  - `DEVBOX_PROJECT_ROOT=/webapps/ihh-devtools`
+  - `DEVBOX_WD=/webapps/ihh-devtools`
+  - `DEVBOX_SHELL_ENABLED=1`
+  - `GIT_CONFIG_COUNT=8`
   - `GIT_CONFIG_KEY_*`
   - `GIT_CONFIG_VALUE_*`
-  - variables `DEVBOX_*`
+- Input principal preservado en el análisis:
+  - `"<texto_aquí>"`
 
 **Estado: confirmada**
 
@@ -498,13 +517,21 @@ Instrucción operativa:
 Describe resultados observables del flujo. No inventes outputs “esperados” si no hay evidencia. Si solo se conoce una parte, márcalo como parcial.
 
 **Contenido**
-- **Observado en runtime en esta sesión:**
-  - para `git acp`: traza que aterrizó en `~/scripts/git-acp.sh` y error al intentar tocar `~/.gitconfig`
-  - para la validación segura del script local: banner, omisión de identidad por no-TTY, barra de progreso, `⚗️ Simulación (--dry-run)`
-  - para la rama interactiva `skip`: `👌 Omitido.` y `RC=0`
+- **Observado en runtime en sesión correcta de devbox:**
+  - `git acp --dry-run 'codex-block-reopen-devbox' </dev/null` mostró:
+    - `🟢 [ihh-devtools] Ejecutando git-acp...`
+    - `⚠️  Sin TTY: omitiendo selector interactivo de identidad.`
+    - `⚗️  Simulación (--dry-run).`
+- **Observado en runtime seguro del script local:**
+  - banner, omisión de identidad por no-TTY, barra de progreso, simulación
+- **Observado para la rama interactiva `skip`:**
+  - `👌 Omitido.`
+  - `RC=0`
 - **Auditado localmente:**
   - commit con mensaje principal, timestamp y `REFS_LABEL #N`
   - menú/panel post-push
+- **Contradicción runtime previa ya explicada:**
+  - en la sesión no equivalente, `git acp` aterrizó en `~/scripts/git-acp.sh` y falló al intentar tocar `~/.gitconfig`
 
 **Estado: parcial**
 
@@ -518,12 +545,16 @@ Incluye dependencias, estado del repo, archivos, variables, credenciales, cwd, h
 - **Auditado localmente:**
   - estar dentro de un repo Git
   - no tener `.no-acp-here`, o usar bypass
-  - para entrar al script local, invocar `bin/git-acp.sh` o resolverlo por otro camino
-- **Observado en runtime en esta sesión:**
-  - no se observó satisfecha la precondición para la entrada local efímera de devbox
-  - faltaron `GIT_CONFIG_*` en el entorno
+  - existir `bin/git-acp.sh` como núcleo local del flujo
+- **Observado en runtime correcto:**
+  - estar en `/webapps/ihh-devtools`
+  - abrir una sesión real de `devbox` correctamente cargada
+  - tener activo el init/runtime hook que inyecta `GIT_CONFIG_*`
+  - tener disponible el alias `alias.acp` de scope `command`
+- Para ruta segura:
+  - `--dry-run` y no-TTY permiten evitar commit/push y selector interactivo de identidad
 
-**Estado: parcial**
+**Estado: confirmada**
 
 ### Error modes
 Fallos conocidos u observados.
@@ -532,8 +563,8 @@ Instrucción operativa:
 Incluye errores vistos en código, guards, branches de salida, logs, exit codes o validaciones. No mezcles aquí hipótesis no sustentadas.
 
 **Contenido**
-- **Observado en runtime en esta sesión:**
-  - `git acp` intentó usar el alias global y falló al tocar `/home/reydem/.gitconfig`
+- **Observado en runtime en sesión no equivalente previa:**
+  - `git acp` usó el alias global y falló al tocar `/home/reydem/.gitconfig`
 - **Auditado localmente:**
   - no estar dentro de un repositorio Git
   - no encontrar script de dispatch
@@ -541,6 +572,8 @@ Incluye errores vistos en código, guards, branches de salida, logs, exit codes 
   - problemas de identidad/perfil
   - push rechazado o rebase fallido
   - ramas post-push que dependan de tooling no disponible
+- **Observado en ruta segura correcta:**
+  - sin TTY, el selector interactivo de identidad se omite
 
 **Estado: parcial**
 
@@ -551,10 +584,11 @@ Instrucción operativa:
 Esta sección debe salir de Bloques 3, 4 y 5. Divide mentalmente entre núcleo y soporte, pero aquí lista solo lo importante para explicar el flujo.
 
 **Contenido**
-- **Observado en runtime en esta sesión:**
-  - alias global fuera del repo:
-    - `~/.gitconfig`
-    - `~/scripts/git-acp.sh`
+- **Observado en runtime en sesión correcta de devbox:**
+  - alias inyectado en memoria vía `GIT_CONFIG_*`
+- **Observado como contradicción runtime previa:**
+  - `~/.gitconfig`
+  - `~/scripts/git-acp.sh`
 - **Auditado localmente en el repo:**
   - núcleo:
     - `bin/git-acp.sh`
@@ -579,11 +613,10 @@ Instrucción operativa:
 Todo lo que no esté confirmado debe quedar aquí o marcado como parcial en su sección correspondiente. Esta sección es obligatoria. Nunca la dejes vacía por comodidad.
 
 **Contenido**
-- si en otra sesión de `devbox` el alias efímero local sí quedaría activo para `git acp`
-- si el comando real `git acp` puede llegar a `bin/git-acp.sh` bajo una sesión de devbox correctamente cargada
 - qué otras ramas del menú post-push funcionan en runtime real
-- si `task` y tooling asociado están disponibles en la ejecución real
+- si `task` y tooling asociado están disponibles en la ejecución real completa
 - la necesidad actual de piezas `Compat` / `LEGACY_`
+- si toda sesión futura de `devbox` correctamente cargada en esta máquina reproducirá exactamente la misma inyección runtime de `alias.acp`
 
 **Estado: abierta**
 
@@ -614,10 +647,36 @@ Instrucción operativa:
 Cada afirmación importante de la plantilla debe poder rastrearse a evidencia concreta. Si una sección no tiene evidencia suficiente, márcala como parcial o unknown.
 
 **Contenido**
-- **Runtime en esta sesión:**
+- **Runtime en sesión no equivalente previa:**
   - `env | rg '^GIT_CONFIG|^DEVBOX|^PWD='` mostró solo `PWD=/webapps/ihh-devtools`
   - `git config --show-origin --show-scope --get-regexp '^alias\.acp$'` mostró solo `global file:/home/reydem/.gitconfig alias.acp !~/scripts/git-acp.sh`
   - `GIT_TRACE=1 git acp --dry-run 'codex-block7-alias-runtime'` aterrizó en `~/scripts/git-acp.sh`
+- **Runtime en sesión correcta de devbox:**
+  - entrada a la shell real con `devbox shell`
+  - salida runtime observada:
+    - `🔍 Blindando entorno: Activando herramientas corporativas en memoria...`
+    - `🔒 Git Config: 8 herramientas corporativas cargadas (desaparecerán al salir).`
+    - `🔎 Devtools root=/webapps/ihh-devtools`
+  - `pwd` mostró `/webapps/ihh-devtools`
+  - `env | rg '^GIT_CONFIG|^DEVBOX|^PWD='` mostró:
+    - `DEVBOX_ENV_NAME=PMBOK`
+    - `DEVBOX_PROJECT_ROOT=/webapps/ihh-devtools`
+    - `DEVBOX_WD=/webapps/ihh-devtools`
+    - `DEVBOX_SHELL_ENABLED=1`
+    - `PWD=/webapps/ihh-devtools`
+    - `GIT_CONFIG_COUNT=8`
+    - `GIT_CONFIG_KEY_0=alias.acp`
+    - `GIT_CONFIG_VALUE_0=!f(){ ... "$r/bin/git-acp.sh" ... "/webapps/ihh-devtools/bin/git-acp.sh"; ... }`
+  - `git config --show-origin --show-scope --get-regexp '^alias\.acp$'` mostró:
+    - alias global:
+      - `global file:/home/reydem/.gitconfig alias.acp !~/scripts/git-acp.sh`
+    - alias efectivo inyectado:
+      - `command command line: alias.acp !f(){ ... "$r/bin/git-acp.sh" ... "/webapps/ihh-devtools/bin/git-acp.sh"; ... }; f`
+  - `GIT_TRACE=1 git acp --dry-run 'codex-block-reopen-devbox' </dev/null` mostró:
+    - `trace: run_command: 'f(){ ... "$r/bin/git-acp.sh" ... "/webapps/ihh-devtools/bin/git-acp.sh"; ... }; f' --dry-run codex-block-reopen-devbox`
+    - `🟢 [ihh-devtools] Ejecutando git-acp...`
+    - `⚠️  Sin TTY: omitiendo selector interactivo de identidad.`
+    - `⚗️  Simulación (--dry-run).`
 - **Repo auditado localmente:**
   - `find /webapps/ihh-devtools -type f \( -name 'git-acp.sh' -o -name 'git-acp' \)` encontró solo `bin/git-acp.sh`
   - `find /webapps/ihh-devtools/.devtools ...` no encontró `git-acp*` alterno
@@ -639,16 +698,22 @@ No promociones a spec-first por sensación. Debes escribir explícitamente:
 - cuál sería la mínima aclaración necesaria para promover
 
 **Contenido**
-- **No promovería a spec-first el flujo completo `git acp` bajo devbox.**
-- Razón:
-  - la entrada runtime observada en esta sesión contradijo la hipótesis de entrada local por devbox
-  - el flujo completo no quedó confirmado end-to-end dentro de ese recorte
-- **Sí hay material suficiente para promover, si se recorta explícitamente el alcance, solo al núcleo local auditado desde `bin/git-acp.sh`.**
-- Ese recorte:
-  - no prueba la entrada runtime por `git acp` local bajo devbox
-  - sí prueba el comportamiento del script local del repo
-- Los unknowns de `Compat` / `LEGACY_` no bloquean por sí solos
-- El bloqueo principal para el flujo completo es la **entrada runtime real por devbox**, que no quedó confirmada
+- **Sí hay material suficiente para promover a spec-first el flujo `git acp` bajo devbox en este repo.**
+- Quedó suficientemente claro que:
+  - en una sesión correctamente cargada de `devbox`, `git acp` resuelve al flujo local del repo
+  - esa resolución entra al núcleo local auditado en `bin/git-acp.sh`
+  - el mensaje `"<texto_aquí>"` entra al flujo
+  - existe una ruta segura observada con `--dry-run`
+- Los unknowns pendientes no bloquean por sí solos la promoción:
+  - ramas post-push no revalidadas en runtime completo
+  - disponibilidad final de `task` y tooling asociado
+  - necesidad actual de piezas `Compat` / `LEGACY_`
+- Esos unknowns deberán tratarse como:
+  - alcance no cerrado del comportamiento completo
+  - o preguntas abiertas de contrato en la siguiente fase
+- La aclaración mínima ya lograda para promover era:
+  - confirmar la entrada runtime real por devbox
+  - y confirmar que `git acp` sí aterriza en `bin/git-acp.sh`
 
 **Estado: confirmada**
 
@@ -677,12 +742,13 @@ Condición para pasar al siguiente bloque
 
 Estado actual
 - Bloque actual: cierre final corregido
-- Objetivo del bloque: cerrar discovery con una ficha final que refleje la contradicción entre la hipótesis de entrada local por devbox y la resolución runtime realmente observada
-- Pregunta que estamos resolviendo: en esta sesión, ¿por dónde entró realmente `git acp "<texto_aquí>"`, qué quedó auditado solo dentro del repo y qué parte del flujo sigue sin confirmarse?
+- Objetivo del bloque: cerrar discovery con una ficha final que refleje el runtime efectivo de `git acp` dentro de una sesión correctamente cargada de `devbox`
+- Pregunta que estamos resolviendo: cuando alguien ejecuta `git acp "<texto_aquí>"` dentro de `devbox` y desde `/webapps/ihh-devtools`, ¿por dónde entra realmente, qué parte quedó observada en runtime y qué parte quedó auditada localmente?
 
 Hallazgos sustentados
-- En runtime, en esta sesión, `git acp` no entró por el alias efímero local de `devbox.json`
-- En runtime, en esta sesión, `git acp` resolvió al alias global `alias.acp = !~/scripts/git-acp.sh`
+- En una sesión real de `devbox` correctamente cargada, `git acp` no entró por el alias global como entrypoint efectivo
+- En esa sesión correcta, `git acp` resolvió por un alias `alias.acp` de scope `command` inyectado vía `GIT_CONFIG_*`
+- Ese alias runtime sí aterrizó en el flujo local del repo y delegó en `bin/git-acp.sh`
 - Dentro del repo, el entrypoint local auditado y confirmado del script es `bin/git-acp.sh`
 - El núcleo local auditado del script sí quedó trazado:
   - parseo de `"$@"`
@@ -694,18 +760,20 @@ Hallazgos sustentados
   - push
   - post-push
   - barra de progreso
+- Se validó una ruta segura del comando real con `git acp --dry-run ... </dev/null` sin commit/push
 - Se validó una ruta segura del script local con `--dry-run` sin commit/push
 - Se validó una rama interactiva concreta del post-push: `skip`
 
 Hipótesis aún no confirmadas
-- Que en otra sesión de devbox el `init_hook` deje activo el alias efímero local para `git acp`
-- Que `git acp` en esta máquina pueda resolver a `bin/git-acp.sh` bajo una sesión de devbox distinta
-- Qué otras ramas del menú post-push funcionan en runtime real
+- Qué otras ramas del menú post-push funcionan en runtime real completo
+- Si `task` y tooling asociado están disponibles en la ejecución real completa
 - La necesidad actual de piezas `Compat` / `LEGACY_`
+- Si toda sesión futura correctamente cargada de `devbox` en esta máquina reproducirá exactamente la misma inyección runtime
 
 Qué podemos ignorar por ahora
 - Cualquier comportamiento fuera de `/webapps/ihh-devtools`
-- Cualquier intento de reconstruir otra vez el flujo completo
+- Cualquier alias global del host como base del flujo local
+- Cualquier intento de reconstruir otra vez todo el flujo completo
 - Cualquier hipótesis de intención futura o rediseño
 
 Condición para pasar al siguiente bloque
@@ -721,9 +789,23 @@ Discovery solo queda bien hecho si esta plantilla permite responder con evidenci
 
 ## Respuesta consolidada a esa pregunta
 
-- **Observado en runtime en esta sesión:** `git acp` entró por el alias global de `~/.gitconfig`, no por el alias efímero local esperado de `devbox`
-- **Auditado localmente en el repo:** el entrypoint confirmado del script local es `bin/git-acp.sh`
-- **Decisiones auditadas del núcleo local:** parseo de flags y mensaje, guard de superrepo, identidad, decisión de rama, commit/push, post-push y cierre
-- **Qué toca el núcleo local auditado:** config local del repo, posible `git config` local, staging, commit, push y tramo post-push
-- **Dónde termina el núcleo local auditado:** en `show_daily_progress`; la rama interactiva `skip` del post-push terminó con `👌 Omitido.` y `RC=0`
-- **Conclusión metodológica:** el flujo completo `git acp` bajo devbox no quedó confirmado end-to-end en esta sesión; sí quedó auditado el núcleo local del script del repo
+- **Observado en runtime en una sesión correctamente cargada de `devbox`:**
+  - `git acp` entra por un alias `alias.acp` inyectado en scope `command`
+  - ese alias delega al flujo local del repo
+  - la ejecución observada con `--dry-run` aterrizó en `bin/git-acp.sh`
+- **Auditado localmente en el repo:**
+  - el entrypoint confirmado del script local es `bin/git-acp.sh`
+  - el núcleo local recorre parseo de flags y mensaje, guard de superrepo, identidad, decisión de rama, commit/push, post-push y cierre
+- **Qué toca el núcleo local auditado:**
+  - config local del repo
+  - posible `git config` local
+  - staging
+  - commit
+  - push
+  - tramo post-push
+- **Dónde termina el núcleo local auditado:**
+  - en `show_daily_progress`
+  - la rama interactiva `skip` del post-push terminó con `👌 Omitido.` y `RC=0`
+- **Conclusión metodológica:**
+  - en una sesión de `devbox` correctamente cargada, `git acp` sí resuelve al flujo local del repo y entra a `bin/git-acp.sh`
+  - el discovery queda correctamente cerrado
