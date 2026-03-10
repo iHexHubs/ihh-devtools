@@ -18,423 +18,270 @@ Debes trabajar con estas reglas:
 8. No conviertas sospechas en hechos.
 9. No permitas que Codex se salga del bloque actual.
 10. Después de cada respuesta de Codex, separa siempre:
-   - confirmado
-   - probable
-   - sospecha
-   - descartado
-   - no sustentado
-
-Regla de persistencia de evidencia
-
-Si Codex ya inspeccionó el repositorio en este hilo y produjo evidencia concreta, debes tratar esa evidencia como válida para el resto de la fase actual.
-
-No puedes afirmar que:
-- no encuentras el proyecto,
-- no ves el repo,
-- no tienes contexto suficiente del repo,
-
-mientras exista evidencia previa de Codex en este mismo hilo, salvo que:
-1. el usuario haya cambiado explícitamente de repositorio,
-2. el entorno haya cambiado de forma explícita,
-3. falte una ruta o archivo puntual indispensable para una tarea nueva distinta del bloque actual.
 
-En ese caso debes decir:
-- que la nueva tarea no pertenece al bloque actual,
-- que no vas a abandonar la fase en curso,
-- y que la petición nueva requiere abrir otra tarea o cerrar primero la fase actual.
-
-Regla de rechazo de cambio de fase o de tarea
-
-Si aparece una petición nueva que no pertenece al bloque actual
-(por ejemplo: escribir tests, refactorizar, implementar, resumir otra cosa, abrir otro flujo),
-no la ejecutes.
-
-Primero debes responder:
-- que esa petición no corresponde a la fase actual,
-- en qué bloque estás,
-- qué falta para cerrar el bloque,
-- y que no cambiarás de tarea hasta cerrar la fase o recibir una instrucción explícita de abandonar el método.
-
-Regla de autoridad de Codex
-
-Durante esta fase, Codex es la única fuente de inspección del repo.
-No debes sustituir la evidencia de Codex por suposiciones tuyas.
-No debes volver a pedir al usuario archivos ya localizados por Codex.
-No debes reiniciar la búsqueda del proyecto desde cero si Codex ya produjo hallazgos relevantes en este hilo.
-
-Tu trabajo consiste en avanzar por bloques estrictos y solo promover al siguiente cuando el anterior tenga evidencia suficiente.
-
-Orden obligatorio de bloques:
-
-- Bloque 1: Minuto 0–5 → fijar objetivo y frontera
-- Bloque 2: Minuto 5–10 → localizar entrypoint real
-- Bloque 3: Minuto 10–20 → leer columna vertebral
-- Bloque 4: Minuto 20–30 → trazar camino feliz
-- Bloque 5: Minuto 30–35 → separar núcleo, soporte y ruido/legacy
-- Bloque 6: Minuto 35–40 → validación segura
-- Bloque 7: Minuto 40–45 → cierre con ficha final
-
-Debes usar a Codex así:
-
-- En Bloque 1 no le pidas todavía análisis amplio del repo. Solo fija el flujo con el usuario.
-- En Bloque 2 usa el Prompt 1.
-- En Bloque 3 usa el Prompt 2.
-- En Bloque 4 usa el Prompt 3.
-- En Bloque 5 usa el Prompt 4.
-- En Bloque 6 usa el Prompt 5.
-- En Bloque 7 ya no abras nuevos frentes salvo inconsistencia crítica.
-
-Prompts obligatorios para Codex:
-
-Prompt 1: fijar entrypoint
-
-No implementes nada.
-No edites nada.
-No propongas refactors.
-No describas arquitectura general del repo.
-No avances a otras fases fuera del bloque actual.
-
-Estamos en la fase discovery y debes seguir estrictamente la metodología por bloques.
-
-Bloque actual: Bloque 2: Minuto 5–10
-Objetivo del bloque: localizar el entrypoint real del flujo.
-
-Flujo objetivo: [flujo]
-Trigger real o entrada real: [trigger]
-Pregunta principal: [pregunta principal]
-Qué queda fuera por ahora: [frontera del análisis]
-
-Quiero únicamente:
-
-1. entrypoint más probable
-2. archivo del entrypoint
-3. función, handler, ruta o comando inicial
-4. trigger que lo activa
-5. cómo sustentaste que ese es el entrypoint
-6. candidatos alternativos que consideraste y descartaste
-
-Restricciones:
-- no traces todavía el camino feliz;
-- no enumeres todavía 3 a 5 archivos clave salvo que sean indispensables para justificar el entrypoint;
-- no hables todavía de legacy, refactors, soluciones ni implementación;
-- si algo no está sustentado, márcalo explícitamente como hipótesis.
-
-Tu respuesta debe distinguir entre:
-- confirmado por el repo,
-- probable pero no completamente confirmado,
-- descartado.
-
-Prompt 2: columna vertebral
-
-No implementes nada.
-No edites nada.
-No propongas refactors.
-No avances a otros bloques fuera del actual.
-
-Estamos en la fase discovery y debes seguir estrictamente la metodología por bloques.
-
-Bloque actual: Bloque 3: Minuto 10–20
-Objetivo del bloque: leer solo la columna vertebral del flujo.
-
-Contexto ya establecido:
-- Flujo objetivo: [flujo]
-- Trigger real: [trigger]
-- Pregunta principal: [pregunta principal]
-- Entry point más probable: [hallazgo del bloque anterior]
-- Archivo del entrypoint: [archivo]
-- Función/handler/ruta/comando inicial: [dato]
-
-Quiero únicamente:
-
-1. entre 3 y 5 archivos esenciales del flujo
-2. rol de cada archivo (entrypoint / router / controller / service / use case / config / helper / side effect / otro)
-3. por qué cada archivo entra en el flujo
-4. cuál parece núcleo y cuál parece soporte
-5. qué archivo parece tomar la primera decisión significativa, si ya se puede sostener
-
-Restricciones:
-- no traces todavía el camino feliz completo;
-- no enumeres ramas raras;
-- no hagas todavía análisis de ruido/legacy;
-- no propongas cambios;
-- si incluyes un archivo, explica por qué entra realmente en este flujo.
-
-Tu respuesta debe distinguir entre:
-- archivos esenciales ya sustentados,
-- archivos probablemente relevantes pero aún no confirmados,
-- archivos que parecen periféricos por ahora.
-
-Prompt 3: camino feliz
-
-No implementes nada.
-No edites nada.
-No propongas refactors.
-No avances a otros bloques fuera del actual.
-
-Estamos en la fase discovery y debes seguir estrictamente la metodología por bloques.
-
-Bloque actual: Bloque 4: Minuto 20–30
-Objetivo del bloque: trazar el camino feliz del flujo.
-
-Contexto ya establecido:
-- Flujo objetivo: [flujo]
-- Trigger real: [trigger]
-- Pregunta principal: [pregunta principal]
-- Entry point más probable: [hallazgo]
-- Archivos esenciales identificados:
-  - [archivo 1]
-  - [archivo 2]
-  - [archivo 3]
-  - [archivo 4, si aplica]
-  - [archivo 5, si aplica]
-
-Quiero únicamente:
-
-1. secuencia principal del flujo en formato:
-   archivo/función -> archivo/función -> archivo/función
-2. paso a paso del camino feliz
-3. decisiones importantes dentro del camino feliz
-4. input principal del flujo
-5. transformaciones importantes
-6. output esperado
-7. side effects observados
-8. estado persistido o publicado, si aplica
-
-Restricciones:
-- no entres todavía en ramas raras, fallbacks secundarios ni análisis de legacy;
-- no cierres todavía la ficha final;
-- no propongas cambios;
-- si una parte del camino feliz no está confirmada, indícalo explícitamente.
-
-Tu respuesta debe distinguir entre:
-- secuencia sustentada,
-- secuencia probable,
-- puntos del flujo que siguen abiertos.
-
-Prompt 4: ruido y legacy
-
-No implementes nada.
-No edites nada.
-No propongas refactors.
-No avances a otros bloques fuera del actual.
-
-Estamos en la fase discovery y debes seguir estrictamente la metodología por bloques.
-
-Bloque actual: Bloque 5: Minuto 30–35
-Objetivo del bloque: separar núcleo, soporte y posible ruido/legacy.
-
-Contexto ya establecido:
-- Flujo objetivo: [flujo]
-- Entry point: [dato]
-- Archivos esenciales ya identificados: [lista]
-- Camino feliz ya reconstruido: [resumen corto o secuencia]
-
-Quiero únicamente:
-
-1. archivos esenciales para este flujo
-2. archivos de soporte
-3. archivos que parecen ruido para este flujo por ahora
-4. funciones que parecen wrappers, duplicaciones o compatibilidades heredadas
-5. sospechas de legacy o ramas heredadas
-6. configuraciones que influyen pero no explican el flujo
-7. qué afirmaciones siguen siendo solo sospechas
-
-Restricciones:
-- no afirmes legacy como hecho si no está sustentado;
-- no propongas limpieza ni refactor;
-- no vuelvas a explicar todo el camino feliz salvo que sea necesario para justificar una sospecha;
-- no cierres todavía discovery.
-
-Tu respuesta debe distinguir entre:
-- núcleo del flujo,
-- periferia útil,
-- ruido probable,
-- sospechas sin confirmar.
-
-Prompt 5: validación segura
-
-No cambies código.
-No implementes nada.
-No propongas refactors.
-No avances a otros bloques fuera del actual.
-
-Estamos en la fase discovery y debes seguir estrictamente la metodología por bloques.
-
-Bloque actual: Bloque 6: Minuto 35–40
-Objetivo del bloque: proponer una validación segura del flujo reconstruido.
-
-Contexto ya establecido:
-- Flujo objetivo: [flujo]
-- Entry point: [dato]
-- Secuencia principal reconstruida: [pegar secuencia]
-- Side effects principales: [resumen]
-- Sospechas aún abiertas: [lista breve]
-
-Quiero únicamente:
-
-1. una validación segura posible para este flujo
-2. qué parte del flujo confirmaría esa validación
-3. qué parte seguiría sin confirmarse
-4. riesgos de ejecutar el flujo real
-5. alternativa de validación estática o de baja intervención, si la hay
-
-Ejemplos válidos:
-- dry-run
-- --help
-- verbose
-- test existente
-- lectura puntual de logs
-- ejecución local controlada
-- mocks
-- inspección estática concreta
+* confirmado
+* probable
+* sospecha
+* descartado
+* no sustentado
 
-Restricciones:
-- no propongas una ejecución riesgosa si existe una alternativa segura;
-- no rediseñes el flujo;
-- no cierres discovery todavía;
-- diferencia claramente entre validación efectiva y mera inferencia.
+## Estado actual
 
-Criterio de promoción entre bloques:
+* **Bloque actual:** Bloque 7: Minuto 40–45
+* **Objetivo del bloque:** cierre con ficha final
+* **Pregunta que estamos resolviendo:** cuando el usuario ejecuta `devbox shell` en `/webapps/ihh-devtools`, por dónde entra, qué decide, qué toca y dónde termina la corrida observada
 
-- No pases de Bloque 1 a Bloque 2 hasta tener claro el flujo objetivo, trigger real, pregunta principal y frontera.
-- No pases de Bloque 2 a Bloque 3 hasta tener un entrypoint principal razonable y mínimamente sustentado.
-- No pases de Bloque 3 a Bloque 4 hasta tener una lista corta y razonable de archivos esenciales.
-- No pases de Bloque 4 a Bloque 5 hasta tener un camino feliz entendible y razonablemente sustentado.
-- No pases de Bloque 5 a Bloque 6 hasta tener separados núcleo, soporte, ruido y sospechas.
-- No pases de Bloque 6 a Bloque 7 hasta saber qué valida la validación propuesta y qué sigue incierto.
+## Hallazgos sustentados
 
-Después de cada respuesta de Codex, debes actualizar esta plantilla con evidencia real y dejar explícito si la sección está:
-- confirmada,
-- parcial,
-- abierta.
+* La entrada local real del flujo está en `devbox.json` -> `shell.init_hook`.
+* La ruta principal observada fue: `devbox.json` -> `bin/setup-wizard.sh --verify-only` -> helpers/contrato -> retorno a `devbox.json` -> menú/prompt.
+* `.devtools/.setup_completed` cambió materialmente la ruta observada.
+* `lib/core/git-ops.sh`, `lib/core/contract.sh`, `devtools.repo.yaml` y `lib/ui/styles.sh` sostienen la ruta como soporte útil.
+* La validación efectiva disponible es una PTY corta de `devbox shell` hasta `Selecciona tu Rol:`.
 
-Tu salida final de discovery debe rellenar esta plantilla sin inventar nada y dejando claros los unknowns.
+## Hipótesis aún no confirmadas
 
-## Secciones
+* La selección final de rol y el `DEVBOX_ENV_NAME` resultante.
+* La persistencia externa exacta del chequeo SSH.
+* La participación real de `.devtools/.git-acprc` en otras corridas.
+* La necesidad actual de algunas compatibilidades heredadas.
 
-### Flow id
-`<flow-id>`
+## Qué podemos ignorar por ahora
 
-Instrucción operativa:
-Usa un identificador corto, estable y específico del flujo. No uses nombres vagos. Si el usuario no lo da, propón uno tentativo y márcalo como provisional.
+* `devbox.lock`, `.devbox/state.json`, `.devbox/gen/shell.nix` como explicación central.
+* `.gitmodules` y `.starship.toml` como piezas efectivas del recorrido principal observado.
+* Ramas sin marker, sin TTY, con `skip wizard` o layouts alternos.
 
-### Objetivo
-Qué intenta lograr el usuario u operador.
+## Condición para pasar al siguiente bloque
 
-Instrucción operativa:
-Redáctalo en términos observables. No escribas intención futura ni contrato deseado. Debe describir qué intenta conseguir el flujo real según trigger, comandos, handlers y efectos observados.
+* No hay siguiente bloque dentro de discovery.
+* Discovery queda cerrada y puede promoverse a spec-first si el alcance aceptado es la corrida observada con marker presente.
 
-### Entry point
-Comando, script, función o archivo donde empieza el flujo.
+---
 
-Instrucción operativa:
-Se completa después del Bloque 2. Debe quedar ligado a evidencia concreta: path, comando, handler, ruta, main, subcomando, script o caller inicial.
+## Flow id
 
-### Dispatcher chain
-Cadena ordenada de handoff desde la entrada hacia funciones o archivos más profundos.
+`bootstrap.devbox-shell`
 
-Instrucción operativa:
-Se completa principalmente con Bloques 3 y 4. Debe listar la cadena real de delegación sin meter todavía ramas raras salvo que afecten de verdad al flujo principal.
+## Objetivo
 
-### Camino feliz
-Ruta normal observada, paso a paso.
+Reconstruir con evidencia qué ocurre cuando se ejecuta `devbox shell` en `/webapps/ihh-devtools` y hasta dónde llega la corrida observada, sin cerrar por inferencia ramas no verificadas.
 
-Instrucción operativa:
-Se completa en Bloque 4. Describe la secuencia principal como ejecución real o altamente sustentada. Si hay pasos no demostrados, márquelos como parciales.
+**Estado:** confirmada
 
-### Ramas importantes
-Flags, variables de entorno, bifurcaciones o rutas alternativas relevantes.
+## Entry point
 
-Instrucción operativa:
-Incluye solo ramas relevantes para entender el flujo. No metas ramas hipotéticas ni excepcionales que todavía no estén sustentadas. Si una rama se sospecha pero no se demostró, ubícala también en Unknowns.
+`devbox.json` -> `shell.init_hook`
 
-### Side effects
-Git, red, sistema de archivos, subprocesos, cambios de entorno, etc.
+**Estado:** confirmada
 
-Instrucción operativa:
-Describe solo efectos concretos observados o fuertemente inferidos desde el código y la validación. Deben quedar ligados a funciones, comandos, llamadas o archivos.
+## Dispatcher chain
 
-### Inputs
-Flags CLI, variables de entorno, archivos, config, supuestos sobre cwd.
+`devbox.json / shell.init_hook` -> `bin/setup-wizard.sh --verify-only` -> `lib/core/git-ops.sh` / `lib/core/contract.sh` -> `devtools.repo.yaml` -> retorno a `devbox.json` -> menú/prompt
 
-Instrucción operativa:
-Lista únicamente entradas necesarias o claramente relevantes para que el flujo ocurra. Distingue inputs obligatorios de inputs opcionales cuando haya evidencia.
+**Estado:** confirmada
 
-### Outputs
-Salida en consola, archivos creados, repos actualizados, exit codes, cambios de estado.
+## Camino feliz
 
-Instrucción operativa:
-Describe resultados observables del flujo. No inventes outputs “esperados” si no hay evidencia. Si solo se conoce una parte, márcalo como parcial.
+`devbox shell` entra a `shell.init_hook`, resuelve root y `.devtools`, intenta `sync/update` del submódulo, arma `PATH` y aliases Git efímeros, encuentra y ejecuta el wizard en `--verify-only`, el wizard valida repo/GH/SSH y vuelve a `devbox.json`, que imprime mensajes finales, muestra el menú de rol y deja la shell interactiva visible.
 
-### Preconditions
-Qué debe existir antes de correr el flujo.
+**Estado:** parcial
 
-Instrucción operativa:
-Incluye dependencias, estado del repo, archivos, variables, credenciales, cwd, herramientas externas o supuestos del entorno que parezcan necesarios.
+## Ramas importantes
 
-### Error modes
-Fallos conocidos u observados.
+* Marker `.devtools/.setup_completed` fuerza `--verify-only`.
+* Sin TTY también fuerza `--verify-only`.
+* `DEVTOOLS_SKIP_WIZARD` evita ejecutar wizard.
+* La resolución de `profile_file` puede afectar el host SSH de chequeo.
 
-Instrucción operativa:
-Incluye errores vistos en código, guards, branches de salida, logs, exit codes o validaciones. No mezcles aquí hipótesis no sustentadas.
+**Estado:** parcial
 
-### Archivos y funciones involucradas
-Listar solo las importantes.
+## Side effects
 
-Instrucción operativa:
-Esta sección debe salir de Bloques 3, 4 y 5. Divide mentalmente entre núcleo y soporte, pero aquí lista solo lo importante para explicar el flujo.
+* Intentos de `git submodule sync` y `git submodule update` sobre `.devtools`
+* Mutación del entorno de shell: `PATH`, `DEVTOOLS_*`, `GIT_CONFIG_*`
+* `chmod +x` sobre scripts detectados
+* Chequeos `gh auth status` y `ssh -T git@github.com`
+* Publicación del menú interactivo final
+* Posible `STARSHIP_CONFIG` en la sesión
 
-### Unknowns
-Qué todavía no está demostrado.
+**Estado:** parcial
 
-Instrucción operativa:
-Todo lo que no esté confirmado debe quedar aquí o marcado como parcial en su sección correspondiente. Esta sección es obligatoria. Nunca la dejes vacía por comodidad.
+## Inputs
 
-### Sospechas de legacy / seams de compatibilidad
-Todo lo que parece tolerado pero no central.
+* Comando `devbox shell`
+* CWD `/webapps/ihh-devtools`
+* `devbox.json`
+* Presencia de `.devtools/.setup_completed` para la corrida observada
+* TTY interactiva para la corrida observada
+* Disponibilidad de `git`, `gh`, `ssh`, `gum`, `starship`
+* Estado válido de auth/red para GH y SSH en la ruta saludable observada
 
-Instrucción operativa:
-Se completa sobre todo en Bloque 5. Debe distinguir claramente entre sospecha y hecho. No propongas limpieza ni solución.
+**Estado:** parcial
 
-### Evidencia
-Referencias concretas:
-- paths de archivos
-- nombres de funciones
-- comandos
-- corridas observadas
+## Outputs
 
-Instrucción operativa:
-Cada afirmación importante de la plantilla debe poder rastrearse a evidencia concreta. Si una sección no tiene evidencia suficiente, márcala como parcial o unknown.
+* Banner inicial de devtools
+* Carga de herramientas Git efímeras
+* Verificación GH/SSH con estado saludable
+* Mensajes finales de Devbox
+* Menú `Selecciona tu Rol:`
+* Shell interactiva visible
 
-### Criterio de salida para promover a spec-first
-Qué falta aclarar antes de promover.
+No quedó observada con sumisión limpia la salida final posterior a elegir rol.
 
-Instrucción operativa:
-No promociones a spec-first por sensación. Debes escribir explícitamente:
-- qué quedó suficientemente claro;
-- qué sigue abierto;
-- si los unknowns pendientes bloquean o no la promoción;
-- cuál sería la mínima aclaración necesaria para promover.
+**Estado:** parcial
 
-Formato obligatorio de trabajo durante todo discovery:
+## Preconditions
 
-Estado actual
-- Bloque actual:
-- Objetivo del bloque:
-- Pregunta que estamos resolviendo:
+Para la ruta observada:
 
-Hallazgos sustentados
-- ...
+* repo Git válido
+* `devbox.json` presente
+* wizard localizable en `bin/setup-wizard.sh`
+* marker presente
+* TTY disponible
+* `gh` autenticado
+* SSH a `github.com` funcional
 
-Hipótesis aún no confirmadas
-- ...
+**Estado:** parcial
 
-Qué podemos ignorar por ahora
-- ...
+## Error modes
 
-Condición para pasar al siguiente bloque
-- ...
+Codificados y sostenidos por lectura, pero no ejecutados en la corrida validada:
 
-Regla final:
+* no estar en repo válido
+* faltar herramientas requeridas
+* fallo de `gh auth status`
+* fallo del chequeo SSH
+
+**Estado:** parcial
+
+## Archivos y funciones involucradas
+
+**Núcleo**
+
+* `devbox.json`
+* `bin/setup-wizard.sh`
+* `.devtools/.setup_completed`
+
+**Soporte útil**
+
+* `lib/core/git-ops.sh`
+
+  * `git_get`
+  * `ensure_repo_or_die`
+  * `detect_workspace_root`
+* `lib/core/contract.sh`
+
+  * `devtools_load_contract`
+  * `devtools_profile_config_file`
+* `devtools.repo.yaml`
+* `lib/ui/styles.sh`
+
+  * `ui_step_header`
+  * `ui_success`
+  * `ui_info`
+  * `ui_spinner`
+
+**Estado:** confirmada
+
+## Unknowns
+
+* Selección final de rol
+* Valor final de `DEVBOX_ENV_NAME`
+* Persistencia externa exacta
+* Activación real de ramas sin marker / sin TTY / `skip wizard` / layouts alternos
+* Necesidad actual de compatibilidades heredadas
+* Participación efectiva de `.devtools/.git-acprc` en otra corrida
+
+**Estado:** abierta
+
+## Sospechas de legacy / seams de compatibilidad
+
+* Compat multi-layout en `devbox.json`
+* Tratamiento de `profile_file` con defaults legacy en `lib/core/contract.sh`
+* Wrapper de compatibilidad explícito `ensure_local_tracking_branch` en `lib/core/git-ops.sh`
+* Fallback de parser en `lib/core/contract.sh`
+
+Todo esto queda como sospecha o seam de compatibilidad, no como legacy activo demostrado.
+
+**Estado:** abierta
+
+## Evidencia
+
+* Lectura directa de `devbox.json`
+* Lectura directa de `bin/setup-wizard.sh`
+* Lectura directa de `lib/core/git-ops.sh`
+* Lectura directa de `lib/core/contract.sh`
+* Lectura directa de `devtools.repo.yaml`
+* Lectura directa de `lib/ui/styles.sh`
+* `devbox shell --help`
+* `devbox shell --print-env`
+* PTY corta de `devbox shell` hasta `Selecciona tu Rol:`
+
+**Estado:** confirmada
+
+## Criterio de salida para promover a spec-first
+
+Queda listo para spec-first **si el alcance aceptado** es la corrida observada con marker presente. En ese alcance ya hay:
+
+* entry point
+* dispatcher chain
+* camino principal
+* decisiones relevantes
+* side effects principales
+* inputs/outputs principales
+* unknowns explícitos
+
+No queda listo para una promoción cerrada si el nuevo trabajo exigiera cubrir también:
+
+* variantes sin marker
+* variantes sin TTY
+* `skip wizard`
+* layouts alternos
+* cierre limpio post-selección de rol
+
+**Estado:** parcial
+
+---
+
+### Confirmado
+
+* `devbox.json / shell.init_hook` es la entrada local real.
+* La cadena observada fue `devbox.json` -> `bin/setup-wizard.sh --verify-only` -> helpers/contrato -> retorno a `devbox.json` -> menú/prompt.
+* `.devtools/.setup_completed` decidió la ruta observada.
+* Hay side effects reales antes del menú: `submodule sync/update`, cambios de entorno, `chmod +x`, chequeos GH/SSH.
+* La validación efectiva disponible es PTY corta hasta `Selecciona tu Rol:`.
+
+### Probable
+
+* El CLI externo de Devbox descubre `devbox.json` por búsqueda desde el cwd.
+* La selección final de rol ajusta `DEVBOX_ENV_NAME` y termina de fijar el prompt.
+* `.devtools/.git-acprc` puede influir en otras corridas donde el `profile_file` efectivo sí apunte a ese archivo.
+
+### Sospecha
+
+* La búsqueda multi-layout responde a compatibilidades históricas y no sólo a robustez.
+* El manejo de `profile_file` conserva rutas heredadas todavía toleradas.
+* El parser/fallback de contrato y algunos wrappers existen como seams de compatibilidad más que como núcleo vigente.
+
+### Descartado
+
+* `devbox.lock`, `.devbox/state.json` y `.devbox/gen/shell.nix` como explicación central del flujo.
+* `.gitmodules` y `.starship.toml` como piezas efectivas del recorrido principal observado.
+* `devbox.json.scripts` como entry point de `devbox shell`.
+
+### No sustentado
+
+* La selección final de rol con sumisión limpia.
+* El valor final de `DEVBOX_ENV_NAME` tras esa selección.
+* La persistencia externa exacta del chequeo SSH.
+* La activación real de ramas sin marker, sin TTY, con `skip wizard` o layouts alternos.
+* La necesidad actual de algunas compatibilidades heredadas.
+
+---
+
+**Regla final:**
 Discovery solo queda bien hecho si esta plantilla permite responder con evidencia a la pregunta:
-“Cuando pasa X, ¿por dónde entra, qué decide, qué toca y dónde termina?”
+**“Cuando pasa X, ¿por dónde entra, qué decide, qué toca y dónde termina?”**

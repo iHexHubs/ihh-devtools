@@ -126,6 +126,7 @@ Debes usar a Codex así:
 - En Bloque 4 usa el Prompt 3.
 - En Bloque 5 usa el Prompt 4.
 - En Bloque 6 usa el Prompt 5.
+- En Bloque 7 usa el Prompt 6.
 - En Bloque 7 ya no abras nuevos frentes salvo contradicción crítica.
 
 Prompts obligatorios para Codex:
@@ -343,6 +344,59 @@ Tu respuesta debe distinguir entre:
 - bloqueado por ambigüedad contractual,
 - conflicto claro con el comportamiento actual.
 
+Prompt 6: cierre con ficha final de spec-first
+
+No implementes nada.
+No edites nada.
+No propongas refactors.
+No escribas tests.
+No avances a otros bloques fuera del actual.
+
+Estamos en la fase spec-first y debes seguir estrictamente la metodología por bloques.
+
+Bloque actual: Bloque 7
+Objetivo del bloque: cerrar la ficha final de spec-first, reclasificar lo ya resuelto y dejar explícito si el flujo está listo para promover a spec-anchored.
+
+Contexto ya establecido:
+- Flow id: [flow-id]
+- Discovery aprobado y vigente: [resumen]
+- Borrador actual de spec-first: [resumen]
+- Preguntas abiertas y divergencias consolidadas: [lista]
+- Decisiones contractuales ya tomadas por el usuario en esta fase: [lista]
+- Alcance vigente del flujo en esta fase: [dato]
+
+Quiero únicamente:
+
+1. una propuesta final de ficha de spec-first ya cerrada
+2. reclasificación explícita de cada sección entre:
+   - claro,
+   - provisional residual,
+   - abierto residual no bloqueante,
+   - en conflicto con el comportamiento observado
+3. qué partes ya quedan listas para promover a spec-anchored
+4. qué conflictos con el comportamiento observado deberán mapearse explícitamente en spec-anchored
+5. si queda algo abierto, confirmar que sea no bloqueante
+6. una recomendación final de promoción actualizada
+
+Restricciones:
+- no propongas implementación;
+- no ancles todavía el spec a archivos o funciones específicas;
+- no reabras discovery completo;
+- no cambies de fase;
+- no cierres por tu cuenta decisiones que sigan abiertas;
+- si consideras que algo sigue bloqueando la promoción, di exactamente qué y por qué;
+- si algo queda “provisional” o “abierto”, explica exactamente por qué no bloquea la promoción o por qué sí la bloquea;
+- redacta la salida de forma utilizable para que el chat pueda convertirla directamente en la ficha final cerrada de Bloque 7.
+
+Tu respuesta debe distinguir entre:
+- claro,
+- provisional residual,
+- abierto residual no bloqueante,
+- en conflicto con el comportamiento observado,
+- listo para promover,
+- listo para promover con conflictos a mapear,
+- no listo para promover.
+
 Criterio de promoción entre bloques:
 
 - No pases de Bloque 1 a Bloque 2 hasta tener a la vista el insumo de discovery y la pregunta contractual principal.
@@ -351,6 +405,15 @@ Criterio de promoción entre bloques:
 - No pases de Bloque 4 a Bloque 5 hasta tener invariants, failure modes y no-goals razonablemente definidos.
 - No pases de Bloque 5 a Bloque 6 hasta tener ejemplos concretos y acceptance candidates útiles.
 - No pases de Bloque 6 a Bloque 7 hasta saber qué está listo para promover y qué sigue abierto.
+- No cierres Bloque 7 sin dejar explícito:
+  - qué partes del spec quedan claras,
+  - qué partes quedan provisionales residuales,
+  - qué partes quedan abiertas pero no bloquean,
+  - qué conflictos con lo observado pasan a la fase spec-anchored,
+  - y si la recomendación final es:
+    - listo para promover,
+    - listo para promover con conflictos a mapear,
+    - o no listo para promover.
 
 En Bloque 1 debes hacer esto antes de hablar con Codex:
 
@@ -366,84 +429,187 @@ Después de cada respuesta de Codex, debes actualizar esta plantilla con clarida
 - abierta,
 - en conflicto con el comportamiento observado.
 
+En el cierre de Bloque 7, además, debes reclasificar explícitamente cada sección como:
+- clara,
+- provisional residual,
+- abierto residual no bloqueante,
+- en conflicto con el comportamiento observado.
+
 Tu salida final de spec-first debe rellenar esta plantilla sin implementar nada y dejando visibles todas las preguntas abiertas reales.
 
 ## Secciones
 
 ### Flow id
-`<flow-id>`
+`bootstrap.devbox-shell`
+
+**Estado:** claro
 
 Instrucción operativa:
 Usa el mismo flow id heredado desde discovery. Si cambia, justifícalo explícitamente. No inventes uno nuevo por comodidad.
 
+### Alcance
+Variante de `devbox shell` ejecutada en `/webapps/ihh-devtools`, en terminal interactiva, para un entorno ya inicializado.
+
+**Estado:** claro
+
+Instrucción operativa:
+Delimita explícitamente el alcance contractual vigente. Debe quedar claro qué variante observada entra en la spec y qué variantes quedan fuera por ahora. Esta sección evita que el contrato se infle más allá de lo realmente decidido.
+
 ### Intención
-Qué debería garantizar el flujo.
+Entregar una shell interactiva específica del repo, precedida por una verificación visible del entorno ya inicializado y una contextualización visible de la sesión para uso operativo.
+
+**Estado:** claro
 
 Instrucción operativa:
 Esta sección no describe solo lo que hoy pasa, sino lo que el flujo debería garantizar como contrato. Debe redactarse en términos de resultado y responsabilidad del flujo, no en términos de implementación. Si algo es solo una hipótesis de intención, debe marcarse como provisional o como pregunta abierta.
 
 ### Contrato visible para el usuario
-Qué puede asumir un usuario u operador.
+Si el usuario ejecuta `devbox shell` en el repo y dentro de esta variante, el flujo debe:
+
+- preparar el contexto de la sesión del repo;
+- realizar una verificación visible del mínimo requerido;
+- exigir que esa verificación sea satisfactoria para comunicar éxito, salud o estado listo;
+- dejar la sesión visiblemente contextualizada como sesión del repo y no como shell genérica;
+- comportarse como verificación más contextualización de un entorno ya inicializado, no como bootstrap inicial completo;
+- tratar esta variante como no destructiva a nivel contractual visible.
+
+**Estado:** claro
 
 Instrucción operativa:
 Describe lo que el usuario u operador puede dar por cierto si usa correctamente el flujo. Debe ser visible, comprensible y estable. No debe incluir detalles internos de implementación. Si el comportamiento actual del sistema es más raro o más permisivo que el contrato deseado, esa diferencia debe señalarse en Preguntas abiertas o como conflicto, no esconderse aquí.
 
 ### Preconditions
-Setup requerido y supuestos.
+- invocación como `devbox shell` desde `/webapps/ihh-devtools`;
+- variante de entorno ya inicializado;
+- contexto interactivo.
+
+**Estado:** claro
 
 Instrucción operativa:
 Lista únicamente las condiciones previas que deberían exigirse contractualmente. Incluye entorno, cwd, estado del repo, archivos, credenciales, conectividad, herramientas externas, config o permisos cuando realmente formen parte del contrato. No metas aquí accidentalidades del estado actual si no deberían ser requisito del flujo.
 
 ### Inputs
-Entradas aceptadas y sus formas válidas.
+- Obligatorio: comando `devbox shell` con ese `cwd`.
+- Residual/provisional: la implementación puede requerir una acción visible final de contextualización, pero el contrato no fija todavía su forma exacta.
+
+**Estado:** provisional residual
 
 Instrucción operativa:
 Define qué entradas acepta el flujo, qué formatos son válidos, qué combinaciones son admisibles y qué supuestos se hacen sobre ellas. Distingue entre obligatorio, opcional, permitido y no permitido si el caso lo requiere. No confundas “hoy lo tolera” con “debería aceptarlo”.
 
 ### Outputs
-Resultados esperados y efectos observables.
+- verificación visible del mínimo requerido antes del handoff exitoso;
+- sesión visiblemente contextualizada como sesión del repo;
+- sesión interactiva utilizable en caso de éxito;
+- si la verificación mínima no es satisfactoria, el flujo no debe comunicarse como éxito, saludable o listo;
+- no contractuales: textos literales, menú exacto, prompt exacto, host exacto, variables exactas y detalles internos de preparación.
+
+**Estado:** claro
 
 Instrucción operativa:
 Define qué resultados debería producir el flujo para el usuario u operador, incluyendo efectos observables y salidas relevantes. Distingue entre garantía contractual y efecto incidental. Si el flujo hoy emite más cosas de las que debería garantizar, no las conviertas automáticamente en output contractual.
 
 ### Invariants
-Condiciones que deberían mantenerse siempre.
+- el flujo debe comunicar visiblemente el resultado de la verificación mínima antes de presentarse como listo;
+- el éxito contractual exige verificación satisfactoria del mínimo requerido;
+- el éxito contractual exige contextualización visible de la sesión del repo;
+- esta variante representa verificación más contextualización de un entorno ya inicializado;
+- esta variante es no destructiva a nivel contractual visible.
+
+**Estado:** claro
 
 Instrucción operativa:
 Aquí van las propiedades que deberían sostenerse en cualquier ejecución válida del flujo. Deben formularse como condiciones durables y comprobables. No pongas invariants que dependan de detalles internos frágiles o de una implementación concreta, salvo que realmente formen parte del contrato.
 
 ### Failure modes
-Fallos esperados y su significado.
+- invocación fuera del contexto válido;
+- verificación mínima no satisfactoria;
+- no se completa el handoff interactivo;
+- no se completa la contextualización visible requerida para éxito.
+
+**Estado:** claro
 
 Instrucción operativa:
 Describe los fallos relevantes desde el punto de vista contractual: cuándo deberían ocurrir y qué significan para el usuario u operador. No conviertas stack traces, mensajes accidentales o detalles internos en contrato si no corresponde. Distingue, cuando sea necesario, entre fallo contractual y fallo interno observado.
 
 ### No-goals
-De qué no es responsable este flujo.
+- no prometer rutas internas, handlers o comandos concretos;
+- no prometer mensajes literales, menú exacto, host exacto, prompt exacto o variables exactas;
+- no definir este flujo como bootstrap inicial completo del workspace o de la máquina;
+- no exponer helpers, aliases o exports internos como API pública estable;
+- no cubrir variantes sin marker, sin TTY, con `skip wizard` o con layouts alternos;
+- no hacer contractuales los chequeos externos observados en la implementación actual.
+
+**Estado:** claro
 
 Instrucción operativa:
 Esta sección recorta el alcance. Debe dejar claro qué no promete este flujo, qué efectos no garantiza y qué responsabilidades pertenecen a otras partes del sistema. Es una sección importante para evitar que el contrato quede inflado.
 
 ### Ejemplos
-Ejemplos concretos de uso válido y resultado esperado.
+- en terminal interactiva y repo correcto, la ejecución produce verificación visible más contextualización visible;
+- la variante observada se comporta como verificación de sesión ya inicializada y no como bootstrap inicial completo;
+- fuera del contexto válido no debe presentarse sesión lista del repo;
+- si no se puede establecer satisfactoriamente el mínimo requerido, no debe comunicarse estado saludable o listo.
+
+**Estado:** claro
 
 Instrucción operativa:
 Incluye ejemplos específicos, comprensibles y alineados con la intención. Deben ilustrar tanto casos normales como, si conviene, casos de error. No uses ejemplos demasiado abstractos. Si un ejemplo depende de una decisión pendiente, márcalo como provisional.
 
 ### Acceptance candidates
-Afirmaciones que deberían convertirse en tests Bats.
+- dado un entorno ya inicializado y una terminal interactiva en el repo, cuando se ejecuta `devbox shell`, entonces el flujo emite una verificación visible del mínimo requerido antes del handoff exitoso;
+- dado el mismo contexto, cuando `devbox shell` concluye en éxito, entonces la sesión queda visiblemente contextualizada como sesión del repo y no como shell genérica;
+- dado el mismo contexto, cuando el flujo entra en esta variante, entonces se comporta como verificación y contextualización de un entorno ya inicializado y no como bootstrap inicial completo;
+- si la verificación mínima exigida por el contrato no es satisfactoria, entonces el flujo no debe comunicar éxito, salud o listo al usuario;
+- si la invocación no ocurre en el contexto válido del repo, entonces el flujo no debe presentar la sesión como lista para trabajar en ese repo.
+
+**Estado:** claro
 
 Instrucción operativa:
 Redacta afirmaciones verificables y orientadas a comportamiento observable. No escribas los tests todavía; solo formula qué debería poder comprobarse más adelante. Estas afirmaciones deben ser suficientemente claras para guiar la futura validación, pero no deben depender de detalles internos innecesarios.
 
 ### Preguntas abiertas
-Cualquier detalle contractual todavía no resuelto.
+- qué mecanismo exacto materializa la contextualización visible final;
+- cómo detecta la implementación que el entorno está ya inicializado, siempre que siga siendo detalle de implementación y no contrato visible;
+- si puede existir una continuación operativa degradada fuera de la ruta de éxito contractual.
+
+**Estado:** abierto residual no bloqueante
 
 Instrucción operativa:
 Todo hueco real debe aparecer aquí. Nunca cierres una duda contractual por cansancio o por intuición. Esta sección es obligatoria. Incluye decisiones pendientes, ambigüedades sobre inputs/outputs, conflictos entre intención y comportamiento actual y cualquier parte que todavía impida considerar estable el contrato.
 
+Cuando ya no queden huecos que cambien la semántica del contrato, pero sí queden detalles de realización o variantes fuera de la ruta de éxito contractual, puedes dejarlos aquí como abiertos residuales no bloqueantes.
+
 ### Criterio de salida para promover a spec-anchored
-Qué falta mapear contra el código real.
+Ya están listas para anclaje:
+
+- intención;
+- contrato visible;
+- preconditions;
+- outputs;
+- invariants;
+- failure modes;
+- no-goals;
+- ejemplos;
+- acceptance candidates.
+
+Preguntas abiertas que no bloquean la promoción:
+
+- el mecanismo exacto de contextualización visible;
+- el mecanismo exacto para reconocer entorno ya inicializado;
+- la existencia de continuación degradada fuera del éxito contractual.
+
+Conflictos con el comportamiento actual que deberán mapearse y resolverse en la siguiente fase:
+
+- toda mutación observada que contradiga la variante contractual no destructiva;
+- todo chequeo externo observado que la implementación trate como obligatorio aunque no pertenezca al contrato visible;
+- toda continuidad operativa observada que pueda presentarse como éxito sin verificación satisfactoria;
+- toda materialización concreta de contextualización que hoy exista y deba reinterpretarse como realización particular del contrato abstracto.
+
+Recomendación final explícita:
+**listo para promover con conflictos a mapear**
+
+**Estado:** claro
 
 Instrucción operativa:
 No promociones a spec-anchored por sensación. Debes escribir explícitamente:
@@ -451,29 +617,94 @@ No promociones a spec-anchored por sensación. Debes escribir explícitamente:
 - qué acceptance candidates ya tienen forma utilizable;
 - qué preguntas abiertas no bloquean la promoción;
 - qué conflictos con el comportamiento actual habrá que mapear y resolver en la siguiente fase;
-- qué mínima aclaración faltaría si todavía no conviene promover.
+- qué mínima aclaración faltaría si todavía no conviene promover;
+- y una recomendación final explícita entre:
+  - listo para promover,
+  - listo para promover con conflictos a mapear,
+  - no listo para promover.
+
+### Reclasificación por sección
+Cómo queda clasificada cada sección al cierre de Bloque 7.
+
+**Estado:** claro
+
+- **claras:**
+  - Flow id
+  - Alcance
+  - Intención
+  - Contrato visible para el usuario
+  - Preconditions
+  - Outputs
+  - Invariants
+  - Failure modes
+  - No-goals
+  - Ejemplos
+  - Acceptance candidates
+  - Criterio de salida para promover a spec-anchored
+
+- **provisional residual:**
+  - Inputs, porque la forma exacta de la contextualización final sigue sin fijarse y no altera la semántica contractual ya cerrada.
+
+- **abierto residual no bloqueante:**
+  - mecanismo exacto de contextualización visible;
+  - mecanismo exacto para reconocer entorno ya inicializado;
+  - existencia de continuación degradada fuera del éxito contractual.
+
+- **en conflicto con el comportamiento observado:**
+  - variante contractual no destructiva vs mutaciones observadas antes del prompt;
+  - chequeos externos no contractuales vs chequeos externos presentes en la ruta observada;
+  - éxito contractual condicionado a verificación satisfactoria vs posible continuidad observada aunque falle el verificador;
+  - contextualización abstracta del contrato vs UI concreta observada.
+
+Instrucción operativa:
+Al cerrar spec-first, reclasifica explícitamente cada sección en una de estas categorías:
+- clara,
+- provisional residual,
+- abierto residual no bloqueante,
+- en conflicto con el comportamiento observado.
+
+Esta reclasificación no sustituye la ficha principal; la complementa para dejar visible qué queda firme, qué queda residual y qué pasará como drift a spec-anchored.
 
 Formato obligatorio de trabajo durante todo spec-first:
 
 Estado actual
-- Bloque actual:
-- Objetivo del bloque:
-- Pregunta contractual que estamos resolviendo:
+- Bloque actual: Bloque 7: cierre con ficha final de spec-first
+- Objetivo del bloque: cerrar la ficha contractual final de `bootstrap.devbox-shell` y dejar explícito que ya está promovible a spec-anchored
+- Pregunta contractual que estamos resolviendo: ¿qué debería garantizar este flujo, qué puede asumir el usuario y qué drift observado deberá mapearse en la siguiente fase?
 
 Hallazgos contractuales ya claros
-- ...
+- el flow id vigente es `bootstrap.devbox-shell`;
+- el alcance vigente es la variante de `devbox shell` ejecutada en `/webapps/ihh-devtools`, en terminal interactiva, para un entorno ya inicializado;
+- el éxito contractual exige verificación satisfactoria del mínimo requerido;
+- la contextualización visible final sí forma parte del éxito contractual, pero solo en abstracto;
+- los chequeos externos no forman parte del contrato visible;
+- esta variante queda definida como verificación + contextualización de un entorno ya inicializado;
+- esta variante queda definida como no destructiva a nivel contractual visible;
+- ya existen ejemplos sólidos y acceptance candidates maduros para promover.
 
 Puntos aún provisionales
-- ...
+- la forma exacta de la acción final de contextualización como mecanismo de realización.
 
 Conflictos con el comportamiento observado
-- ...
+- mutaciones observadas antes del prompt;
+- chequeos externos presentes en la ruta observada;
+- posible continuidad observada aunque falle el verificador;
+- UI concreta observada para una contextualización que el contrato deja en abstracto.
 
 Qué podemos dejar fuera por ahora
-- ...
+- textos literales;
+- menú exacto;
+- prompt exacto;
+- host exacto;
+- variables exactas;
+- comandos, handlers y archivos internos exactos;
+- variantes fuera del alcance;
+- compatibilidades heredadas no contractuales.
 
 Condición para pasar al siguiente bloque
-- ...
+- spec-first queda cerrada;
+- el siguiente paso correcto es spec-anchored;
+- lo que sigue es anclar esta ficha al código real y registrar el drift donde corresponda.
 
 Regla final:
 Spec-first solo queda bien hecho si esta plantilla permite responder con claridad a la pregunta:
