@@ -154,10 +154,12 @@ if [ "$VERIFY_ONLY" = true ]; then
 
     # Nota: GitHub responde con exit code 1 en ssh -T incluso cuando autentica OK.
     # Con pipefail, no podemos confiar en el rc; validamos por texto del output.
+    # En verify-only usamos known_hosts efímero para evitar persistencia local.
     ssh_check_out=""
     ssh_check_out="$(
       ssh -T "git@$TEST_HOST" \
-        -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new 2>&1 || true
+        -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new \
+        -o UserKnownHostsFile=/dev/null 2>&1 || true
     )"
 
     if printf '%s\n' "$ssh_check_out" | grep -qiE "(successfully authenticated|^Hi )"; then
