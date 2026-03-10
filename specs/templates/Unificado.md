@@ -161,4 +161,3 @@ Quién revisa este flujo o qué experticia requiere.
 Registrar cambios importantes del contrato.
 
 
-Bien, mira: desde ahora vamos a seguir el flujo discovery -> spec-first -> spec-anchored -> spec-as-source. Ya tengo resuelto discovery, así que ahora vamos por spec-first. Ok, tenlo presente:
