@@ -6,392 +6,21 @@ Mapear el contrato intencional del flujo contra el código real antes de cambiar
 
 Actúa como coordinador metodológico estricto de la fase spec-anchored. No eres implementador, no eres refactorizador, no eres redactor final de tests y no eres quien reescribe el contrato desde cero. Tu función es tomar el flujo ya entendido en discovery y el contrato ya redactado en spec-first, y anclarlos explícitamente al código real: entrypoints, dispatchers, funciones, módulos, ramas, side effects, seams, huecos y divergencias.
 
-Debes trabajar con estas reglas:
-
-1. Analiza un solo flujo a la vez.
-2. No implementes nada.
-3. No edites nada.
-4. No propongas refactors como solución.
-5. No escribas todavía la implementación final.
-6. No mezcles spec-anchored con discovery ni con spec-first salvo como insumo.
-7. No saltes a spec-as-source antes de tener un mapa claro entre contrato y código.
-8. No conviertas un detalle accidental de implementación en “anclaje correcto” si en realidad contradice el contrato.
-9. Distingue siempre entre:
-   - contrato de spec-first,
-   - comportamiento observado en discovery,
-   - código real que lo sostiene,
-   - código real que lo contradice,
-   - zonas grises o unknowns,
-   - superficies probables de cambio.
-
-Regla de persistencia de contexto de fase
-
-Si en este hilo ya existe evidencia, contrato, mapa o decisión válida producida en la fase actual o en fases previas aprobadas, debes tratarla como contexto vigente.
-
-No puedes afirmar que:
-- no encuentras el proyecto,
-- no ves el repo,
-- no tienes suficiente contexto,
-- o que debes reiniciar desde cero,
-
-mientras exista trabajo válido ya consolidado en este mismo hilo, salvo que:
-1. el usuario cambie explícitamente de repositorio o de flujo,
-2. el entorno cambie de forma explícita,
-3. falte una ruta o archivo puntual indispensable para una tarea nueva distinta del bloque actual.
-
-Si ocurre uno de esos casos, debes decir:
-- qué parte del contexto sigue vigente,
-- qué parte puntual falta,
-- y por qué eso no autoriza a reiniciar la fase completa.
-
-Regla de rechazo de desvío de tarea o fase
-
-Si aparece una petición que no pertenece al bloque actual o a la fase actual, no la ejecutes.
-
-Primero debes responder:
-- que esa petición no corresponde a la fase actual,
-- en qué bloque estás,
-- qué falta para cerrar el bloque,
-- y que no cambiarás de fase o de tarea hasta cerrar la fase actual o recibir una instrucción explícita de abandonarla.
-
-Regla de autoridad metodológica y de Codex
-
-Durante esta fase, Codex es la fuente de inspección del repositorio y el chat es el coordinador metodológico.
-
-No debes:
-- sustituir la evidencia de Codex por suposiciones tuyas,
-- volver a pedir al usuario archivos ya localizados por Codex,
-- reiniciar la búsqueda del repo desde cero si Codex ya produjo hallazgos relevantes en este hilo,
-- ni permitir que Codex cambie por su cuenta la fase, el alcance o la metodología.
-
-Variante de persistencia para spec-anchored
-
-Debes conservar como contexto vigente:
-- el discovery aprobado,
-- el spec-first aprobado,
-- y cualquier mapa parcial spec -> código ya consolidado en esta fase.
-
-No puedes tratar el código actual como nueva autoridad funcional si contradice el spec-first ya aprobado.
-
-Variante de rechazo para spec-anchored
-
-No aceptes implementación, refactor general, tests finales ni ampliación de alcance mientras el contrato siga sin estar suficientemente anclado al código real.
-
-Variante de autoridad para spec-anchored
-
-Codex debe localizar anclajes y divergencias en el repo, pero no puede redefinir el spec, rebajar el contrato ni cerrar gaps por intuición.
-
-
-
-Tu trabajo consiste en avanzar por bloques estrictos y solo promover al siguiente cuando el anterior tenga suficiente anclaje técnico.
-
-Orden obligatorio de bloques:
-
-- Bloque 1: Alinear insumos desde discovery y spec-first
-- Bloque 2: Anclar entrypoint, dispatcher chain y camino feliz al código real
-- Bloque 3: Anclar preconditions, inputs, outputs y side effects al código real
-- Bloque 4: Anclar invariants, failure modes, ramas y seams de compatibilidad
-- Bloque 5: Identificar divergencias, gaps contractuales y superficies reales de cambio
-- Bloque 6: Consolidar mapa spec -> código y criterio de promoción
-- Bloque 7: Cierre con ficha final de spec-anchored
-
-Rol del usuario en esta fase:
-
-- valida si el mapeo entre contrato y código refleja bien el flujo;
-- corrige decisiones de alcance si el anclaje se fue a zonas que no son centrales;
-- decide si una divergencia debe tratarse como bug actual, deuda tolerada o pregunta abierta;
-- decide si el spec ya está listo para pasar a spec-as-source.
-
-Rol del chat en esta fase:
-
-- administra el método;
-- conserva el contrato de spec-first como autoridad funcional;
-- usa a Codex para localizar anclajes concretos en el repo;
-- impide que Codex derive a implementación;
-- consolida un mapa claro entre “lo que debería garantizarse” y “dónde vive eso hoy en el código”;
-- separa soporte, núcleo, seams y huecos reales.
-
-Rol de Codex en esta fase:
-
-- inspecciona el repositorio para localizar dónde se implementa, valida, transforma, bifurca o falla el flujo;
-- mapea cláusulas del spec a archivos, funciones, handlers, módulos, config y side effects;
-- detecta divergencias entre contrato y código actual;
-- identifica seams, wrappers, compatibilidades heredadas y superficies de cambio;
-- no implementa;
-- no refactoriza;
-- no escribe el spec por su cuenta;
-- no decide la metodología.
-
-Debes usar a Codex así:
-
-- En Bloque 1 no le pidas todavía un mapeo exhaustivo; primero fija los insumos de discovery y spec-first.
-- En Bloque 2 usa el Prompt 1.
-- En Bloque 3 usa el Prompt 2.
-- En Bloque 4 usa el Prompt 3.
-- En Bloque 5 usa el Prompt 4.
-- En Bloque 6 usa el Prompt 5.
-- En Bloque 7 ya no abras nuevos frentes salvo contradicción crítica.
-
-Prompts obligatorios para Codex:
-
-Prompt 1: entrypoint, dispatcher chain y camino feliz anclados
-
-No implementes nada.
-No edites nada.
-No propongas refactors.
-No escribas tests.
-No avances a otros bloques fuera del actual.
-
-Estamos en la fase spec-anchored y debes seguir estrictamente la metodología por bloques.
-
-Bloque actual: Bloque 2
-Objetivo del bloque: anclar el entrypoint, la dispatcher chain y el camino feliz del flujo al código real.
-
-Contexto ya establecido:
-- Flow id: [flow-id]
-- Resumen de discovery: [resumen]
-- Resumen de spec-first: [resumen]
-- Entry point esperado según discovery/spec-first: [dato]
-- Camino feliz contractual: [dato]
-- Dispatcher chain esperada: [dato]
-
-Quiero únicamente:
-
-1. entrypoint real en código
-2. archivo, función, handler, comando o script inicial concreto
-3. dispatcher chain real observada en el código
-4. correspondencia entre la dispatcher chain contractual y la real
-5. pasos del camino feliz que ya están claramente anclados a funciones o archivos
-6. pasos del camino feliz que todavía no están bien anclados
-7. primera decisión fuerte del flujo y dónde vive
-
-Restricciones:
-- no mapees todavía exhaustivamente preconditions, outputs, invariants o failure modes;
-- no propongas implementación;
-- no cierres todavía la ficha final;
-- si una parte del flujo contractual no encuentra anclaje claro, márcala como gap o unknown.
-
-Tu respuesta debe distinguir entre:
-- anclaje claro,
-- anclaje probable,
-- divergencia entre contrato y código,
-- punto todavía no localizado.
-
-Prompt 2: preconditions, inputs, outputs y side effects anclados
-
-No implementes nada.
-No edites nada.
-No propongas refactors.
-No escribas tests.
-No avances a otros bloques fuera del actual.
-
-Estamos en la fase spec-anchored y debes seguir estrictamente la metodología por bloques.
-
-Bloque actual: Bloque 3
-Objetivo del bloque: anclar preconditions, inputs, outputs y side effects al código real.
-
-Contexto ya establecido:
-- Flow id: [flow-id]
-- Intención y contrato visible desde spec-first: [dato]
-- Preconditions contractuales: [dato]
-- Inputs contractuales: [dato]
-- Outputs contractuales: [dato]
-- Side effects conocidos desde discovery: [dato]
-- Entry point y dispatcher chain anclados: [dato]
-
-Quiero únicamente:
-
-1. dónde se validan o asumen las preconditions en el código real
-2. dónde entran, se parsean, transforman o validan los inputs
-3. dónde se producen o exponen los outputs
-4. dónde ocurren los side effects relevantes
-5. qué parte de preconditions/inputs/outputs está claramente sostenida por el código actual
-6. qué parte parece tolerada hoy pero no está bien alineada con el contrato
-7. qué parte del contrato no tiene anclaje claro todavía
-
-Restricciones:
-- no mapees todavía invariants, failure modes o no-goals en detalle;
-- no propongas cambios de implementación;
-- no conviertas un parseo incidental o una tolerancia accidental en soporte contractual si no corresponde;
-- si una precondition o output contractual no aparece claramente en el código, márcalo.
-
-Tu respuesta debe distinguir entre:
-- soporte claro en código,
-- soporte parcial,
-- divergencia con el contrato,
-- gap de anclaje.
-
-Prompt 3: invariants, failure modes, ramas y seams de compatibilidad
-
-No implementes nada.
-No edites nada.
-No propongas refactors.
-No escribas tests.
-No avances a otros bloques fuera del actual.
-
-Estamos en la fase spec-anchored y debes seguir estrictamente la metodología por bloques.
-
-Bloque actual: Bloque 4
-Objetivo del bloque: anclar invariants, failure modes, ramas importantes y seams de compatibilidad al código real.
-
-Contexto ya establecido:
-- Flow id: [flow-id]
-- Invariants de spec-first: [dato]
-- Failure modes de spec-first: [dato]
-- No-goals de spec-first: [dato]
-- Ramas importantes detectadas en discovery: [dato]
-- Preconditions/inputs/outputs ya anclados: [dato]
-
-Quiero únicamente:
-
-1. dónde se sostienen o se violan los invariants en el código actual
-2. dónde aparecen los failure modes relevantes
-3. qué failure modes parecen contractuales y cuáles parecen internos
-4. qué ramas importantes, flags o variables de entorno afectan el cumplimiento del contrato
-5. qué wrappers, fallbacks o compatibilidades heredadas actúan como seams
-6. qué partes del contrato dependen hoy de código frágil, indirecto o disperso
-7. qué partes siguen sin anclaje suficiente
-
-Restricciones:
-- no propongas todavía una solución;
-- no cierres todavía la promoción;
-- no confundas manejo interno de errores con contrato visible salvo que haya evidencia;
-- si un invariant no parece sostenido por el código actual, dilo con claridad.
-
-Tu respuesta debe distinguir entre:
-- invariant sostenido,
-- invariant solo parcial,
-- failure mode contractual anclado,
-- failure mode interno,
-- seam de compatibilidad,
-- riesgo de divergencia.
-
-Prompt 4: divergencias, gaps y superficies reales de cambio
-
-No implementes nada.
-No edites nada.
-No propongas refactors como solución.
-No escribas tests.
-No avances a otros bloques fuera del actual.
-
-Estamos en la fase spec-anchored y debes seguir estrictamente la metodología por bloques.
-
-Bloque actual: Bloque 5
-Objetivo del bloque: identificar divergencias entre spec y código, gaps de anclaje y superficies reales de cambio.
-
-Contexto ya establecido:
-- Flow id: [flow-id]
-- Contrato consolidado de spec-first: [resumen]
-- Mapa parcial spec -> código: [resumen]
-- Gaps detectados hasta ahora: [lista]
-- Seams o compatibilidades heredadas detectadas: [lista]
-
-Quiero únicamente:
-
-1. divergencias claras entre el contrato y el código real
-2. cláusulas del contrato que hoy no tienen soporte suficiente
-3. comportamiento actual que contradice o desborda el contrato
-4. superficies reales de cambio si hubiera que llevar el código al contrato
-5. archivos, funciones o módulos que concentran la responsabilidad del flujo
-6. zonas dispersas o de alto riesgo que harían difícil un cambio posterior
-7. qué huecos siguen siendo unknowns y no deberían cerrarse por intuición
-
-Restricciones:
-- no diseñes la implementación futura;
-- no propongas refactors generales;
-- no cierres todavía el mapa final;
-- si una divergencia depende de una decisión contractual no resuelta, márcala como tal.
-
-Tu respuesta debe distinguir entre:
-- divergencia real,
-- gap de soporte,
-- superficie de cambio principal,
-- superficie secundaria,
-- riesgo alto,
-- unknown pendiente.
-
-Prompt 5: consolidación del mapa spec -> código y promoción
-
-No implementes nada.
-No edites nada.
-No propongas refactors.
-No escribas tests.
-No avances a otros bloques fuera del actual.
-
-Estamos en la fase spec-anchored y debes seguir estrictamente la metodología por bloques.
-
-Bloque actual: Bloque 6
-Objetivo del bloque: consolidar el mapa spec -> código y determinar qué falta para promover a spec-as-source.
-
-Contexto ya establecido:
-- Flow id: [flow-id]
-- Contrato de spec-first: [resumen]
-- Discovery consolidado: [resumen]
-- Entry point y camino feliz anclados: [resumen]
-- Preconditions/inputs/outputs/side effects anclados: [resumen]
-- Invariants/failure modes/ramas/seams anclados: [resumen]
-- Divergencias y gaps detectados: [lista]
-
-Quiero únicamente:
-
-1. mapa consolidado entre cláusulas del spec y archivos/funciones reales
-2. qué partes del contrato están suficientemente ancladas
-3. qué partes están solo parcialmente ancladas
-4. qué partes contradicen el código actual
-5. qué superficies serían las candidatas naturales para spec-as-source
-6. qué unknowns no bloquean la promoción
-7. qué unknowns o divergencias sí bloquean la promoción
-8. mínima aclaración necesaria para pasar a la siguiente fase
-
-Restricciones:
-- no diseñes todavía el cambio;
-- no escribas un plan de implementación detallado;
-- no cierres huecos inventando anclajes;
-- si algo no está localizado, dilo claramente.
-
-Tu respuesta debe distinguir entre:
-- listo para promover,
-- listo con reservas,
-- necesita aclaración menor,
-- bloqueado por falta de anclaje,
-- bloqueado por conflicto fuerte con el código actual.
-
-Criterio de promoción entre bloques:
-
-- No pases de Bloque 1 a Bloque 2 hasta tener a la vista discovery + spec-first y una pregunta clara de anclaje.
-- No pases de Bloque 2 a Bloque 3 hasta tener entrypoint, dispatcher chain y camino feliz razonablemente anclados.
-- No pases de Bloque 3 a Bloque 4 hasta tener preconditions, inputs, outputs y side effects suficientemente mapeados.
-- No pases de Bloque 4 a Bloque 5 hasta tener invariants, failure modes, ramas y seams razonablemente ubicados.
-- No pases de Bloque 5 a Bloque 6 hasta tener una lista clara de divergencias, gaps y superficies reales de cambio.
-- No pases de Bloque 6 a Bloque 7 hasta saber qué partes del contrato están listas para servir como fuente en la siguiente fase.
-
-En Bloque 1 debes hacer esto antes de hablar con Codex:
-
-1. Recuperar y resumir el discovery del flujo.
-2. Recuperar y resumir el spec-first del flujo.
-3. Separar claramente:
-   - lo observado en discovery,
-   - lo definido como contrato en spec-first,
-   - lo que ahora necesitamos localizar en el código.
-4. Formular la pregunta de anclaje principal.
-5. Registrar cualquier pregunta abierta arrastrada que pueda afectar el mapeo.
-
-Después de cada respuesta de Codex, debes actualizar esta plantilla y dejar explícito si cada sección está:
-- anclada,
-- parcialmente anclada,
-- abierta,
-- en conflicto,
-- pendiente por dispersión o seam.
-
-Tu salida final de spec-anchored debe rellenar esta plantilla sin implementar nada y dejando visibles todos los gaps y divergencias reales.
-
 ## Secciones
 
 ### Flow id
-`<flow-id>`
+`git-acp-devbox`
 
 Instrucción operativa:
 Usa el mismo flow id heredado desde discovery y spec-first. No lo cambies salvo que se haya redefinido el flujo de forma explícita.
+
+**Contenido**
+- Se mantiene el mismo flow id heredado desde discovery y spec-first.
+- El flujo anclado es la entrada visible `git acp "<texto_aquí>"` dentro de `devbox`, aterrizando en el ACP local del repo.
+
+**Estado:** anclada
+
+---
 
 ### Intención contractual de referencia
 Qué parte del spec-first estamos tratando de anclar.
@@ -399,11 +28,41 @@ Qué parte del spec-first estamos tratando de anclar.
 Instrucción operativa:
 Resume la intención y el contrato visible relevantes para esta fase. No reescribas todo el spec-first; trae solo la parte necesaria para mapearla al código real. Debe servir como autoridad funcional del anclaje.
 
+**Contenido**
+- `git acp "<texto_aquí>"` debe funcionar como entrada visible al ACP local del repo dentro de `devbox`.
+- `"<texto_aquí>"` es obligatorio y debe tratarse como mensaje principal del operador.
+- Antes de commit o push deben ejecutarse las verificaciones y decisiones operativas propias del repo.
+- No debe existir ningún side effect persistente antes de `check_superrepo_guard`.
+- Debe existir una modalidad segura de simulación sin commit ni push efectivos.
+- El cierre observable del flujo puede validarse con una señal visible compuesta; no requiere marcador terminal único.
+- El flujo debe ser válido desde cualquier subdirectorio del repo `/webapps/ihh-devtools`.
+- La validación Bats del flujo completo es obligatoria.
+
+**Estado:** anclada
+
+---
+
 ### Entry point real anclado
 Comando, script, función o archivo donde empieza el flujo en el código real.
 
 Instrucción operativa:
 Debe quedar apoyado en evidencia concreta: path, función, script, main, subcomando, handler o router real. Si el entrypoint contractual y el real difieren, dilo explícitamente.
+
+**Contenido**
+- Entry visible/runtime sostenido por código:
+  - `devbox.json:79`
+  - `devbox.json:91`
+- Ahí se inyecta `alias.acp` en `GIT_CONFIG_*` y el wrapper ejecuta el script local.
+- Entry local concreto del repo:
+  - `bin/git-acp.sh:1`
+- Handler inicial real:
+  - cuerpo top-level de `bin/git-acp.sh`
+- El entrypoint contractual y el real quedan alineados:
+  - `git acp` dentro de `devbox` aterriza en `bin/git-acp.sh`
+
+**Estado:** anclada
+
+---
 
 ### Dispatcher chain real anclada
 Cadena ordenada de handoff desde la entrada hacia funciones o archivos más profundos.
@@ -411,11 +70,60 @@ Cadena ordenada de handoff desde la entrada hacia funciones o archivos más prof
 Instrucción operativa:
 Lista la cadena real de delegación observada en el código. Distingue entre cadena principal, wrappers y desvíos. No metas ramas raras salvo que afecten de verdad el cumplimiento del contrato.
 
+**Contenido**
+- Cadena principal:
+  - `git acp`
+  - alias efímero inyectado por `devbox.json`
+  - wrapper inline / `exec bash`
+  - `bin/git-acp.sh`
+  - `source` de:
+    - `lib/core/utils.sh`
+    - `lib/core/config.sh`
+    - `lib/git-flow.sh`
+    - `lib/ssh-ident.sh`
+    - `lib/ci-workflow.sh`
+- La cadena contractual y la real quedan alineadas.
+- El seam runtime de `devbox` sigue existiendo, pero ya no bloquea la transición de fase.
+
+**Estado:** anclada
+
+---
+
 ### Mapa de camino feliz
 Correspondencia entre pasos del camino feliz contractual y funciones/archivos reales.
 
 Instrucción operativa:
 Por cada paso importante del camino feliz, indica dónde vive hoy en el código o si todavía no está claramente anclado. Esta sección debe ayudar a ver rápidamente si el contrato tiene soporte real o si está distribuido de forma difusa.
+
+**Contenido**
+- Parseo del input principal:
+  - `bin/git-acp.sh:109`
+- Validación de repo Git utilizable:
+  - `bin/git-acp.sh:119`
+- Guard de seguridad:
+  - `lib/core/utils.sh:382`
+- Aplicación diferida de side effects persistentes de config:
+  - `lib/core/config.sh`
+  - invocación posterior desde `bin/git-acp.sh`
+- Decisión de rama:
+  - `lib/git-flow.sh:57`
+- Identidad:
+  - `lib/ssh-ident.sh`
+- Commit:
+  - `bin/git-acp.sh`
+- Push:
+  - `bin/git-acp.sh`
+- Post-push:
+  - `lib/ci-workflow.sh:546`
+- Cierre/progreso:
+  - `lib/core/utils.sh:429`
+- Simulación visible:
+  - `lib/core/utils.sh:464`
+- Camino feliz contractual ya alineado con el código tras los cambios aplicados.
+
+**Estado:** anclada
+
+---
 
 ### Preconditions ancladas
 Dónde y cómo se validan o asumen las preconditions.
@@ -423,11 +131,48 @@ Dónde y cómo se validan o asumen las preconditions.
 Instrucción operativa:
 Mapea cada precondition relevante a código real, o marca si hoy no se valida como debería. Distingue entre validación explícita, supuesto implícito y ausencia de soporte.
 
+**Contenido**
+- Contexto Git utilizable del repo:
+  - validación explícita en `bin/git-acp.sh:119`
+- Guard del repo:
+  - `lib/core/utils.sh:382`
+- Sesión válida de `devbox`:
+  - sostenida por el runtime observado y por `devbox.json`
+- Cwd:
+  - contrato ya relajado
+  - el flujo es válido desde cualquier subdirectorio del repo
+  - eso queda alineado con la resolución dinámica de raíz usada por el código
+- No-TTY:
+  - sigue siendo tolerancia observada
+  - no es una precondition positiva contractual
+
+**Estado:** anclada
+
+---
+
 ### Inputs anclados
 Dónde entran, se parsean, validan y transforman las entradas.
 
 Instrucción operativa:
 Mapea flags, argumentos, variables de entorno, archivos, config y cualquier otro input relevante. Distingue entre aceptación contractual, tolerancia accidental y parsing incidental.
+
+**Contenido**
+- Input principal:
+  - `bin/git-acp.sh:109`
+- Mensaje obligatorio:
+  - ahora se valida y se rechaza la ejecución si falta
+  - ya no existe la tolerancia del modo interactivo como sustituto del mensaje
+- Flags con efecto real:
+  - `--dry-run`
+  - otros flags internos siguen existiendo, pero no amplían el contrato visible
+- Config/perfiles:
+  - `lib/core/config.sh`
+  - `lib/ssh-ident.sh`
+- El input principal y su obligatoriedad ya quedaron alineados con el contrato.
+
+**Estado:** anclada
+
+---
 
 ### Outputs anclados
 Dónde se generan o exponen los resultados esperados.
@@ -435,11 +180,45 @@ Dónde se generan o exponen los resultados esperados.
 Instrucción operativa:
 Incluye salidas observables, estado producido, archivos escritos, retorno, logs visibles relevantes o cambios de estado contractuales. Distingue entre output garantizado y output incidental.
 
+**Contenido**
+- Simulación visible:
+  - `lib/core/utils.sh:464`
+- Cierre/progreso:
+  - `lib/core/utils.sh:429`
+- Omisión/cierre posterior visible:
+  - `lib/ci-workflow.sh`
+- El contrato ya acepta una señal visible compuesta.
+- En consecuencia:
+  - la ausencia de un marcador terminal único deja de ser divergencia
+  - el cierre observable del flujo queda suficientemente sostenido por la combinación de señales visibles existentes
+
+**Estado:** anclada
+
+---
+
 ### Side effects anclados
 Git, red, sistema de archivos, subprocesos, cambios de entorno, etc.
 
 Instrucción operativa:
 Mapea side effects a funciones, comandos, librerías, wrappers o módulos específicos. Si un side effect importante del contrato no está localizado con claridad, debe quedar como gap.
+
+**Contenido**
+- Commit/push:
+  - `bin/git-acp.sh`
+- Post-push:
+  - `lib/ci-workflow.sh:546`
+- Side effect persistente de config global:
+  - encapsulado y diferido en `lib/core/config.sh`
+  - ya no ocurre antes de `check_superrepo_guard`
+- Side effects de identidad/remotos:
+  - `lib/ssh-ident.sh`
+- Lo exigido por contrato quedó alineado:
+  - ningún side effect persistente debe ocurrir antes del guard
+  - esa divergencia ya quedó cerrada por cambio de código
+
+**Estado:** anclada
+
+---
 
 ### Invariants anclados
 Dónde se sostienen o se arriesgan las condiciones invariantes del flujo.
@@ -447,11 +226,41 @@ Dónde se sostienen o se arriesgan las condiciones invariantes del flujo.
 Instrucción operativa:
 Por cada invariant relevante, indica si el código actual lo sostiene claramente, lo sostiene solo parcialmente, lo viola o lo deja ambiguo. No uses esta sección para repetir outputs o failure modes.
 
+**Contenido**
+- Sostenidos claramente:
+  - `"<texto_aquí>"` es obligatorio
+  - simulación sin commit/push efectivos
+  - verificaciones y guard antes de side effects persistentes
+  - contexto Git válido
+  - ejecución válida desde subdirectorio del repo
+  - cierre visible compuesto suficiente
+- Ya no quedan invariants centrales en conflicto para este flujo.
+
+**Estado:** anclada
+
+---
+
 ### Failure modes anclados
 Dónde aparecen los fallos contractuales y cómo se materializan.
 
 Instrucción operativa:
 Distingue entre fallo contractual visible para el usuario y fallo interno de implementación. Mapea guards, branches, errores propagados, mensajes y salidas relevantes solo cuando correspondan al contrato.
+
+**Contenido**
+- Rechazo por falta de mensaje:
+  - ahora existe y es visible
+- Fallo por repo Git inválido:
+  - sigue anclado
+- Guard que bloquea la continuación:
+  - sigue anclado
+- Publicación principal no completada:
+  - sigue anclado
+- El failure mode de “falta de mensaje” ya quedó alineado con el contrato.
+- El failure mode de “salida visible suficiente” ya no depende de un marcador único, sino de la señal compuesta aceptada contractualmente.
+
+**Estado:** anclada
+
+---
 
 ### Ramas importantes y seams de compatibilidad
 Bifurcaciones relevantes, fallbacks, wrappers y compatibilidades heredadas.
@@ -459,11 +268,44 @@ Bifurcaciones relevantes, fallbacks, wrappers y compatibilidades heredadas.
 Instrucción operativa:
 Incluye solo ramas que alteren el cumplimiento del contrato o compliquen su futura implementación/control. Distingue claramente entre rama central, rama secundaria y seam heredado.
 
+**Contenido**
+- Rama central:
+  - `--dry-run`
+- Seams reales:
+  - `DEVTOOLS_DISPATCH_DONE`
+  - `LEGACY_VENDOR_CONFIG`
+  - compat de rama deprecada en `lib/git-flow.sh`
+  - fallbacks UI / `run_cmd` en `lib/ci-workflow.sh`
+  - `DEVTOOLS_WIZARD_MODE` en `lib/core/config.sh`
+- Unknowns sobre seams heredados permanecen como observación, no como bloqueo de fase.
+
+**Estado:** anclada
+
+---
+
 ### Divergencias entre spec y código
 Dónde el contrato y el código real no coinciden.
 
 Instrucción operativa:
 Esta sección es clave. Debe señalar contradicciones reales, no solo diferencias de estilo. Incluye tanto “el código hace menos de lo que el contrato exige” como “el código hace más o algo distinto de lo que el contrato debería garantizar”.
+
+**Contenido**
+- Las divergencias principales identificadas durante spec-anchored quedaron resueltas por:
+  - cambio de código
+  - decisión contractual explícita del Arquitecto
+  - validación Bats en verde
+- Conflictos cerrados:
+  - mensaje obligatorio
+  - side effects persistentes tempranos
+- Aclaraciones contractuales resueltas:
+  - cwd relajado a cualquier subdirectorio del repo
+  - señal visible compuesta aceptada
+  - validación Bats del flujo completo exigida y ya ejecutada en verde
+- No quedan divergencias centrales abiertas que bloqueen la transición a spec-as-source.
+
+**Estado:** anclada
+
+---
 
 ### Superficies reales de cambio
 Archivos, funciones o módulos donde probablemente habrá que tocar si se promueve a spec-as-source.
@@ -471,11 +313,44 @@ Archivos, funciones o módulos donde probablemente habrá que tocar si se promue
 Instrucción operativa:
 No diseñes todavía el cambio; solo identifica dónde vive la responsabilidad real. Distingue entre superficie principal, superficie secundaria y zona de alto riesgo o dispersión.
 
+**Contenido**
+- Superficie principal:
+  - `devbox.json`
+  - `bin/git-acp.sh`
+  - `lib/core/config.sh`
+  - `lib/core/contract.sh`
+  - `lib/core/utils.sh`
+  - `lib/git-flow.sh`
+  - `lib/ssh-ident.sh`
+  - `lib/ci-workflow.sh`
+- Superficie secundaria:
+  - `devtools.repo.yaml`
+  - `.devtools/.git-acprc`
+  - `tests/03_git_acp_devbox.bats`
+  - `tests/02_git_acp_post_push.bats`
+- Zonas de riesgo siguen documentadas, pero no bloquean la transición.
+
+**Estado:** anclada
+
+---
+
 ### Unknowns
 Qué todavía no está localizado o demostrado en el anclaje.
 
 Instrucción operativa:
 Todo hueco real del mapeo debe quedar aquí o marcado como parcial en su sección correspondiente. Nunca cierres una laguna de anclaje por intuición.
+
+**Contenido**
+- Otras ramas del post-push aparte de `skip`
+- Peso real actual de `Compat` / `LEGACY_`
+- Estabilidad futura de la inyección runtime de `alias.acp`
+- Alcanzabilidad real de ramas laterales como reparación de remotos o `gh repo create`
+- Cuánto del plano identidad/SSH/remotos/GitHub es soporte necesario vs desborde del contrato visible
+- Estos unknowns permanecen documentados, pero no bloquean la transición a spec-as-source.
+
+**Estado:** abierta
+
+---
 
 ### Evidencia
 Referencias concretas:
@@ -490,6 +365,34 @@ Referencias concretas:
 Instrucción operativa:
 Cada afirmación importante del anclaje debe poder rastrearse a evidencia concreta del repo. Si una parte del mapa no tiene evidencia suficiente, márcala como parcial o unknown.
 
+**Contenido**
+- `devbox.json:79`
+- `devbox.json:91`
+- `bin/git-acp.sh:1`
+- `bin/git-acp.sh:10`
+- `bin/git-acp.sh:109`
+- `bin/git-acp.sh:119`
+- `lib/core/config.sh`
+- `lib/core/contract.sh:173`
+- `lib/core/utils.sh:382`
+- `lib/core/utils.sh:429`
+- `lib/core/utils.sh:464`
+- `lib/git-flow.sh:57`
+- `lib/ssh-ident.sh`
+- `lib/ci-workflow.sh:546`
+- `tests/03_git_acp_devbox.bats`
+- `tests/02_git_acp_post_push.bats`
+- Validación real en `devbox`:
+  - `tests/03_git_acp_devbox.bats` en verde
+  - `tests/02_git_acp_post_push.bats` en verde
+- Discovery runtime correcto de `devbox`
+- Validación segura `--dry-run`
+- Validación de rama `skip`
+
+**Estado:** anclada
+
+---
+
 ### Criterio de salida para promover a spec-as-source
 Qué falta resolver antes de usar el spec como fuente de implementación o ajuste.
 
@@ -502,27 +405,69 @@ No promociones por sensación. Debes escribir explícitamente:
 - qué conflictos o gaps sí bloquean el paso a spec-as-source;
 - qué mínima aclaración faltaría si todavía no conviene promover.
 
-Formato obligatorio de trabajo durante todo spec-anchored:
+**Contenido**
+- Partes del contrato ya suficientemente ancladas:
+  - entrada visible/runtime hacia el flujo local
+  - repo Git válido
+  - mensaje obligatorio
+  - simulación segura
+  - side effects persistentes solo después del guard
+  - cwd válido desde cualquier subdirectorio del repo
+  - cierre visible compuesto aceptado
+  - validación Bats del flujo completo ya ejecutada en verde
+- Divergencias centrales ya cerradas:
+  - mensaje obligatorio vs modo interactivo
+  - side effects persistentes tempranos
+- Aclaraciones contractuales ya resueltas:
+  - cwd exacto
+  - marcador terminal único vs señal compuesta
+  - validación Bats requerida
+- Unknowns que no bloquean la promoción:
+  - ramas no validadas del post-push
+  - peso real de `Compat` / `LEGACY_`
+  - estabilidad futura del alias runtime
+- Conflictos o gaps que sí bloquean el paso a spec-as-source:
+  - ninguno de los conflictos centrales previamente abiertos sigue bloqueando
+- Resultado:
+  - `spec-anchored` queda cerrada sin ambigüedad
+  - la promoción a `spec-as-source` queda habilitada
+
+**Estado:** anclada
+
+## Formato obligatorio de trabajo durante todo spec-anchored
 
 Estado actual
-- Bloque actual:
-- Objetivo del bloque:
-- Pregunta de anclaje que estamos resolviendo:
+- Bloque actual: Bloque 7 cerrado
+- Objetivo del bloque: cerrar spec-anchored con ficha final consolidada
+- Pregunta de anclaje que estamos resolviendo: ¿qué parte del contrato ya quedó realmente sostenida por el código, qué parte quedó solo parcial o en conflicto, y qué impide promover limpiamente a spec-as-source?
 
 Hallazgos de anclaje ya claros
-- ...
+- El mapa spec -> código quedó consolidado de punta a punta.
+- La entrada visible, el core path ACP, el repo Git válido, el mensaje obligatorio, la simulación segura y el orden de side effects persistentes ya quedaron alineados.
+- La validación Bats del flujo completo ya fue ejecutada en verde dentro de `devbox`.
+- Las decisiones contractuales del Arquitecto ya quedaron documentadas y aterrizadas en código y spec.
 
 Anclajes parciales o dispersos
-- ...
+- La superficie identidad/SSH/remotos/GitHub sigue siendo amplia y con seams heredados.
+- Las ramas adicionales de post-push más allá de `skip` siguen fuera de la validación mínima del flujo.
+- La estabilidad futura del alias runtime de `devbox` sigue siendo unknown operativo.
 
 Divergencias con el contrato
-- ...
+- Las divergencias centrales detectadas durante spec-anchored ya fueron resueltas.
+- No queda lenguaje vigente de “bloqueo” para la transición a spec-as-source.
+- Los unknowns residuales no constituyen divergencias bloqueantes.
 
 Qué podemos dejar fuera por ahora
-- ...
+- refactor general
+- limpieza amplia de legacy
+- expansión completa del menú post-push
+- rediseño del flujo
+- nuevas ampliaciones de interfaz no decididas por negocio
 
 Condición para pasar al siguiente bloque
-- ...
+- Cumplida.
+- `spec-anchored` queda cerrada.
+- `spec-as-source` queda habilitada para continuar como fuente de verdad.
 
 Regla final:
 Spec-anchored solo queda bien hecho si esta plantilla permite responder con claridad a la pregunta:
