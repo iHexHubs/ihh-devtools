@@ -15,10 +15,14 @@ import time
 
 cwd = os.environ["FLOW_REPO_ROOT"]
 master, slave = pty.openpty()
-proc = subprocess.Popen(["devbox", "shell"], cwd=cwd, stdin=slave, stdout=slave, stderr=slave)
+env = os.environ.copy()
+env["DISABLE_AUTO_UPDATE"] = "true"
+env["DISABLE_UPDATE_PROMPT"] = "true"
+proc = subprocess.Popen(["devbox", "shell"], cwd=cwd, stdin=slave, stdout=slave, stderr=slave, env=env)
 os.close(slave)
 
 buf = b""
+dismissed_shell_prompt = False
 sent_choice = False
 sent_commands = False
 deadline = time.time() + 90
@@ -26,15 +30,24 @@ deadline = time.time() + 90
 while time.time() < deadline:
     ready, _, _ = select.select([master], [], [], 0.5)
     if master in ready:
-        data = os.read(master, 8192)
+        try:
+            data = os.read(master, 8192)
+        except OSError as exc:
+            if getattr(exc, "errno", None) == 5:
+                break
+            raise
         if not data:
             break
         buf += data
 
+        if (not dismissed_shell_prompt) and b"Would you like to update? [Y/n]" in buf:
+            os.write(master, b"n\r")
+            dismissed_shell_prompt = True
+
         if (not sent_choice) and b"Selecciona tu Rol:" in buf:
             os.write(master, b"\r")
             sent_choice = True
-            time.sleep(0.5)
+            time.sleep(2)
             os.write(master, b"printf '__PWD__:%s\\n' \"$PWD\"\n")
             os.write(master, b"exit\n")
             sent_commands = True
@@ -131,11 +144,11 @@ assert_order_fixed() {
   f="$(file_devbox_json)"
   assert_file_exists "$f"
   assert_contains_fixed "$f" 'DEVBOX_SESSION_READY=1'
-  assert_contains_fixed "$f" 'if [[ "$DEVTOOLS_SPEC_VARIANT" == "1" ]]; then DEVBOX_SESSION_READY=0; fi'
-  assert_contains_fixed "$f" 'if bash "$WIZARD_SCRIPT" $WIZARD_ARGS; then'
+  assert_contains_fixed "$f" 'if [[ \"$DEVTOOLS_SPEC_VARIANT\" == \"1\" ]]; then DEVBOX_SESSION_READY=0; fi'
+  assert_contains_fixed "$f" 'if bash \"$WIZARD_SCRIPT\" $WIZARD_ARGS; then'
   assert_contains_fixed "$f" "echo '❌ Devbox shell: verificación requerida no satisfecha; se omite la ruta lista/contextualizada.'"
-  assert_contains_fixed "$f" 'if [[ "$DEVBOX_SESSION_READY" == "1" ]]; then'
-  assert_order_fixed "$f" 'if bash "$WIZARD_SCRIPT" $WIZARD_ARGS; then' 'if [[ "$DEVBOX_SESSION_READY" == "1" ]]; then'
+  assert_contains_fixed "$f" 'if [[ \"$DEVBOX_SESSION_READY\" == \"1\" ]]; then'
+  assert_order_fixed "$f" 'if bash \"$WIZARD_SCRIPT\" $WIZARD_ARGS; then' 'if [[ \"$DEVBOX_SESSION_READY\" == \"1\" ]]; then'
 }
 
 @test "A5: setup-wizard resuelve PROFILE_CONFIG_FILE por contrato antes del fallback vendor" {
@@ -204,11 +217,11 @@ assert_order_fixed() {
   f="$(file_devbox_json)"
   assert_file_exists "$f"
   assert_contains_fixed "$f" 'DEVTOOLS_SPEC_VARIANT=0;'
-  assert_contains_fixed "$f" 'if [ -f "$DT_ROOT/.setup_completed" ] && [ -t 0 ] && [ -t 1 ] && [[ "${DEVTOOLS_SKIP_WIZARD:-0}" != "1" ]]; then DEVTOOLS_SPEC_VARIANT=1; fi'
-  assert_contains_fixed "$f" 'if [[ "$DEVTOOLS_SPEC_VARIANT" != "1" ]]; then git -C "$root" submodule sync --recursive >/dev/null 2>&1 || true; fi'
-  assert_contains_fixed "$f" 'if [[ "$DEVTOOLS_SPEC_VARIANT" != "1" ]]; then git -C "$root" submodule update --init --recursive "$DEVTOOLS_PATH" >/dev/null 2>&1 || true; fi'
-  assert_contains_fixed "$f" 'if [[ "$DEVTOOLS_SPEC_VARIANT" != "1" ]]; then git config --local --unset alias.$tool >/dev/null 2>&1 || true; fi'
-  assert_contains_fixed "$f" 'if [[ "$DEVTOOLS_SPEC_VARIANT" != "1" ]]; then chmod +x "$REPO_SCRIPT" >/dev/null 2>&1 || true; fi'
+  assert_contains_fixed "$f" 'if [ -f \"$DT_ROOT/.setup_completed\" ] && [ -t 0 ] && [ -t 1 ] && [[ \"${DEVTOOLS_SKIP_WIZARD:-0}\" != \"1\" ]]; then DEVTOOLS_SPEC_VARIANT=1; fi'
+  assert_contains_fixed "$f" 'if [[ \"$DEVTOOLS_SPEC_VARIANT\" != \"1\" ]]; then git -C \"$root\" submodule sync --recursive >/dev/null 2>&1 || true; fi'
+  assert_contains_fixed "$f" 'if [[ \"$DEVTOOLS_SPEC_VARIANT\" != \"1\" ]]; then git -C \"$root\" submodule update --init --recursive \"$DEVTOOLS_PATH\" >/dev/null 2>&1 || true; fi'
+  assert_contains_fixed "$f" 'if [[ \"$DEVTOOLS_SPEC_VARIANT\" != \"1\" ]]; then git config --local --unset alias.$tool >/dev/null 2>&1 || true; fi'
+  assert_contains_fixed "$f" 'if [[ \"$DEVTOOLS_SPEC_VARIANT\" != \"1\" ]]; then chmod +x \"$REPO_SCRIPT\" >/dev/null 2>&1 || true; fi'
 }
 
 @test "A12: verify-only conserva SSH operativo sin known_hosts persistente" {
