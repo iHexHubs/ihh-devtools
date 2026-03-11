@@ -389,16 +389,10 @@ Tu salida final de spec-as-source debe rellenar esta plantilla sin ejecutar camb
 ## Secciones
 
 ### Flow id
-`git-acp-devbox`
+`<flow-id>`
 
 Instrucción operativa:
 Usa el mismo flow id heredado de discovery, spec-first y spec-anchored. No lo cambies salvo redefinición explícita del flujo.
-
-**Contenido**
-- Se mantiene el mismo flow id heredado de discovery, spec-first y spec-anchored.
-- El flujo gobernado por esta fase sigue siendo la entrada visible `git acp "<texto_aquí>"` dentro de `devbox`, para el repo `ihh-devtools`.
-
-**Estado:** operativamente clara
 
 ### Spec de referencia
 Qué parte del contrato aprobado gobierna esta fase.
@@ -406,50 +400,11 @@ Qué parte del contrato aprobado gobierna esta fase.
 Instrucción operativa:
 Resume la intención, el contrato visible, los invariants, los failure modes y los acceptance candidates relevantes. No reescribas toda la historia del flujo; trae solo la parte del spec que debe gobernar el trabajo posterior.
 
-**Contenido**
-- `git acp "<texto_aquí>"` debe funcionar como entrada visible al ACP local del repo dentro de `devbox`.
-- `"<texto_aquí>"` es obligatorio y debe tratarse como mensaje principal del operador.
-- Antes de commit o push deben ejecutarse las verificaciones y decisiones operativas propias del repo.
-- No debe existir ningún side effect persistente antes de `check_superrepo_guard`.
-- Debe existir una modalidad segura de simulación sin commit ni push efectivos.
-- El flujo debe ser válido desde cualquier subdirectorio del repo `/webapps/ihh-devtools`.
-- El cierre observable del flujo puede validarse con una señal visible compuesta; no requiere marcador terminal único.
-- Los failure modes contractuales relevantes siguen siendo:
-  - resolución fuera del ACP local del repo,
-  - falta de mensaje principal,
-  - repo Git no válido,
-  - guard que bloquea antes de side effects persistentes,
-  - simulación con side effects reales,
-  - salida no observable o engañosa.
-- Acceptance candidates relevantes ya aprobados:
-  - resolución local del flujo en `devbox`,
-  - mensaje obligatorio,
-  - guard previo a side effects persistentes,
-  - simulación segura,
-  - preservación semántica principal del mensaje,
-  - salida visible suficiente,
-  - validación Bats del flujo completo.
-
-**Estado:** operativamente clara
-
 ### Partes del código que ya cumplen
 Qué comportamiento actual ya satisface el spec y no requiere cambio.
 
 Instrucción operativa:
 Esta sección evita trabajo innecesario. Debe listar solo aquello que el código actual ya sostiene de forma suficiente respecto del spec. No metas aquí comportamientos accidentales si el spec no los exige.
-
-**Contenido**
-- La entrada visible/runtime hacia el flujo local del repo quedó anclada en `devbox.json` mediante la inyección de `alias.acp`.
-- El entry local real `bin/git-acp.sh` ya quedó identificado y alineado con el contrato.
-- La validación de contexto Git utilizable ya quedó anclada en `bin/git-acp.sh`.
-- La obligatoriedad del mensaje ya quedó reportada como alineada en spec-anchored.
-- La modalidad segura de simulación quedó anclada y aceptada contractualmente.
-- El orden contractual de side effects persistentes, después del guard, quedó reportado como alineado.
-- La validez desde cualquier subdirectorio del repo quedó aceptada contractualmente y alineada con la resolución dinámica del código.
-- La salida visible compuesta quedó aceptada como suficiente; por tanto no hace falta introducir un marcador terminal único.
-- La validación Bats del flujo completo ya fue tomada como evidencia de alineación mínima en verde.
-
-**Estado:** operativamente clara
 
 ### Gaps a cerrar
 Qué partes del spec aún no están satisfechas o están solo parcialmente satisfechas.
@@ -457,36 +412,11 @@ Qué partes del spec aún no están satisfechas o están solo parcialmente satis
 Instrucción operativa:
 Esta es una sección central. Debe expresar con claridad qué falta para que el flujo cumpla el spec. Distingue entre gap claro, gap parcial y gap dependiente de decisión abierta.
 
-**Contenido**
-- **Gap claro:** no queda un gap central abierto entre spec y código para el cumplimiento mínimo aprobado del flujo.
-- **Gap parcial:** la cobertura de validación observable sigue siendo mínima respecto a ramas del post-push distintas de `skip`; esto no rompe el spec mínimo, pero sí deja borde no explorado.
-- **Gap parcial:** la superficie identidad/SSH/remotos/GitHub sigue siendo amplia y con seams heredados; hoy no aparece como incumplimiento contractual directo, pero sí como foco de posible regresión.
-- **Gap dependiente de decisión abierta:** no hay uno abierto dentro del contrato actual; solo aparecería si se decide ampliar contrato a más ramas del post-push, más flags visibles o más garantías de tooling lateral.
-
-**Estado:** operativamente clara
-
 ### Cambios necesarios derivados del spec
 Qué trabajo sí está justificado por el contrato.
 
 Instrucción operativa:
 Describe solo trabajo permitido y necesario. Debe poder trazarse directamente al spec y al anclaje previo. No incluyas mejoras laterales, limpiezas generales ni “ya que estamos”.
-
-**Contenido**
-- No hay, a esta altura, un cambio funcional central adicional que el spec obligue a introducir para declarar cumplimiento mínimo del flujo ya anclado.
-- El trabajo autorizado por el spec queda acotado a:
-  - preservar la alineación ya lograda;
-  - impedir regresiones frente a los invariants contractuales;
-  - sostener la validación obligatoria que prueba esa alineación;
-  - corregir únicamente desalineaciones futuras que rompan:
-    - resolución local del flujo,
-    - obligatoriedad del mensaje,
-    - guard antes de side effects persistentes,
-    - simulación segura,
-    - salida visible suficiente,
-    - validez desde subdirectorio del repo.
-- Si aparece una regresión en cualquiera de esos puntos, el cambio necesario deberá recaer solo en la superficie estrictamente vinculada a esa cláusula del spec.
-
-**Estado:** operativamente clara
 
 ### Cambios explícitamente fuera de alcance
 Qué no debe tocarse aunque esté cerca del flujo.
@@ -494,49 +424,11 @@ Qué no debe tocarse aunque esté cerca del flujo.
 Instrucción operativa:
 Recorta el scope. Incluye comportamientos vecinos, refactors, limpiezas, mejoras de UX, endurecimientos no pedidos o trabajos colaterales que no sean necesarios para cumplir el spec.
 
-**Contenido**
-- limpieza general de `Compat` / `LEGACY_`
-- refactor amplio de identidad/SSH/remotos/GitHub
-- rediseño del flujo ACP
-- rediseño del menú post-push
-- ampliar o estabilizar contractualmente flags hoy accidentales
-- mejorar banners, emojis o textos de consola
-- imponer un formato literal de commit más estricto que el spec
-- cambiar el mecanismo interno de resolución solo “porque sería mejor”
-- endurecer ramas laterales no cubiertas por el contrato actual
-- trabajo vecino en otros flujos Git, otros aliases o tooling del repo no exigido por este flujo
-
-**Estado:** operativamente clara
-
 ### Superficies principales de intervención
 Archivos, funciones o módulos donde vive el trabajo principal.
 
 Instrucción operativa:
 Debe apoyarse en spec-anchored. Distingue entre superficie principal, secundaria y zona de alto riesgo. No diseñes todavía la solución detallada; solo identifica dónde recae la responsabilidad real.
-
-**Contenido**
-- **Superficie principal:**
-  - `devbox.json`
-  - `bin/git-acp.sh`
-  - `lib/core/config.sh`
-  - `lib/core/contract.sh`
-  - `lib/core/utils.sh`
-  - `lib/git-flow.sh`
-  - `lib/ssh-ident.sh`
-  - `lib/ci-workflow.sh`
-- **Superficie secundaria:**
-  - `devtools.repo.yaml`
-  - `.devtools/.git-acprc`
-  - `tests/03_git_acp_devbox.bats`
-  - `tests/02_git_acp_post_push.bats`
-- **Zona de alto riesgo:**
-  - seam runtime de `devbox` por inyección de `GIT_CONFIG_*`,
-  - plano identidad/SSH/remotos/GitHub,
-  - fallbacks UI y bridges en `lib/ci-workflow.sh`,
-  - compatibilidades heredadas repartidas entre config y flujo Git.
-- Estas superficies quedan identificadas como lugares donde podría recaer trabajo solo si una cláusula del spec vuelve a quedar desalineada; no significan autorización automática para tocar todo.
-
-**Estado:** operativamente clara
 
 ### Seams, compatibilidades y zonas de riesgo
 Fallbacks, wrappers, legacy y dispersión que pueden afectar el cumplimiento del spec.
@@ -544,47 +436,11 @@ Fallbacks, wrappers, legacy y dispersión que pueden afectar el cumplimiento del
 Instrucción operativa:
 Incluye todo lo que pueda arrastrar comportamientos viejos, tolerancias accidentales o fragilidad al intentar alinear el código con el spec. Esta sección es clave para prevenir deriva.
 
-**Contenido**
-- `DEVTOOLS_DISPATCH_DONE`
-- `LEGACY_VENDOR_CONFIG`
-- `DEVTOOLS_WIZARD_MODE`
-- compatibilidad de rama deprecada en `lib/git-flow.sh`
-- fallbacks UI / `run_cmd` en `lib/ci-workflow.sh`
-- inyección runtime de `alias.acp` por `devbox`
-- dispersión del plano identidad/SSH/remotos/GitHub`
-- Estos seams no reabren el contrato ni crean trabajo obligatorio por sí mismos, pero sí pueden:
-  - arrastrar comportamiento viejo contrario al spec,
-  - confundir criterio de cumplimiento con compatibilidad incidental,
-  - inducir regresiones si se toca más superficie de la necesaria.
-
-**Estado:** operativamente clara
-
 ### Validación obligatoria
 Qué debe comprobarse sí o sí para afirmar cumplimiento.
 
 Instrucción operativa:
 Deriva esta sección desde el spec, no desde la comodidad técnica. Debe incluir comportamiento observable, cierre de divergencias y señales suficientes de cumplimiento real.
-
-**Contenido**
-Debe comprobarse sí o sí que:
-
-1. En una sesión válida de `devbox`, `git acp "<texto>"` resuelve al flujo ACP local del repo y no a una resolución global ajena.
-2. El flujo exige mensaje principal y rechaza la ejecución antes de side effects persistentes si ese mensaje falta.
-3. El repo Git válido se verifica antes de continuar con el flujo útil.
-4. `check_superrepo_guard` y las verificaciones previas ocurren antes de side effects persistentes de config o publicación.
-5. La modalidad de simulación no produce commit ni push efectivos.
-6. La ejecución válida desde un subdirectorio del repo sigue aterrizando en el mismo flujo contractual.
-7. La salida visible permite distinguir al menos entre ejecución efectiva, simulación y cierre u omisión general.
-8. La validación Bats exigida para el flujo completo permanece en verde dentro de `devbox`.
-
-No basta con validar:
-- solo el script local por `bash ./bin/git-acp.sh`,
-- solo el top-level cwd,
-- solo la rama `skip`,
-- solo la salida de consola,
-- solo el `--dry-run`.
-
-**Estado:** operativamente clara
 
 ### Acceptance candidates listos para ejecución
 Qué afirmaciones ya pueden materializarse en validación concreta.
@@ -592,49 +448,11 @@ Qué afirmaciones ya pueden materializarse en validación concreta.
 Instrucción operativa:
 Aquí no hace falta escribir todavía el test final, pero sí dejar claro qué afirmaciones están maduras y cómo deberían leerse como criterio de aceptación ejecutable.
 
-**Contenido**
-- `git acp "<texto>"` en `devbox` resuelve al ACP local del repo.
-- La resolución sigue funcionando desde cualquier subdirectorio del repo.
-- Sin mensaje principal, el flujo falla antes de commit o push.
-- La simulación recorre la ruta segura sin commit ni push efectivos.
-- El flujo ejecuta verificaciones propias del repo antes de side effects persistentes.
-- Si el flujo anuncia ejecución efectiva exitosa, existe un resultado ACP observable coherente con el mensaje principal.
-- La salida final del flujo deja una señal visible suficiente, aunque no exista marcador terminal único.
-- La validación Bats del flujo completo constituye evidencia ejecutable mínima de cumplimiento.
-- Acceptance aún no maduros para elevar a obligación contractual nueva:
-  - ramas adicionales del post-push más allá de `skip`,
-  - garantías más fuertes sobre tooling lateral `task`, `gh`, remotos o bridges de CI,
-  - toda la superficie de identidad/SSH como contrato visible del flujo.
-
-**Estado:** operativamente clara
-
 ### Criterio de cumplimiento
 Qué tendría que ser cierto para poder decir que el flujo cumple el spec.
 
 Instrucción operativa:
 Debe formularse de manera clara, verificable y no ambigua. No puede depender de intuición. Debe distinguir entre cumplimiento mínimo, cumplimiento deseable y falsa apariencia de cumplimiento.
-
-**Contenido**
-- **Cumplimiento mínimo:**
-  - `git acp "<texto>"` en una sesión válida de `devbox` entra al flujo local del repo;
-  - `"<texto>"` es obligatorio y se preserva como base semántica principal;
-  - las verificaciones y guards propios del repo ocurren antes de side effects persistentes;
-  - la simulación no genera commit ni push efectivos;
-  - la ejecución es válida desde cualquier subdirectorio del repo;
-  - el flujo deja una salida visible suficiente;
-  - la validación Bats obligatoria permanece en verde.
-- **Cumplimiento deseable:**
-  - ampliar evidencia sobre ramas adicionales del post-push,
-  - reducir exposición a seams heredados sin ampliar scope,
-  - sostener estabilidad runtime del alias inyectado en más sesiones equivalentes.
-- **Falsa apariencia de cumplimiento:**
-  - que `--dry-run` funcione pero la ejecución efectiva no;
-  - que el flujo funcione solo desde el cwd raíz y no desde subdirectorios;
-  - que pase el script local pero falle la entrada visible `git acp` en `devbox`;
-  - que exista salida vistosa de consola pero el guard o el orden de side effects estén mal;
-  - que la rama `skip` funcione y se use eso para afirmar cobertura total del post-push.
-
-**Estado:** operativamente clara
 
 ### Criterio de terminado
 Cuándo esta fase queda suficientemente cerrada para pasar a ejecución real o delegada.
@@ -642,42 +460,11 @@ Cuándo esta fase queda suficientemente cerrada para pasar a ejecución real o d
 Instrucción operativa:
 Debes dejar claro qué condiciones tienen que cumplirse para considerar que spec-as-source hizo su trabajo: scope recortado, gaps identificados, superficies ubicadas, validación derivada y criterio de cumplimiento fijado.
 
-**Contenido**
-Esta fase queda suficientemente cerrada cuando:
-- el spec aprobado sigue siendo la autoridad explícita del flujo;
-- quedó claro que hoy no hay cambio funcional central pendiente para el cumplimiento mínimo;
-- los gaps residuales quedaron distinguidos de divergencias reales;
-- el scope quedó recortado con trabajo permitido vs fuera de alcance;
-- las superficies de intervención quedaron ubicadas;
-- los seams y riesgos quedaron explicitados;
-- la validación obligatoria quedó derivada desde el spec;
-- el criterio de cumplimiento quedó formulado de forma verificable;
-- quedó claro bajo qué condiciones puede delegarse ejecución o validación sin reabrir contrato.
-
-Esas condiciones ya se cumplen.
-
-**Estado:** operativamente clara
-
 ### Unknowns
 Qué sigue abierto y cómo afecta el trabajo posterior.
 
 Instrucción operativa:
 Todo lo que aún no esté cerrado debe aparecer aquí. Distingue entre unknown que no bloquea, unknown que condiciona y unknown que bloquea. Nunca lo tapes con frases vagas.
-
-**Contenido**
-- **No bloquea:**
-  - otras ramas del post-push además de `skip`,
-  - peso real de `Compat` / `LEGACY_`,
-  - estabilidad futura de la inyección runtime de `alias.acp`,
-  - alcanzabilidad real de ramas laterales como reparación de remotos o `gh repo create`,
-  - cuánto del plano identidad/SSH/remotos/GitHub es soporte necesario vs desborde del contrato visible.
-- **Condiciona, pero no bloquea:**
-  - si en una fase futura se quisiera ampliar la superficie contractual visible del post-push,
-  - si se quisiera estabilizar contractualmente tooling lateral hoy tratado como soporte.
-- **Bloquea:**
-  - ninguno dentro del contrato actual ya aprobado.
-
-**Estado:** operativamente clara
 
 ### Evidencia
 Referencias concretas:
@@ -693,43 +480,6 @@ Referencias concretas:
 Instrucción operativa:
 Cada afirmación importante de esta plantilla debe poder rastrearse al spec y al anclaje previo. Si una decisión no tiene suficiente evidencia, márcala como parcial o abierta.
 
-**Contenido**
-- **Cláusulas de spec de referencia:**
-  - entrada visible `git acp "<texto_aquí>"` en `devbox`,
-  - mensaje obligatorio,
-  - simulación segura,
-  - side effects persistentes solo después del guard,
-  - validez desde subdirectorio del repo,
-  - salida visible compuesta suficiente,
-  - validación Bats obligatoria.
-- **Anclaje previo en código:**
-  - `devbox.json:79`
-  - `devbox.json:91`
-  - `bin/git-acp.sh:1`
-  - `bin/git-acp.sh:109`
-  - `bin/git-acp.sh:119`
-  - `lib/core/contract.sh:173`
-  - `lib/core/utils.sh:382`
-  - `lib/core/utils.sh:429`
-  - `lib/core/utils.sh:464`
-  - `lib/git-flow.sh:57`
-  - `lib/ssh-ident.sh`
-  - `lib/ci-workflow.sh:546`
-  - `tests/03_git_acp_devbox.bats`
-  - `tests/02_git_acp_post_push.bats`
-- **Divergencias previamente cerradas:**
-  - mensaje obligatorio vs tolerancia interactiva,
-  - side effects persistentes tempranos,
-  - cwd contractual relajado a subdirectorios,
-  - cierre observable aceptado como señal compuesta.
-- **Validación previa reportada:**
-  - Bats del flujo completo en verde,
-  - runtime correcto en `devbox`,
-  - validación segura con `--dry-run`,
-  - validación de rama `skip`.
-
-**Estado:** operativamente clara
-
 ### Criterio de salida para ejecutar o delegar implementación
 Qué debe estar claro antes de pasar a trabajo de cambio real.
 
@@ -743,82 +493,27 @@ No promociones por sensación. Debes escribir explícitamente:
 - qué unknowns sí bloquean;
 - qué mínima aclaración faltaría si todavía no conviene ejecutar.
 
-**Contenido**
-Antes de pasar a trabajo real debe quedar claro que:
-
-- **Trabajo autorizado por el spec:**
-  - mantener y defender la alineación ya lograda;
-  - corregir solo regresiones o desalineaciones directas contra el contrato aprobado;
-  - ejecutar y exigir la validación obligatoria derivada del spec;
-  - intervenir únicamente en la superficie necesaria para la cláusula afectada.
-- **Trabajo prohibido o fuera de alcance:**
-  - limpiezas generales,
-  - refactors oportunistas,
-  - mejoras laterales de UX,
-  - ampliación de flags visibles,
-  - rediseño del post-push,
-  - endurecimientos no pedidos por el contrato,
-  - cambios en flujos vecinos.
-- **Validaciones obligatorias:**
-  - resolución local del flujo en `devbox`,
-  - mensaje obligatorio,
-  - guard previo a side effects persistentes,
-  - simulación segura,
-  - validez desde subdirectorio,
-  - salida visible suficiente,
-  - Bats del flujo completo en verde.
-- **Riesgos a vigilar:**
-  - que el runtime de `devbox` vuelva a resolver fuera del repo,
-  - que seams heredados vuelvan a introducir side effects tempranos,
-  - que se confunda cobertura mínima con cobertura total del post-push,
-  - que se valide solo el script local y no la entrada visible contractual.
-- **Unknowns que no bloquean:**
-  - los ya listados en la sección `Unknowns`.
-- **Unknowns que sí bloquean:**
-  - ninguno, dentro del marco aprobado actual.
-- **Mínima aclaración faltante si se quisiera ejecutar:**
-  - no hace falta una aclaración contractual adicional para avanzar dentro del alcance actual;
-  - solo haría falta aclaración nueva si se pretende ampliar scope más allá del spec aprobado.
-
-**Estado:** operativamente clara
-
----
-
-## Formato obligatorio de trabajo durante todo spec-as-source
+Formato obligatorio de trabajo durante todo spec-as-source:
 
 Estado actual
-- Bloque actual: Bloque 7 cerrado
-- Objetivo del bloque: cerrar `spec-as-source` con una ficha operativa consolidada donde el spec gobierna el trabajo posterior
-- Pregunta operativa que estamos resolviendo: ¿qué trabajo está realmente autorizado por el spec, qué debe validarse para afirmar cumplimiento y qué no debemos tocar para no perder el marco?
+- Bloque actual:
+- Objetivo del bloque:
+- Pregunta operativa que estamos resolviendo:
 
 Trabajo ya claramente derivado del spec
-- El contrato aprobado sigue siendo la autoridad del flujo `git acp "<texto_aquí>"` en `devbox`.
-- El anclaje previo ya dejó alineados los puntos centrales del flujo.
-- No quedan divergencias centrales abiertas que obliguen a introducir cambio funcional nuevo para cumplir el spec mínimo aprobado.
-- La validación Bats del flujo completo ya quedó exigida y previamente reportada en verde dentro de `devbox`.
+- ...
 
 Puntos aún parciales o abiertos
-- ramas del post-push distintas de `skip`
-- peso real de piezas `Compat` / `LEGACY_`
-- estabilidad futura de la inyección runtime de `alias.acp`
-- alcance real de ramas laterales de identidad/SSH/remotos/GitHub
+- ...
 
 Riesgos de desviación o scope creep
-- tocar legacy por limpieza y no por necesidad contractual
-- ampliar la interfaz visible del flujo sin decisión explícita
-- validar solo `--dry-run` y concluir erróneamente cumplimiento total
-- dejar que seams heredados vuelvan a gobernar el criterio de cambio
+- ...
 
 Qué podemos dejar fuera por ahora
-- refactor general
-- limpieza de compatibilidades heredadas
-- rediseño del menú post-push
-- ampliación de flags visibles
-- endurecimientos o UX extra no exigidos por el spec
+- ...
 
 Condición para pasar al siguiente bloque
-- Cumplida.
-- `spec-as-source` queda cerrada y lista para gobernar ejecución real o delegada.
+- ...
 
 Regla final:
 Spec-as-source solo queda bien hecho si esta plantilla permite responder con claridad a la pregunta:
