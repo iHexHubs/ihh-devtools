@@ -4,6 +4,55 @@ repo_root() {
   cd "$BATS_TEST_DIRNAME/.." && pwd
 }
 
+run_devbox_shell_pty_smoke() {
+  FLOW_REPO_ROOT="$(repo_root)" python3 - <<'PY'
+import os
+import pty
+import select
+import subprocess
+import sys
+import time
+
+cwd = os.environ["FLOW_REPO_ROOT"]
+master, slave = pty.openpty()
+proc = subprocess.Popen(["devbox", "shell"], cwd=cwd, stdin=slave, stdout=slave, stderr=slave)
+os.close(slave)
+
+buf = b""
+sent_choice = False
+sent_commands = False
+deadline = time.time() + 90
+
+while time.time() < deadline:
+    ready, _, _ = select.select([master], [], [], 0.5)
+    if master in ready:
+        data = os.read(master, 8192)
+        if not data:
+            break
+        buf += data
+
+        if (not sent_choice) and b"Selecciona tu Rol:" in buf:
+            os.write(master, b"\r")
+            sent_choice = True
+            time.sleep(0.5)
+            os.write(master, b"printf '__PWD__:%s\\n' \"$PWD\"\n")
+            os.write(master, b"exit\n")
+            sent_commands = True
+
+    if proc.poll() is not None and sent_commands:
+        break
+
+try:
+    proc.wait(timeout=10)
+except Exception:
+    proc.kill()
+    proc.wait()
+
+sys.stdout.buffer.write(buf)
+sys.exit(proc.returncode)
+PY
+}
+
 file_devbox_json() {
   printf '%s/devbox.json\n' "$(repo_root)"
 }
@@ -77,13 +126,16 @@ assert_order_fixed() {
   assert_order_fixed "$f" 'root_guess=' 'export PATH="$root/bin:$DT_BIN:$PATH"'
 }
 
-@test "A4: el hook busca setup-wizard, respeta DEVTOOLS_SKIP_WIZARD y lo ejecuta como no fatal" {
+@test "A4: el hook guarda localmente la ruta lista/contextualizada detras del verify-only exitoso" {
   local f
-  f="$(file_hooks)"
+  f="$(file_devbox_json)"
   assert_file_exists "$f"
-  assert_contains_fixed "$f" 'WIZARD_SCRIPT='
-  assert_contains_fixed "$f" 'DEVTOOLS_SKIP_WIZARD'
-  assert_contains_fixed "$f" 'bash "$WIZARD_SCRIPT" $WIZARD_ARGS || true'
+  assert_contains_fixed "$f" 'DEVBOX_SESSION_READY=1'
+  assert_contains_fixed "$f" 'if [[ "$DEVTOOLS_SPEC_VARIANT" == "1" ]]; then DEVBOX_SESSION_READY=0; fi'
+  assert_contains_fixed "$f" 'if bash "$WIZARD_SCRIPT" $WIZARD_ARGS; then'
+  assert_contains_fixed "$f" "echo '❌ Devbox shell: verificación requerida no satisfecha; se omite la ruta lista/contextualizada.'"
+  assert_contains_fixed "$f" 'if [[ "$DEVBOX_SESSION_READY" == "1" ]]; then'
+  assert_order_fixed "$f" 'if bash "$WIZARD_SCRIPT" $WIZARD_ARGS; then' 'if [[ "$DEVBOX_SESSION_READY" == "1" ]]; then'
 }
 
 @test "A5: setup-wizard resuelve PROFILE_CONFIG_FILE por contrato antes del fallback vendor" {
@@ -147,6 +199,32 @@ assert_order_fixed() {
   assert_contains_fixed "$f" 'export PS1='
 }
 
-@test "smoke controlado de verify-only queda diferido hasta tener sandbox" {
-  skip "Siguiente paso: ejecutar bin/setup-wizard.sh en sandbox temporal con gh y ssh stubbeados"
+@test "A11: la variante contractual ya inicializada evita mutaciones previas incompatibles" {
+  local f
+  f="$(file_devbox_json)"
+  assert_file_exists "$f"
+  assert_contains_fixed "$f" 'DEVTOOLS_SPEC_VARIANT=0;'
+  assert_contains_fixed "$f" 'if [ -f "$DT_ROOT/.setup_completed" ] && [ -t 0 ] && [ -t 1 ] && [[ "${DEVTOOLS_SKIP_WIZARD:-0}" != "1" ]]; then DEVTOOLS_SPEC_VARIANT=1; fi'
+  assert_contains_fixed "$f" 'if [[ "$DEVTOOLS_SPEC_VARIANT" != "1" ]]; then git -C "$root" submodule sync --recursive >/dev/null 2>&1 || true; fi'
+  assert_contains_fixed "$f" 'if [[ "$DEVTOOLS_SPEC_VARIANT" != "1" ]]; then git -C "$root" submodule update --init --recursive "$DEVTOOLS_PATH" >/dev/null 2>&1 || true; fi'
+  assert_contains_fixed "$f" 'if [[ "$DEVTOOLS_SPEC_VARIANT" != "1" ]]; then git config --local --unset alias.$tool >/dev/null 2>&1 || true; fi'
+  assert_contains_fixed "$f" 'if [[ "$DEVTOOLS_SPEC_VARIANT" != "1" ]]; then chmod +x "$REPO_SCRIPT" >/dev/null 2>&1 || true; fi'
+}
+
+@test "A12: verify-only conserva SSH operativo sin known_hosts persistente" {
+  local f
+  f="$(file_setup_wizard)"
+  assert_file_exists "$f"
+  assert_contains_fixed "$f" 'ssh -T "git@$TEST_HOST"'
+  assert_contains_fixed "$f" 'StrictHostKeyChecking=accept-new'
+  assert_contains_fixed "$f" 'UserKnownHostsFile=/dev/null'
+}
+
+@test "A13: smoke PTY de exito alcanza verificacion contextualizacion y handoff real al repo" {
+  run run_devbox_shell_pty_smoke
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ESTADO SALUDABLE"* ]]
+  [[ "$output" == *"Selecciona tu Rol:"* ]]
+  [[ "$output" == *__PWD__:/webapps/ihh-devtools* ]]
 }
