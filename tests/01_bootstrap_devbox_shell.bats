@@ -18,6 +18,7 @@ master, slave = pty.openpty()
 env = os.environ.copy()
 env["DISABLE_AUTO_UPDATE"] = "true"
 env["DISABLE_UPDATE_PROMPT"] = "true"
+env.pop("DEVBOX_SHELL_ENABLED", None)
 proc = subprocess.Popen(["devbox", "shell"], cwd=cwd, stdin=slave, stdout=slave, stderr=slave, env=env)
 os.close(slave)
 
