@@ -1,6 +1,7 @@
 # AGENTS.md
 
 ## Reglas del proyecto
+- Si un artefacto de etapa ya existe, no asumir que es correcto por existir; validarlo contra el repo y la evidencia actual antes de reutilizarlo.
 - La memoria del proyecto vive en el repo.
 - El rol o personalidad de los agentes no se define aquí; vive fuera del repo.
 - Idioma obligatorio de análisis y artefactos: español.
@@ -31,7 +32,7 @@
 - Revisión:
   - comparar discovery, diseño, implementación, evaluación y diff final;
   - decidir aprobar o rechazar con razones explícitas.
-
+  
 ## Rutas obligatorias para este flujo
 - Discovery:
   `specs/flows/01-bootstrap.devbox-shell/01-discovery.md`
