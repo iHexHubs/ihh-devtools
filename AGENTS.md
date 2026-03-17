@@ -1,19 +1,26 @@
-# Repo Guidance
+# Reglas Operativas del Repo
 
-## Scope
+Este repo guarda la memoria metodológica del flujo dentro de `specs/flows/<flow-id>/`.
 
-- Este repo usa memoria metodológica en `specs/flows/<flow-id>/`.
-- Trabaja una fase a la vez. No mezcles discovery con diseño, implementación, evaluación o review.
-- Durante discovery no se toca código del producto. Solo se permite bootstrap metodológico y artefactos de fase.
+## Estructura metodológica
 
-## Discovery
+- Usa `specs/flows/<flow-id>/01-discovery.md` para memoria del flujo observado.
+- Usa `specs/flows/<flow-id>/02-spec-first.md` para la memoria contractual inicial.
+- No mezcles discovery, spec-first y fases posteriores en un mismo artefacto.
 
-- Usa un `flow-id` corto, estable y específico por flujo.
-- El artefacto principal de discovery vive en `specs/flows/<flow-id>/01-discovery.md`.
-- El flujo debe quedar sustentado con evidencia rastreable del repo, comandos seguros y unknowns visibles.
-- Si el flujo estudiado es de shell o bootstrap, inspecciona primero entrypoints declarativos como `devbox.json`, `Taskfile.yaml`, `README.md`, `bin/`, `lib/` y submódulos o carpetas auxiliares como `.devtools/`.
+## Alcance para discovery y spec-first
 
-## Repo Notes
+- Durante `discovery` y `spec-first` no edites código funcional del producto.
+- Durante `discovery` y `spec-first` no escribas tests del producto ni refactors.
+- Mantén visibles unknowns, conflictos y puntos no sustentados.
 
-- `devbox shell` puede depender de `devbox.json`, de scripts localizados por búsqueda dinámica y del submódulo `.devtools/`.
-- Prefiere validación estática o de baja intervención antes de ejecutar flujos con side effects.
+## Flujo `devbox-shell`
+
+- El `flow-id` esperado para `devbox shell` es `devbox-shell`.
+- La evidencia primaria del flujo vive en el repo, no en el chat.
+- Para este flujo, el análisis debe centrarse en el entrypoint real del `shell` de `devbox.json` y sus handoffs relevantes.
+
+## Verificación mínima
+
+- Verifica que cada artefacto quede en la ruta correcta y no vacío cuando corresponda.
+- Verifica que el contenido siga el schema de la fase antes de cerrar la etapa.

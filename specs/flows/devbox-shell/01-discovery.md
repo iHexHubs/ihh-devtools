@@ -1,12 +1,12 @@
 # Discovery: `devbox-shell`
 
-## Resumen rapido
-- **Estado de discovery:** `parcial`
-- **Flujo objetivo:** entrada a shell de desarrollo con `devbox shell`
-- **Trigger real:** ejecucion de `devbox shell` desde terminal dentro de `/webapps/ihh-devtools`
-- **Pregunta principal:** que hace realmente el sistema y que ocurre en el flujo cuando el usuario entra a este repo y ejecuta `devbox shell`
-- **Respuesta corta actual:** Observado: el flujo reconstruible llega con evidencia hasta `devbox.json`, el hook generado en `.devbox/gen/scripts/.hooks.sh`, `bin/setup-wizard.sh` y el estado persistido actual del repo. Parcial: el entrypoint externo es el binario `devbox`, pero en este discovery no se observo una corrida completa de ese binario; se infiere que `devbox shell` materializa o reutiliza `.devbox/gen/scripts/.hooks.sh` y ejecuta ese hook antes de entregar la shell. El hook resuelve root, intenta bootstrap de `.devtools`, carga aliases efimeros de Git, busca y ejecuta `setup-wizard.sh`, y solo habilita la sesion contextualizada si el gate del wizard queda satisfecho. El corte de evidencia no llega a una corrida completa con red, credenciales o cambios globales.
-- **Unknowns criticos:** verify-only actual; efecto de `git submodule update` sin `.gitmodules`; drift entre `.git-acprc` root y `.devtools/.git-acprc`; comportamiento real de `starship`; ramas no verificadas `DEVTOOLS_SKIP_WIZARD`, no TTY, fallo GH/SSH y ruta sin marker.
+## Resumen rápido
+- **Estado de discovery:** `lista para promover`
+- **Flujo objetivo:** `devbox shell`
+- **Trigger real:** ejecución de `devbox shell`, que consume la definición `shell.init_hook` en `devbox.json`
+- **Pregunta principal:** qué hace realmente el repo al abrir `devbox shell`, por dónde entra, qué decisiones toma, qué toca y cuándo considera lista la sesión
+- **Respuesta corta actual:** el flujo observado entra por `devbox.json` en `shell.init_hook`, resuelve la raíz del workspace, prepara `.devtools`, PATH y aliases efímeros, localiza `bin/setup-wizard.sh` y usa su resultado para decidir si la sesión queda `ready/contextualizada`. El wizard resuelve root/contrato, decide entre `verify-only` y `full path`, valida autenticación/SSH/Git/perfil y puede persistir marker y perfil. Si `DEVBOX_SESSION_READY=1`, el hook imprime bienvenida, ofrece selección de rol en TTY y ajusta el prompt.
+- **Unknowns críticos:** bridge exacto dentro del binario `devbox`; éxito real del wizard y de validaciones de red en ejecución viva; seam entre `profile_file: .git-acprc` y el estado persistido observado en `.devtools/.git-acprc`
 
 ## 1. Flow id
 **Estado:** `confirmada`
@@ -14,361 +14,367 @@
 `devbox-shell`
 
 **Notas:**
-- Identificador corto y especifico para el flujo de entrada por `devbox shell`.
+- identificador corto y estable para el flujo `devbox shell`
+- coincide con el `flow-id` esperado en esta corrida
 
 ## 2. Objetivo observable
 **Estado:** `confirmada`
 
-Describir que hace el sistema al abrir una shell de `devbox` dentro de este repo.
+**Observado**
+- El hook de shell intenta preparar una sesión de desarrollo contextualizada al repo: resuelve root, expone herramientas corporativas por PATH/Git config efímera, ejecuta un gatekeeper (`setup-wizard.sh`) y, si la sesión queda lista, muestra bienvenida, selector de rol y prompt contextualizado.
 
-- Observado: prepara un entorno de shell con variables, `PATH`, aliases efimeros de Git y un gate de setup/verificacion.
-- Observado: intenta dejar la sesion "lista/contextualizada" solo si el wizard o su verificacion pasan.
-- Inferido: el objetivo operativo es entregar una shell de trabajo con herramientas corporativas y contexto del repo ya cargados.
+**Inferido**
+- La responsabilidad observable del flujo es dejar al operador dentro de una shell ya contextualizada para trabajar en el repo, no solo abrir una shell vacía.
+
+**No verificado**
+- No se ejecutó `devbox shell` de punta a punta en esta corrida, así que el resultado interactivo final se describe desde código y estado del repo, no desde una sesión viva observada.
 
 ## 3. Trigger real / entrada real
 **Estado:** `parcial`
 
-- Trigger estudiado: `devbox shell` ejecutado desde terminal con `cwd=/webapps/ihh-devtools`.
-- Observado: el repo contiene `devbox.json` con `shell.init_hook` y Devbox ya genero `.devbox/gen/scripts/.hooks.sh`.
-- Inferido: el activador inmediato externo es el binario `devbox`, que usa ese hook al levantar la shell.
-- No verificado: no se corrio el trigger real completo en esta inspeccion.
+**Observado**
+- El repo define el flujo de shell en [`devbox.json`](/webapps/ihh-devtools/devbox.json) bajo `shell.init_hook`.
+- La secuencia principal del flujo está codificada en ese arreglo de comandos.
+
+**Inferido**
+- El trigger operativo esperado es ejecutar `devbox shell`, que hace que Devbox consuma `shell.init_hook`.
+
+**No verificado**
+- El bridge exacto entre el binario `devbox` y `shell.init_hook` no está implementado en este repo; no se inspeccionó el código fuente de Devbox.
 
 ## 4. Pregunta principal
 **Estado:** `confirmada`
 
-Cuando el usuario entra a `/webapps/ihh-devtools` y ejecuta `devbox shell`, por donde entra el flujo, que decide, que toca y donde termina segun la evidencia disponible.
+**Observado**
+- La pregunta que guio este discovery fue: cuando el operador abre `devbox shell`, ¿cómo se reconstruye la shell del repo, qué handoffs ocurren y qué condiciones marcan la sesión como lista o no lista?
 
-## 5. Frontera del analisis
+**Inferido**
+- La pregunta también exige separar el flujo principal del wizard de consumers secundarios como `devbox shell --print-env`.
+
+**No verificado**
+- Ninguno adicional relevante para esta sección.
+
+## 5. Frontera del análisis
 **Estado:** `confirmada`
 
-Entra:
-- entrypoint real o parcial;
-- dispatcher chain;
-- camino feliz reconstruido;
-- ramas importantes;
-- side effects;
-- inputs y outputs;
-- preconditions;
-- error modes;
-- nucleo, soporte y ruido probable;
-- validacion segura;
-- unknowns.
+**Incluye**
+- `devbox.json` en la sección `shell.init_hook`
+- `bin/setup-wizard.sh`
+- dependencias directas del wizard: `lib/core/git-ops.sh`, `lib/core/contract.sh`, `lib/core/utils.sh`, `lib/wizard/step-01-auth.sh`, `step-02-ssh.sh`, `step-03-config.sh`, `step-04-profile.sh`
+- estado persistido del repo que altera el flujo: `devtools.repo.yaml`, `.devtools/.setup_completed`, `.devtools/.git-acprc`, `.env`
 
-No entra:
-- spec-first;
-- spec-anchored;
-- spec-as-source;
-- implementation;
-- evaluation;
-- review;
-- refactors;
-- fixes;
-- rediseño;
-- cambios de comportamiento;
-- tests nuevos.
+**Excluye**
+- implementación interna del binario `devbox`
+- ejecución real de red/autenticación/SSH/GitHub
+- consumers secundarios como `lib/promote/workflows/common.sh` que usan `devbox shell --print-env`
+- fases posteriores al discovery
+
+**Observado**
+- Esta frontera basta para reconstruir el flujo observable del repo.
+
+**No verificado**
+- No se abrieron flujos no llamados desde `shell.init_hook`.
 
 ## 6. Entry point
-**Estado:** `parcial`
+**Estado:** `confirmada`
 
-- Entry point externo principal: binario `devbox` invocado como `devbox shell`.
-  - Estado: `parcial`.
-  - Motivo: no se observo directamente el binario, pero el repo muestra la configuracion que ese binario consume y el hook ya generado por Devbox.
-- Entry point interno mejor sustentado: `shell.init_hook` en `devbox.json`, reflejado en `.devbox/gen/scripts/.hooks.sh`.
-  - Estado: `confirmada`.
-  - Paths: `devbox.json`, `.devbox/gen/scripts/.hooks.sh`.
-  - Motivo: es el primer bloque de logica del repo que explica decisiones, side effects y handoffs del flujo.
+- **Entry point principal:** `devbox.json -> shell.init_hook`
+- **Path relevante:** [`devbox.json`](/webapps/ihh-devtools/devbox.json)
+- **Activador inmediato:** invocación externa de `devbox shell`
 
-Alternativas descartadas:
-- `Taskfile.yaml`: no dispara `devbox shell`; solo define tareas del repo.
-- `README.md`: describe metodo, no actua como entrada runtime.
-- `bin/devtools`: participa en otros flujos, no en la entrada base del shell.
+**Observado**
+- El repo define explícitamente la lógica principal del flujo en `shell.init_hook`, incluyendo preparación de root, variante, submodule sync/update, alias efímeros, gatekeeper, bienvenida y prompt.
+
+**Inferido**
+- Aunque `bin/setup-wizard.sh` concentra gran parte del comportamiento, no es el entrypoint principal: recibe el handoff desde `shell.init_hook`.
+
+**Alternativas descartadas**
+- `lib/promote/workflows/common.sh` no es entrypoint de este flujo; consume `devbox shell --print-env` en otro contexto.
+- `bin/setup-wizard.sh` es un handoff principal, no la entrada inicial del comando.
 
 ## 7. Dispatcher chain
-**Estado:** `parcial`
+**Estado:** `confirmada`
 
-- Parcial, inferido/observado:
-  - `devbox shell` -> `devbox.json:shell.init_hook` -> `.devbox/gen/scripts/.hooks.sh` -> busqueda de `setup-wizard.sh` -> `bin/setup-wizard.sh` -> `lib/core/*` y `lib/wizard/step-*.sh` -> decision `DEVBOX_SESSION_READY` -> bienvenida/menu/prompt si la sesion queda lista.
+- `devbox shell -> devbox.json/shell.init_hook -> búsqueda de setup-wizard.sh -> bin/setup-wizard.sh`
+- `bin/setup-wizard.sh -> lib/core/git-ops.sh/detect_workspace_root`
+- `bin/setup-wizard.sh -> lib/core/contract.sh/devtools_load_contract + devtools_profile_config_file`
+- `bin/setup-wizard.sh -> verify-only o full path`
+- `full path -> lib/wizard/step-01-auth.sh/run_step_auth -> step-02-ssh.sh/run_step_ssh -> step-03-config.sh/run_step_git_config -> step-04-profile.sh/run_step_profile_registration`
+- `si DEVBOX_SESSION_READY=1 -> mensajes de bienvenida -> selector de rol -> configuración de prompt`
 
-Cadena interna confirmada desde el repo:
-- `devbox.json` -> `.devbox/gen/scripts/.hooks.sh` -> `bin/setup-wizard.sh` -> `lib/core/git-ops.sh`
-- `bin/setup-wizard.sh` -> `lib/core/contract.sh`
-- `bin/setup-wizard.sh` -> `lib/core/config.sh`
-- `bin/setup-wizard.sh` -> `lib/wizard/step-01-auth.sh`
-- `bin/setup-wizard.sh` -> `lib/wizard/step-02-ssh.sh`
-- `bin/setup-wizard.sh` -> `lib/wizard/step-03-config.sh`
-- `bin/setup-wizard.sh` -> `lib/wizard/step-04-profile.sh`
+**Observado**
+- Esta cadena sale directamente de `devbox.json` y del cuerpo de `bin/setup-wizard.sh`.
+
+**No verificado**
+- No se verificó el orden de ejecución real dentro del runtime de Devbox; se usa la secuencia declarada por el repo.
 
 ## 8. Camino feliz
 **Estado:** `parcial`
 
-Camino feliz reconstruido con el estado actual del repo:
-1. Observado: existe `devbox.json` con `shell.init_hook`, y Devbox ya materializo ese hook en `.devbox/gen/scripts/.hooks.sh`.
-2. Observado: el hook calcula `root`, fija `DT_ROOT=$root/.devtools` y determina si entra en `DEVTOOLS_SPEC_VARIANT=1` cuando hay marker `.devtools/.setup_completed`, hay TTY y no se desactiva el wizard.
-3. Observado: en este repo existe `.devtools/.setup_completed`, por lo que la rama mas probable con TTY es `DEVTOOLS_SPEC_VARIANT=1`.
-4. Observado: el hook exporta `PATH`, prepara aliases efimeros de Git por `GIT_CONFIG_COUNT`, busca `setup-wizard.sh` en rutas candidatas y encuentra `bin/setup-wizard.sh`.
-5. Observado: si esta en variante `1`, el hook pone `DEVBOX_SESSION_READY=0` y solo la cambia a `1` si `bash "$WIZARD_SCRIPT" $WIZARD_ARGS` termina bien.
-6. Observado: `bin/setup-wizard.sh` fuerza `--verify-only` si ya hay marker o si no hay TTY.
-7. Inferido: con el estado actual y TTY, el wizard entra a `verify-only`, valida `gh auth status` y `ssh -T git@$TEST_HOST`, y si ambos pasan devuelve `0`.
-8. Observado: si el wizard devuelve `0` en esa rama, el hook imprime bienvenida, deja sugerencia `devbox run backend`, ofrece menu de rol y configura prompt con `starship` o con fallback a `PROMPT`/`PS1`.
-9. No verificado: no se observo una corrida completa que confirme que el verify-only actual pasa hoy en esta maquina.
+**Observado**
+1. `shell.init_hook` resuelve `top`, `sp`, `root_guess` y `root`, luego fija `DEVTOOLS_PATH=.devtools`, `DT_ROOT`, `DT_BIN` y `DEVTOOLS_SPEC_VARIANT`.
+2. Si no está en la variante estricta (`DEVTOOLS_SPEC_VARIANT != 1`), intenta `git submodule sync/update --init --recursive .devtools`, ignorando fallos.
+3. Emite aviso de versión de devtools usando metadata local y, opcionalmente, `git ls-remote`.
+4. Prepara `candidates`, exporta `PATH` con `root/bin` y `DT_BIN`, limpia aliases previos y registra aliases efímeros en memoria para scripts `git-*`.
+5. Busca `setup-wizard.sh` en `candidates`; en este repo encuentra `bin/setup-wizard.sh`.
+6. Ajusta `DEVBOX_SESSION_READY`: si está en variante estricta arranca en `0`; si no, arranca en `1`.
+7. Ejecuta `setup-wizard.sh` con `--verify-only` si detecta marker o si no hay TTY.
+8. Si la variante estricta recibe éxito del wizard, marca la sesión como lista; si falla, deja la sesión no lista y emite mensaje de omisión de la ruta lista/contextualizada.
+9. Si `DEVBOX_SESSION_READY=1`, imprime bienvenida, sugiere `devbox run backend`, ofrece selector de rol en TTY y configura Starship o un prompt de fallback.
+
+**Inferido**
+- En el estado actual del repo, el camino feliz más probable en una shell interactiva normal entra por la variante estricta porque existe `.devtools/.setup_completed`.
+- En ese camino, el wizard probablemente usa `--verify-only` y evita rehacer el setup completo salvo que se fuerce.
+
+**No verificado**
+- No se observó una ejecución real del selector de rol ni de Starship.
+- No se confirmó si el wizard retorna éxito en este entorno concreto.
 
 ## 9. Ramas importantes
 **Estado:** `confirmada`
 
-- Confirmada: `DEVTOOLS_SPEC_VARIANT=1` solo si existe `.devtools/.setup_completed`, hay TTY y `DEVTOOLS_SKIP_WIZARD` no es `1`.
-- Confirmada: si `DEVTOOLS_SPEC_VARIANT!=1`, el hook intenta `git submodule sync` y `git submodule update --init --recursive .devtools`, limpia aliases locales previos y corre el wizard con `|| true`, o sea sin bloquear la shell por fallo.
-- Confirmada: si `DEVTOOLS_SPEC_VARIANT==1`, el hook exige que el wizard/verificacion pase para habilitar `DEVBOX_SESSION_READY=1`.
-- Confirmada: si no hay TTY, tanto el hook como el wizard fuerzan `--verify-only`.
-- Confirmada: `DEVTOOLS_SKIP_VERSION_CHECK=1` omite el aviso de version remota.
-- Confirmada: `DEVTOOLS_SKIP_WIZARD=1` evita ejecutar el wizard; con variante `1` eso deja la sesion no lista.
-- Abierta: rama real sin marker en este repo, porque no se removio el marker ni se corrio el trigger.
-- Abierta: ramas de fallo de GH auth y SSH en runtime real.
+- **Rama `DEVTOOLS_SPEC_VARIANT`:**
+  - `1` si existe `"$DT_ROOT/.setup_completed"`, hay TTY y no está `DEVTOOLS_SKIP_WIZARD=1`
+  - `0` en los demás casos
+- **Rama `DEVTOOLS_SKIP_WIZARD`:**
+  - si vale `1`, evita el gatekeeper del wizard
+- **Rama `DEVTOOLS_SKIP_VERSION_CHECK`:**
+  - si vale `1`, omite el aviso de versión
+- **Rama `WIZARD_ARGS`:**
+  - `--verify-only` si existe marker o si no hay TTY
+- **Rama `DEVBOX_SESSION_READY`:**
+  - en variante estricta depende del retorno del wizard
+  - fuera de variante estricta, el wizard se tolera con `|| true`
+- **Rama de prompt y menú:**
+  - solo ocurre si `DEVBOX_SESSION_READY=1`
+  - selección de rol solo si hay TTY
+
+**Observado**
+- Todas estas ramas están explícitas en `devbox.json` y `bin/setup-wizard.sh`.
+
+**No verificado**
+- No se midió cuál de estas ramas se activa en una corrida real fuera del estado estático actual del repo.
 
 ## 10. Side effects
 **Estado:** `parcial`
 
-Observados o fuertemente sustentados desde codigo:
-- Cambios efimeros de entorno:
-  - `PATH` se expande con `root/bin` y `.devtools/bin`.
-  - se exportan `GIT_CONFIG_COUNT`, `GIT_CONFIG_KEY_*`, `GIT_CONFIG_VALUE_*`.
-  - se exporta o modifica `DEVBOX_ENV_NAME`.
-  - se exporta `STARSHIP_CONFIG` si `starship` existe.
-- Mutacion local best-effort en rama sin marker:
-  - `git config --local --unset alias.<tool>`.
-  - `chmod +x` sobre scripts encontrados.
-  - intento de `git submodule sync` y `git submodule update`.
-- Side effects del wizard full path:
-  - `gh auth login`, `gh auth refresh`, `gh auth logout`.
-  - `ssh-keygen`, `ssh-add`, subida de llaves a GitHub por `gh ssh-key add`.
-  - `git config --global` y opcionalmente `git config --local`.
-  - posible `git remote set-url origin`.
-  - creacion de `.env` si falta.
-  - escritura o actualizacion de archivo de perfiles y `touch` del marker.
+**Observado**
+- Exporta variables y PATH en la sesión de shell.
+- Carga aliases Git efímeros usando `GIT_CONFIG_COUNT`.
+- Puede ejecutar `git submodule sync/update` sobre `.devtools`.
+- Puede invocar `git ls-remote` para aviso de versión.
+- `setup-wizard.sh` en full path puede:
+  - abrir/login con `gh`
+  - generar o seleccionar llaves SSH
+  - cargar `ssh-agent`
+  - subir llaves a GitHub
+  - escribir config global/local de Git
+  - actualizar `origin` a SSH
+  - crear o completar archivo de perfil
+  - crear `.env`
+  - tocar marker de setup
+- En verify-only consulta `gh auth status` y ejecuta `ssh -T`.
 
-No verificado:
-- la ejecucion material de esos side effects en esta corrida de discovery.
-- el efecto real de `git submodule update` en este repo sin `.gitmodules`.
+**Inferido**
+- Parte de esos side effects son de red o de sistema de usuario y pueden ser materiales fuera del repo.
+
+**No verificado**
+- No se observaron side effects runtime en esta corrida; se listan desde código.
 
 ## 11. Inputs
 **Estado:** `confirmada`
 
-Obligatorios o contextuales segun codigo:
-- `cwd` dentro del repo Git.
-- `devbox.json`.
-- estado del repo `.devbox` y `.devtools`.
-- disponibilidad de `git`.
+**Obligatorios o contextuales observados**
+- comando externo `devbox shell`
+- repo Git válido (`ensure_repo_or_die`)
+- archivos/config del repo: `devbox.json`, `devtools.repo.yaml`
+- estado local: `.devtools/.setup_completed`, `.devtools/.git-acprc`, `.env`
+- entorno/TTY: `-t 0 && -t 1`
 
-Contextuales:
-- TTY presente o no.
-- marker `.devtools/.setup_completed`.
-- variables `DEVTOOLS_SKIP_WIZARD`, `DEVTOOLS_SKIP_VERSION_CHECK`, `DEVBOX_ENV_NAME`.
-- `devtools.repo.yaml` para resolver `vendor_dir` y `profile_file`.
-- herramientas externas del wizard:
-  - verify-only: `git`, `gh`, `ssh`, `grep`;
-  - full path: `git`, `gh`, `gum`, `ssh`, `ssh-keygen`, `ssh-add`.
-- credenciales y conectividad hacia GitHub/SSH.
+**Variables de entorno observadas**
+- `DEVTOOLS_SKIP_WIZARD`
+- `DEVTOOLS_SKIP_VERSION_CHECK`
+- `DEVTOOLS_SPEC_VARIANT`
+- `DEVTOOLS_CONTRACT_FILE`, `DEVTOOLS_VENDOR_DIR`, `DEVTOOLS_PROFILE_CONFIG` (vía contrato/override)
+- `DEVTOOLS_ALLOW_ABSOLUTE_PATHS`
+- `DEVTOOLS_WIZARD_MODE`
 
-Observado en este repo:
-- `.devtools/.setup_completed` existe.
-- `.devtools/.git-acprc` existe.
-- `.gitmodules` no existe.
-- `.starship.toml` en root no existe.
+**Dependencias observadas**
+- `git`
+- `gh`
+- `ssh`
+- `grep`
+- en full path interactivo también `gum`, `ssh-keygen`, `ssh-add`
 
 ## 12. Outputs
 **Estado:** `parcial`
 
-Observados desde codigo:
-- mensajes en consola de version, blindaje del entorno, gate del wizard y bienvenida.
-- aliases efimeros de Git disponibles solo dentro de la shell por `GIT_CONFIG_COUNT`.
-- `DEVBOX_SESSION_READY` determina si aparece la ruta lista/contextualizada.
-- menu interactivo de rol que puede cambiar `DEVBOX_ENV_NAME`.
-- prompt con `starship` o fallback textual.
+**Observado**
+- salida en consola con:
+  - blindaje de entorno
+  - root detectado
+  - avisos de versión
+  - mensajes del wizard
+  - advertencias si no hay `setup-wizard.sh`
+  - mensajes de éxito o fallo de la ruta lista/contextualizada
+  - bienvenida del proyecto y sugerencia `devbox run backend`
+- export de `DEVBOX_ENV_NAME` y función `devx` si hay selección de rol
+- prompt Starship o prompt fallback
 
-Posibles outputs del full path del wizard:
-- `.env` creado o conservado.
-- perfil persistido.
-- marker persistido.
-- remote `origin` migrado a SSH.
-- configuracion global/local de Git y firma SSH.
+**Inferido**
+- El resultado principal visible para el operador es una shell contextualizada, o una shell sin la ruta `ready/contextualizada` si el gatekeeper falla en variante estricta.
 
-No verificado:
-- output exacto de una corrida completa hoy.
-- exit code final de `devbox shell` en cada rama.
+**No verificado**
+- No se observó un exit code final del flujo `devbox shell` en vivo.
 
 ## 13. Preconditions
-**Estado:** `parcial`
-
-Para que el flujo exista:
-- estar dentro de `/webapps/ihh-devtools` o un repo Git equivalente.
-- tener `devbox` funcional fuera del repo.
-- tener `devbox.json` valido.
-
-Para la rama probable actual:
-- TTY disponible.
-- `.devtools/.setup_completed` presente.
-- `bin/setup-wizard.sh` localizable.
-- `gh` y `ssh` instalados.
-- sesion GH y acceso SSH validos si se quiere superar `verify-only`.
-
-Para la rama full path:
-- ademas `gum`, `ssh-keygen`, `ssh-add`.
-- acceso a navegador o login web de GH segun la ruta.
-
-Abierto:
-- precondiciones exactas que impone el binario `devbox` antes de llegar al hook.
-
-## 14. Error modes
 **Estado:** `confirmada`
 
-Observados:
-- si el wizard verify-only no pasa `gh auth status`, sale con error y sugiere `./bin/setup-wizard.sh --force`.
-- si la validacion SSH no encuentra autenticacion exitosa, sale con error y sugiere `--force`.
-- si faltan herramientas requeridas, el wizard aborta con error critico.
-- si no se esta dentro de un repo Git, `ensure_repo_or_die` aborta.
-- si `DEVTOOLS_SPEC_VARIANT==1` y el wizard falla o no se puede ejecutar, el hook deja `DEVBOX_SESSION_READY=0` y omite la ruta lista/contextualizada.
-- en rama sin marker, el hook absorbe varios fallos con `|| true`, por lo que puede entregar shell aunque fallen bootstrap o wizard.
+**Observado**
+- estar dentro de un repo Git
+- tener `devbox.json`
+- tener disponibles dependencias mínimas del wizard según el modo
+- para la variante estricta útil del repo actual:
+  - `.devtools/.setup_completed`
+  - `bin/setup-wizard.sh`
+- para verificar SSH/perfil:
+  - `gh` autenticado o capacidad de autenticarse
+  - acceso a llaves SSH y/o capacidad de generarlas
 
-Sostenibles por codigo pero no corridos:
-- fallo de `gh auth login` o `gh ssh-key add` en full path.
-- conflicto de identidades Git duplicadas.
-- fallo al cargar llave en `ssh-agent`.
+**Inferido**
+- Para alcanzar la experiencia completa de shell contextualizada, el entorno debe permitir prompts interactivos y acceso de red hacia GitHub.
+
+**No verificado**
+- No se validó conectividad real ni autenticación viva en esta corrida.
+
+## 14. Error modes
+**Estado:** `parcial`
+
+**Observado**
+- Si falta repo Git, `ensure_repo_or_die` aborta el wizard.
+- Si faltan herramientas requeridas, el wizard aborta con error crítico.
+- En verify-only:
+  - si `gh auth status` falla, el wizard retorna error
+  - si `ssh -T` no da patrón de éxito esperado, el wizard retorna error
+- En variante estricta:
+  - si el wizard falla, `DEVBOX_SESSION_READY` queda `0` y se omite la ruta lista/contextualizada
+- Si no se encuentra `setup-wizard.sh`, el hook avisa y, en variante estricta, también deja la sesión no lista.
+
+**Inferido**
+- La rama `git submodule ... .devtools` puede fallar silenciosamente sin bloquear porque está protegida con `|| true`.
+
+**No verificado**
+- No se provocaron fallos reales de red, permisos o TTY durante esta corrida.
 
 ## 15. Archivos y funciones involucradas
 **Estado:** `confirmada`
 
-### Nucleo
-- `devbox.json`
-  - `shell.init_hook`
-  - define la logica declarativa principal del flujo.
-- `.devbox/gen/scripts/.hooks.sh`
-  - hook generado observado.
-  - replica el `init_hook` efectivo usado por Devbox.
-- `bin/setup-wizard.sh`
-  - parsea argumentos, decide `verify-only` vs full path y coordina pasos del wizard.
-- `lib/core/git-ops.sh`
-  - `detect_workspace_root`, `ensure_repo_or_die`, helpers Git.
-- `lib/core/contract.sh`
-  - `devtools_load_contract`, `devtools_profile_config_file`.
-- `lib/core/config.sh`
-  - resuelve y carga configuracion por contrato o compat legacy.
+### Núcleo
+- [`devbox.json`](/webapps/ihh-devtools/devbox.json) `shell.init_hook`
+- [`bin/setup-wizard.sh`](/webapps/ihh-devtools/bin/setup-wizard.sh)
+- [`lib/core/git-ops.sh`](/webapps/ihh-devtools/lib/core/git-ops.sh) `ensure_repo_or_die`, `detect_workspace_root`
+- [`lib/core/contract.sh`](/webapps/ihh-devtools/lib/core/contract.sh) `devtools_find_contract_file`, `devtools_load_contract`, `devtools_profile_config_file`
+- [`lib/wizard/step-01-auth.sh`](/webapps/ihh-devtools/lib/wizard/step-01-auth.sh) `run_step_auth`
+- [`lib/wizard/step-02-ssh.sh`](/webapps/ihh-devtools/lib/wizard/step-02-ssh.sh) `run_step_ssh`
+- [`lib/wizard/step-03-config.sh`](/webapps/ihh-devtools/lib/wizard/step-03-config.sh) `run_step_git_config`
+- [`lib/wizard/step-04-profile.sh`](/webapps/ihh-devtools/lib/wizard/step-04-profile.sh) `run_step_profile_registration`
 
 ### Soporte
-- `lib/wizard/step-01-auth.sh`
-  - login/refresco y chequeo 2FA en GH.
-- `lib/wizard/step-02-ssh.sh`
-  - seleccion/generacion de llaves y sincronizacion con GitHub.
-- `lib/wizard/step-03-config.sh`
-  - identidad Git y firma SSH global/local.
-- `lib/wizard/step-04-profile.sh`
-  - escribe perfil, toca marker y `.env`.
-- `devtools.repo.yaml`
-  - contrato de `vendor_dir` y `profile_file`.
-- `.devtools/.git-acprc`
-  - estado persistido observado del perfil legacy.
+- [`lib/core/utils.sh`](/webapps/ihh-devtools/lib/core/utils.sh) `is_tty`
+- [`devtools.repo.yaml`](/webapps/ihh-devtools/devtools.repo.yaml)
+- [`.devtools/.git-acprc`](/webapps/ihh-devtools/.devtools/.git-acprc)
+- [`.devtools/.setup_completed`](/webapps/ihh-devtools/.devtools/.setup_completed)
+- scripts `bin/git-*.sh` localizados por el hook para aliases efímeros
 
 ## 16. Sospechas de legacy / seams de compatibilidad
 **Estado:** `parcial`
 
-- Indicio fuerte: drift entre contrato actual y estado persistido observado.
-  - Observado: `devtools.repo.yaml` declara `profile_file: .git-acprc` en root.
-  - Observado: el estado actual existente esta en `.devtools/.git-acprc`.
-  - Observado: `lib/core/config.sh` conserva fallback a `LEGACY_VENDOR_CONFIG`.
-  - Lectura: parece seam de compatibilidad entre ubicacion nueva y legacy.
-- Indicio fuerte: el hook sigue intentando tratar `.devtools` como submodulo.
-  - Observado: ejecuta `git submodule sync/update` sobre `.devtools`.
-  - Observado: no existe `.gitmodules` en la raiz.
-  - Lectura: la rama puede ser compatibilidad tolerada o bootstrap antiguo.
-- Sospecha: `STARSHIP_CONFIG` apunta a `.starship.toml` en root aunque ese archivo no existe hoy.
-  - No queda claro si eso es tolerado por `starship` o si es simple fallback incompleto.
+**Hecho confirmado**
+- El hook intenta `git submodule sync/update --init --recursive .devtools`, pero en este repo no existe `.gitmodules` ni `.devtools` como submódulo; `.devtools` está trackeado como directorio normal.
+
+**Indicio fuerte**
+- La búsqueda de scripts revisa rutas anidadas como `"$DT_ROOT/$DEVTOOLS_PATH"` y `"$DT_ROOT/$DEVTOOLS_PATH/bin"`, lo que sugiere compatibilidad con layouts previos o alternos.
+
+**Sospecha**
+- Hay un seam entre el contrato actual (`profile_file: .git-acprc`, que `devtools_profile_config_file` resuelve en `./.git-acprc`) y el estado persistido observado en `.devtools/.git-acprc`. El repo actual conserva el archivo en `.devtools`, lo que sugiere transición o tolerancia de compatibilidad.
 
 ## 17. Unknowns
 **Estado:** `confirmada`
 
-- No verificado: si el `verify-only` actual pasa o falla hoy con las credenciales y red de esta maquina.
-- No verificado: efecto real de `git submodule update --init --recursive .devtools` en este repo sin `.gitmodules`.
-- No verificado: impacto practico del drift entre `.git-acprc` root contractual y `.devtools/.git-acprc` observado.
-- No verificado: comportamiento real de `starship` cuando `STARSHIP_CONFIG` apunta a un archivo inexistente.
-- No verificado: rama `DEVTOOLS_SKIP_WIZARD=1`.
-- No verificado: rama sin TTY.
-- No verificado: rama de fallo GH auth.
-- No verificado: rama de fallo SSH.
-- No verificado: ruta sin marker `.devtools/.setup_completed`.
-- No verificado: salida exacta y cierre efectivo de una corrida completa de `devbox shell`.
+- No se verificó el runtime interno del binario `devbox`; el trigger externo se infiere desde la convención de `devbox.json`.
+- No se observó una corrida viva de `devbox shell`, así que no hay evidencia directa del retorno real del wizard ni del estado final de la shell.
+- No se verificó si el mismatch `profile_file` vs `.devtools/.git-acprc` es intencional, accidental o pendiente de migración.
+- No se verificó si la rama `DEVTOOLS_SPEC_VARIANT=0` sigue siendo relevante en clones actuales.
+- No se verificó la rama `DEVTOOLS_SKIP_WIZARD=1`.
+- No se verificó la experiencia interactiva completa de `gum choose`, `ssh-add`, login web o cambio de `origin` a SSH.
 
 ## 18. Evidencia
 **Estado:** `confirmada`
 
-- `path:` `devbox.json`
-  - `hallazgo:` `shell.init_hook` define root, gate del wizard, aliases efimeros, menu y prompt.
-- `path:` `.devbox/gen/scripts/.hooks.sh`
-  - `hallazgo:` hook generado por Devbox observado en disco; replica la logica efectiva disponible del repo.
-- `path:` `bin/setup-wizard.sh`
-  - `hallazgo:` decide `verify-only`, checkea herramientas, GH auth y SSH, o corre full path.
-- `path:` `lib/wizard/step-04-profile.sh`
-  - `hallazgo:` crea/actualiza perfil, `.env`, marker y posible cambio de remote.
-- `path:` `lib/core/contract.sh`
-  - `hallazgo:` resuelve `DEVTOOLS_PROFILE_CONFIG` y mantiene contrato/fallbacks.
-- `path:` `lib/core/config.sh`
-  - `hallazgo:` prioriza config contractual pero conserva `LEGACY_VENDOR_CONFIG`.
-- `path:` `devtools.repo.yaml`
-  - `hallazgo:` `vendor_dir: .devtools`, `profile_file: .git-acprc`.
-- `path:` `.devtools/.git-acprc`
-  - `hallazgo:` perfil persistido observado en ubicacion legacy.
-- `corrida/validacion:` `find .devbox ...`, `find .devtools ...`
-  - `hallazgo:` existen `.devbox`, `.devtools`, marker y perfil; no existe `.gitmodules`.
-- `corrida/validacion:` `git config --local --get-regexp '^alias\\.'`
-  - `hallazgo:` no habia aliases locales persistidos antes del hook.
-- `corrida/validacion:` `bash -n bin/setup-wizard.sh lib/wizard/step-*.sh`
-  - `hallazgo:` validacion sintactica basica de los scripts inspeccionados.
-- `corrida/validacion:` `git remote -v`
-  - `hallazgo:` `origin` ya usa SSH con alias `github.com-reydem`.
+- `path:` [`devbox.json`](/webapps/ihh-devtools/devbox.json)
+- `función/handler:` `shell.init_hook`
+- `path:` [`bin/setup-wizard.sh`](/webapps/ihh-devtools/bin/setup-wizard.sh)
+- `función/handler:` `ensure_repo_or_die`, `detect_workspace_root`, `devtools_load_contract`, `devtools_profile_config_file`, `run_step_auth`, `run_step_ssh`, `run_step_git_config`, `run_step_profile_registration`
+- `path:` [`lib/core/git-ops.sh`](/webapps/ihh-devtools/lib/core/git-ops.sh)
+- `path:` [`lib/core/contract.sh`](/webapps/ihh-devtools/lib/core/contract.sh)
+- `path:` [`lib/core/utils.sh`](/webapps/ihh-devtools/lib/core/utils.sh)
+- `path:` [`lib/wizard/step-01-auth.sh`](/webapps/ihh-devtools/lib/wizard/step-01-auth.sh)
+- `path:` [`lib/wizard/step-02-ssh.sh`](/webapps/ihh-devtools/lib/wizard/step-02-ssh.sh)
+- `path:` [`lib/wizard/step-03-config.sh`](/webapps/ihh-devtools/lib/wizard/step-03-config.sh)
+- `path:` [`lib/wizard/step-04-profile.sh`](/webapps/ihh-devtools/lib/wizard/step-04-profile.sh)
+- `path:` [`devtools.repo.yaml`](/webapps/ihh-devtools/devtools.repo.yaml)
+- `path:` [`.devtools/.git-acprc`](/webapps/ihh-devtools/.devtools/.git-acprc)
+- `path:` [`.devtools/.setup_completed`](/webapps/ihh-devtools/.devtools/.setup_completed)
+- `corrida/validación:` `bash -n bin/setup-wizard.sh`
+- `corrida/validación:` `bash -n lib/wizard/step-01-auth.sh`
+- `corrida/validación:` `bash -n lib/wizard/step-02-ssh.sh`
+- `corrida/validación:` `bash -n lib/wizard/step-03-config.sh`
+- `corrida/validación:` `bash -n lib/wizard/step-04-profile.sh`
+- `corrida/validación:` presencia de `devbox.json`, `bin/setup-wizard.sh`, `devtools.repo.yaml`, `.devtools/.setup_completed`
 
-## 19. Validacion segura
+## 19. Validación segura
 **Estado:** `confirmada`
 
-Se realizo validacion estatica y de baja intervencion:
-- lectura de `devbox.json`, `.devbox/gen/scripts/.hooks.sh`, wizard y helpers;
-- inspeccion de estado actual del repo en `.devtools`, `.devbox`, `git remote -v` y `.git/config`;
-- validacion sintactica `bash -n` sobre scripts del wizard.
+**Qué se validó**
+- consistencia sintáctica de `bin/setup-wizard.sh` y de los cuatro steps del wizard con `bash -n`
+- existencia de los archivos clave que sostienen el relato del flujo
+- estado local del repo que altera ramas (`devtools.repo.yaml`, `.devtools/.setup_completed`, `.devtools/.git-acprc`, `.env`)
 
-Que quedo confirmado con esa validacion:
-- la cadena interna desde `init_hook` hasta `setup-wizard.sh`;
-- las bifurcaciones principales por marker, TTY y flags;
-- los side effects potenciales del full path;
-- el estado persistido actual del repo.
+**Qué quedó confirmado gracias a esa validación**
+- el backbone reconstruido es sintácticamente válido en las piezas inspeccionadas
+- el repo sí contiene el wizard y el marker que afectan el camino feliz actual
 
-Que siguio sin confirmarse:
-- ejecucion real del binario `devbox`;
-- verify-only actual con red/credenciales reales;
-- efecto material de submodule update;
-- comportamiento efectivo de `starship`.
+**Qué siguió sin confirmarse**
+- ejecución real de red/autenticación/SSH
+- resultado final de `devbox shell` en una sesión viva
 
-Por que no se ejecuto el trigger real completo:
-- correr `devbox shell` aqui podia invocar checks de GH/SSH, acceso de red, mutaciones efimeras del entorno y, en ramas full path, cambios globales/locales y operaciones contra GitHub;
-- el mandato de discovery priorizaba validacion segura de baja intervencion y dejar visibles los unknowns si la corrida real implicaba side effects o riesgo fuera de ese umbral.
+**Riesgos de ejecutar el flujo real**
+- puede abrir login web, tocar Git config global/local, generar/subir llaves, cambiar `origin`, escribir `.env` o marker, y hacer llamadas de red
+
+**Alternativa estática o de baja intervención**
+- mantener la validación estática usada aquí como refuerzo suficiente para discovery, sin correr el flujo completo
 
 ## 20. Criterio de salida para promover a spec-first
-**Estado:** `parcial`
+**Estado:** `confirmada`
 
-Quedo suficientemente claro:
-- por donde entra internamente el flujo dentro del repo;
-- que el hook es el nucleo observable;
-- que el gate principal depende de marker, TTY y resultado del wizard;
-- que el wizard decide entre verificacion y full path con side effects materiales.
+**Qué quedó suficientemente claro**
+- entrypoint y backbone del flujo dentro del repo
+- condiciones principales para que la sesión quede lista o no
+- papel del wizard y de sus cuatro pasos
+- side effects esperables y seams relevantes
 
-Sigue abierto:
-- verify-only actual;
-- efecto del bootstrap de submodulo sin `.gitmodules`;
-- drift de configuracion root vs legacy;
-- comportamiento real de `starship`;
-- ramas no verificadas `DEVTOOLS_SKIP_WIZARD`, no TTY, fallo GH/SSH y sin marker.
+**Qué sigue abierto**
+- bridge interno de Devbox
+- éxito runtime del wizard y de validaciones de red
+- seam del archivo de perfil
 
-Lectura de salida:
-- lo observado ya permite entender el flujo base y escribir spec-first si se acepta trabajar con estos unknowns visibles;
-- no corresponde declarar promocion automatica desde este documento;
-- la aclaracion minima para reducir riesgo antes de promover seria una validacion controlada del camino `verify-only` o evidencia equivalente de runtime sin abrir el full path mutante.
+**Si los unknowns bloquean o no la promoción**
+- no bloquean la promoción a `spec-first`, porque ya es posible responder con suficiente precisión por dónde entra el flujo, qué decide, qué toca y dónde termina dentro del repo
 
-## 21. Respuesta canonica del discovery
-**Estado:** `parcial`
+**Mínima aclaración adicional necesaria para promover**
+- no hace falta reabrir discovery completo; si más adelante hiciera falta, bastaría contrastar en una corrida segura el comportamiento real de la rama interactiva y el uso efectivo de `profile_file`
 
-Cuando el usuario ejecuta `devbox shell` en este repo, el entrypoint externo mas probable es el binario `devbox`, pero eso solo quedo parcial; lo que si esta observado es que el flujo del repo entra en `devbox.json` y su hook generado `.devbox/gen/scripts/.hooks.sh`. Ahi el sistema resuelve la raiz, decide si hay marker `.devtools/.setup_completed`, intenta bootstrap/aliases efimeros de Git, busca `setup-wizard.sh` y usa ese wizard como gate. Si la verificacion requerida pasa, la sesion queda lista, imprime bienvenida, ofrece menu de rol y prepara prompt; si falla en la variante estricta, omite la ruta contextualizada. La evidencia llega hasta esa logica, el wizard y el estado actual del repo, no hasta una corrida completa con red, credenciales y side effects globales.
+## 21. Respuesta canónica del discovery
+**Estado:** `confirmada`
+
+Cuando pasa `devbox shell`, el flujo entra por `devbox.json` en `shell.init_hook`, resuelve la raíz del workspace y el estado de `.devtools`, prepara PATH y aliases Git efímeros, y delega en `bin/setup-wizard.sh` la verificación o preparación del entorno. Ese wizard decide entre `verify-only` y `full path`, valida repo/credenciales/SSH/Git/perfil y puede persistir marker y perfil. Con ese resultado, el hook decide si `DEVBOX_SESSION_READY` queda activo; si sí, imprime bienvenida, permite elegir rol en TTY y configura el prompt. El corte de evidencia llega hasta esa lógica declarada y al estado local del repo, pero no incluye una ejecución viva del binario `devbox` ni de las operaciones de red.
