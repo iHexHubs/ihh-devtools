@@ -1,0 +1,31 @@
+flow_id: devbox-shell
+consumers:
+  - name: interactive-operator
+    required_scenarios:
+      - strict-session-ready-after-verify
+      - strict-session-failure-visible
+    required_fields:
+      - root resolution
+      - readiness visibility
+      - repo toolchain on path
+    tolerated_variations:
+      - prompt theme
+      - cosmetic wording
+      - additional helper exports
+    unacceptable_breakages:
+      - ready path shown without successful verify
+      - verification failure hidden from the operator
+  - name: promote-changelog-fallback
+    required_scenarios:
+      - print-env-for-git-cliff
+    required_fields:
+      - DEVBOX_PROJECT_ROOT
+      - DEVBOX_ENV_NAME
+      - PATH with devbox toolchain
+      - HOST_PATH exposing git-cliff
+    tolerated_variations:
+      - additional exports
+      - extra environment metadata
+    unacceptable_breakages:
+      - print-env without git-cliff-capable toolchain
+      - common.sh unable to eval the exported environment

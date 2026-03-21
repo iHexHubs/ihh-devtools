@@ -1,0 +1,51 @@
+flow_id: devbox-shell
+contract_kind: cli-shell-observable-contract
+authority:
+  discovery: specs/flows/devbox-shell/01-discovery.md
+  spec_first: specs/flows/devbox-shell/02-spec-first.md
+  spec_anchored: specs/flows/devbox-shell/03-spec-anchored.md
+  spec_as_source: specs/flows/devbox-shell/04-spec-as-source.md
+primary_boundary:
+  command: devbox shell
+  provider_artifacts:
+    - devbox.json
+    - bin/setup-wizard.sh
+    - lib/core/git-ops.sh
+    - lib/core/contract.sh
+    - lib/core/config.sh
+  consumers:
+    - interactive-operator
+    - promote-changelog-fallback
+promises:
+  - id: root-resolution-precedes-wizard
+    description: root, vendor_dir and profile_file are resolved before contract-sensitive wizard checks
+    supported_by:
+      - devbox.json
+      - bin/setup-wizard.sh
+      - lib/core/contract.sh
+  - id: strict-gate-on-marker-and-tty
+    description: when .devtools/.setup_completed exists and tty is present, the ready path is enabled only after successful verification unless the wizard is explicitly skipped
+    supported_by:
+      - devbox.json
+      - bin/setup-wizard.sh
+  - id: print-env-exposes-toolchain
+    description: devbox shell --print-env exposes a non-interactive export surface usable by internal consumers
+    supported_by:
+      - lib/promote/workflows/common.sh
+      - observed print-env run in isolated copy
+  - id: common-sh-consumer-fallback
+    description: common.sh may eval the print-env output and then run git-cliff inside that environment
+    supported_by:
+      - lib/promote/workflows/common.sh
+non_goals:
+  - freeze prompt cosmetics
+  - model Devbox/Nix internals as contract
+  - pretend print-env fully covers the interactive shell UX
+coverage_notes:
+  primary_validation_tool: bats
+  specmatic: no_aplica
+  partial:
+    - interactive tty UX beyond gate outcome
+    - prompt theming and role menu details
+  out_of_scope:
+    - external GH and SSH availability semantics beyond visible pass/fail

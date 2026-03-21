@@ -1,0 +1,19 @@
+scenario_id: interactive-ready
+boundary: devbox shell
+mode: interactive-strict
+preconditions:
+  - .devtools/.setup_completed exists
+  - tty available
+  - DEVTOOLS_SKIP_WIZARD is not 1
+  - setup-wizard verify-only succeeds
+inputs:
+  command: devbox shell
+expected_observables:
+  ready_state: contextualized-session-enabled
+  messages:
+    - welcome message visible
+    - readiness is not hidden
+  invariants:
+    - root resolved before wizard verification
+    - readiness enabled only after successful verification
+coverage_note: scenario is canonically in scope but only partially executable in the current harness

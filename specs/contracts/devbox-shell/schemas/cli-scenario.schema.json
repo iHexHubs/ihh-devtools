@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "devbox-shell/cli-scenario.schema.json",
+  "title": "CLI scenario example for devbox-shell",
+  "type": "object",
+  "required": [
+    "scenario_id",
+    "boundary",
+    "mode",
+    "preconditions",
+    "inputs",
+    "expected_observables"
+  ],
+  "properties": {
+    "scenario_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "boundary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mode": {
+      "type": "string",
+      "minLength": 1
+    },
+    "preconditions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "inputs": {
+      "type": "object"
+    },
+    "expected_observables": {
+      "type": "object"
+    },
+    "coverage_note": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

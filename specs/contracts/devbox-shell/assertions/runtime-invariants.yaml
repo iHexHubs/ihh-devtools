@@ -1,0 +1,25 @@
+flow_id: devbox-shell
+invariants:
+  - id: no-strict-ready-after-failed-verify
+    protects: strict gate semantics
+    applies_to:
+      - interactive-ready
+      - interactive-verify-failure
+    validated_by:
+      - tests/contracts/devbox-shell/devbox-shell-contract.bats
+  - id: print-env-remains-consumable
+    protects: non-interactive consumer fallback
+    applies_to:
+      - print-env-noninteractive
+    validated_by:
+      - tests/contracts/devbox-shell/devbox-shell-contract.bats
+  - id: contract-resolution-precedes-sensitive-checks
+    protects: vendor/profile resolution order
+    applies_to:
+      - interactive-ready
+      - interactive-verify-failure
+    validated_by:
+      - tests/contracts/devbox-shell/devbox-shell-contract.bats
+constraints:
+  - keep coverage declared as partial
+  - do not claim Specmatic coverage for the main CLI boundary

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "devbox-shell/normalized-print-env.schema.json",
+  "title": "Normalized print-env snapshot",
+  "type": "object",
+  "required": [
+    "DEVBOX_PROJECT_ROOT",
+    "DEVBOX_ENV_NAME",
+    "PATH",
+    "HOST_PATH"
+  ],
+  "properties": {
+    "DEVBOX_PROJECT_ROOT": {
+      "type": "string",
+      "minLength": 1
+    },
+    "DEVBOX_ENV_NAME": {
+      "type": "string",
+      "minLength": 1
+    },
+    "PATH": {
+      "type": "string",
+      "pattern": "\\.devbox/nix/profile/default/bin"
+    },
+    "HOST_PATH": {
+      "type": "string",
+      "pattern": "git-cliff"
+    }
+  },
+  "additionalProperties": true
+}

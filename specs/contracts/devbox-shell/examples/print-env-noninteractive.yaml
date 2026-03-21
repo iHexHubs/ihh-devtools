@@ -1,0 +1,19 @@
+scenario_id: print-env-noninteractive
+boundary: devbox shell --print-env
+mode: non-interactive
+preconditions:
+  - repo root contains devbox.json
+  - DEVTOOLS_SKIP_VERSION_CHECK is 1
+  - DEVTOOLS_SKIP_WIZARD is 1
+inputs:
+  command: devbox shell --print-env
+expected_observables:
+  required_exports:
+    - DEVBOX_PROJECT_ROOT
+    - DEVBOX_ENV_NAME
+    - PATH contains .devbox/nix/profile/default/bin
+    - HOST_PATH contains git-cliff
+  forbidden_assumptions:
+    - do not assume full interactive init_hook parity
+    - do not assume DEVBOX_SESSION_READY is exported
+coverage_note: this scenario is dynamically executable in the current harness
