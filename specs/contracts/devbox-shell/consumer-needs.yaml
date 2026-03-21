@@ -1,0 +1,48 @@
+flow_id: devbox-shell
+consumers:
+  - name: human-operator
+    required_scenarios:
+      - strict readiness is not reported before successful verification
+      - shell can expose contextualized path only after the required gate passes
+    required_fields:
+      - DEVBOX_ENV_NAME
+    tolerated_variations:
+      - prompt styling
+      - wording of non-contractual welcome messages
+    unacceptable_breakages:
+      - silent bypass of the readiness gate
+      - hardcoded legacy profile file path as canonical contract target
+  - name: repo-automation
+    required_scenarios:
+      - print-env can be evaled before running repo tools
+      - repo root export is present in print-env
+    required_fields:
+      - DEVBOX_ENV_NAME
+      - DEVBOX_PROJECT_ROOT
+    tolerated_variations:
+      - ordering of unrelated exports
+      - extra non-breaking exports
+    unacceptable_breakages:
+      - removal of --print-env
+      - removal of the protected base exports
+  - name: lib/promote/workflows/common.sh
+    required_scenarios:
+      - print-env succeeds before git-cliff fallback path
+    required_fields:
+      - DEVBOX_PROJECT_ROOT
+    tolerated_variations:
+      - extra messages outside the imported export script
+    unacceptable_breakages:
+      - failure to obtain the exported environment
+  - name: tests/contracts/devbox-shell/run-contract-checks.sh
+    required_scenarios:
+      - print-env enables bats and jq in the imported environment
+    required_fields:
+      - DEVBOX_ENV_NAME
+      - DEVBOX_PROJECT_ROOT
+    tolerated_variations:
+      - additional tools in PATH
+    unacceptable_breakages:
+      - bats unavailable after importing print-env
+      - jq unavailable after importing print-env
+

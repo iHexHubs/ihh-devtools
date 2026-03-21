@@ -1,0 +1,9 @@
+scenario: help-flags
+boundary: devbox shell --help
+status: normative
+required_substrings:
+  - devbox shell [flags]
+  - --print-env
+  - --config
+  - --env
+

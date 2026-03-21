@@ -1,0 +1,34 @@
+flow_id: devbox-shell
+adoption_mode: hibrida
+contract_type: shell-local-workflow
+contract_file: none
+primary_validation_tool: bats
+primary_boundary:
+  main_command: devbox shell
+  automation_variant: devbox shell --print-env
+  provider:
+    - devbox.json
+    - .devbox/gen/scripts/.hooks.sh
+    - bin/setup-wizard.sh
+    - lib/core/contract.sh
+    - lib/wizard/step-04-profile.sh
+  consumers:
+    - human-operator
+    - repo-automation
+    - lib/promote/workflows/common.sh
+    - tests/contracts/devbox-shell/run-contract-checks.sh
+specmatic_scope:
+  enabled: false
+  role: no_aplica
+  reason: CLI/shell local boundary has no honest Specmatic dialect for this flow
+non_specmatic_scope:
+  protected_observables:
+    - help exposes --print-env, --config and --env
+    - print-env exports DEVBOX_ENV_NAME=IHH
+    - print-env exports DEVBOX_PROJECT_ROOT=<repo_root>
+    - strict variant keeps readiness gated by wizard verification
+    - wizard uses contract-resolved profile file
+compatibility_rules: specs/contracts/devbox-shell/compatibility-rules.yaml
+examples_dir: specs/contracts/devbox-shell/examples
+assertions_dir: specs/contracts/devbox-shell/assertions
+

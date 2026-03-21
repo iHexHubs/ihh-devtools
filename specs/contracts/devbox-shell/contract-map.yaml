@@ -1,0 +1,34 @@
+flow_id: devbox-shell
+adoption_mode: hibrida
+canonical_contract:
+  type: shell-local-workflow-manifest
+  file: specs/contracts/devbox-shell/interface-contract.yaml
+  executable: false
+executable_contract:
+  type: none
+  file: none
+interface_contract: specs/contracts/devbox-shell/interface-contract.yaml
+consumer_needs: specs/contracts/devbox-shell/consumer-needs.yaml
+compatibility_rules: specs/contracts/devbox-shell/compatibility-rules.yaml
+examples_dir: specs/contracts/devbox-shell/examples
+schemas_dir: specs/contracts/devbox-shell/schemas
+assertions_dir: specs/contracts/devbox-shell/assertions
+tests_contracts_dir: tests/contracts/devbox-shell
+ci_contract_checks: .ci/contract-checks.yaml
+primary_validation_tool: bats
+specmatic_scope:
+  enabled: false
+  role: no_aplica
+coverage_scope:
+  complete:
+    - help flags protegidas
+    - print-env expone exports base del repo
+    - readiness gate visible en variante estricta
+    - profile file resuelto por contrato
+  partial:
+    - rama interactiva de rol y prompt
+    - side effects de version, submodulo y red
+  out_of_scope:
+    - runtime interno total de Devbox
+    - integracion real de CI
+

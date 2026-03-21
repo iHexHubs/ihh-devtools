@@ -1,0 +1,39 @@
+flow_id: devbox-shell
+adoption_mode: hibrida
+primary_validation_tool: bats
+contract_file: specs/contracts/devbox-shell/interface-contract.yaml
+checks:
+  - name: bats-devbox-shell
+    tool: bash
+    purpose: Run the primary contract suite after importing the repo environment with print-env.
+    required: true
+    command: tests/contracts/devbox-shell/run-contract-checks.sh
+  - name: contract-assets-present
+    tool: rg
+    purpose: Ensure the contractual tree for devbox-shell remains materialized.
+    required: true
+    command: rg --files specs/contracts/devbox-shell tests/contracts/devbox-shell .ci/contract-checks.yaml
+specmatic:
+  enabled: false
+  contract_file: none
+compatibility:
+  enabled: true
+  rules_file: specs/contracts/devbox-shell/compatibility-rules.yaml
+coverage_notes:
+  complete:
+    - help flags
+    - print-env base exports
+    - readiness gate patterns
+    - profile resolution wiring
+  partial:
+    - interactive role and prompt branch
+    - side effects involving submodule, version and network paths
+  out_of_scope:
+    - full internal Devbox runtime
+    - CI integration runtime
+failure_conditions:
+  - Any required check exits non-zero.
+  - Protected help flags disappear.
+  - Protected base exports disappear.
+  - Readiness gate patterns disappear.
+  - Profile resolution wiring regresses.

@@ -1,0 +1,10 @@
+surface: help
+type: substring-contract
+required_tokens:
+  - devbox shell [flags]
+  - --print-env
+  - --config
+  - --env
+optional_tokens:
+  - --help
+

@@ -1,0 +1,8 @@
+scenario: readiness-gating
+boundary: shell.init_hook
+status: normative
+required_conditions:
+  - strict variant starts with DEVBOX_SESSION_READY=0 before verification
+  - marker or no-tty can force --verify-only
+  - the omitted contextualized path is reported when verification fails
+
