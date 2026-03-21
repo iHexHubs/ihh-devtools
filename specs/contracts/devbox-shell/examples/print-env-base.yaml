@@ -1,9 +1,0 @@
-scenario: print-env-base
-boundary: devbox shell --print-env
-status: normative
-required_exports:
-  DEVBOX_ENV_NAME: IHH
-  DEVBOX_PROJECT_ROOT: <repo_root>
-notes:
-  - DEVBOX_PROJECT_ROOT is dynamic and must resolve to the repo root at runtime.
-
