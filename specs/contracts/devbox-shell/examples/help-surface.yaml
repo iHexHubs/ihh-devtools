@@ -1,0 +1,11 @@
+scenario_id: help-surface
+consumer: non_interactive_inspector
+command: devbox shell --help
+expected_contractual_observables:
+  - exit status is zero
+  - output mentions `--print-env`
+  - output mentions `--config`
+  - output mentions `--env`
+notes:
+  - this example validates the supported CLI help surface only
+  - it does not prove contextualized readiness

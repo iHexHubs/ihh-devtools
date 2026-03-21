@@ -1,0 +1,10 @@
+scenario_id: interactive-readiness-conditional
+consumer: interactive_repo_operator
+command: devbox shell
+expected_contractual_observables:
+  - a repo-local shell can be opened from this repo
+  - contextualization is attempted
+  - readiness stays conditional on verification and runtime context
+notes:
+  - this example is normative for the contract but only partially executable in CI
+  - live credentials, SSH state and PTY behavior remain outside complete automated coverage

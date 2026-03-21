@@ -1,0 +1,19 @@
+flow_id: devbox-shell
+compatibility_promise: preserve a repo-local `devbox shell` entrypoint with base environment exposure and conditional contextualization semantics
+compatible_changes:
+  - changing internal script lookup order without changing the repo-local shell contract
+  - changing console wording, prompt rendering or alias count
+  - retaining temporary legacy compatibility while keeping `.git-acprc` as the contractual profile file authority
+breaking_changes:
+  - removing or bypassing `shell.init_hook`
+  - making readiness unconditional or equating print-env with full readiness
+  - changing `profile_file` or `vendor_dir` contract authority without updating the materialized contract
+  - requiring live network/auth repair for every invocation, including inspection modes
+checks_expected:
+  - help output still exposes the supported shell flags
+  - print-env still exposes `DEVBOX_ENV_NAME=IHH`
+  - contract resolution still returns `.devtools` for vendor_dir and `./.git-acprc` for profile_file
+  - shell init hook still preserves verify-only/readiness guards
+notes:
+  - compatibility remains partial because the interactive PTY path is not fully executable in CI without credentials
+  - legacy `.devtools/.setup_completed` and `.devtools/.git-acprc` may exist, but they do not redefine the normative contract
