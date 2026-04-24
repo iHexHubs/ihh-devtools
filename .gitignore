@@ -17,3 +17,6 @@ dist/
 devbox-app/.env
 staging.md
 prod.md
+
+# Datos personales de git-acp — NUNCA versionar
+**/.git-acprc
