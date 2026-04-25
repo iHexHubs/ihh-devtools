@@ -1,0 +1,90 @@
+# Ejemplo: contract de erd-ecosystem.
+# Refleja el estado real del meta-repo (rama dev como source-of-truth,
+# protected branches dev/staging/main, vendoring desde ihh-devtools).
+# Versión usada: v0.1.1 (tag SemVer real más cercano en ihh-devtools).
+meta:
+  schema_version: 1
+  contract_name: erd-ecosystem
+
+identity:
+  family: iHexHubs
+  domain: ecosystem
+  owner: erd-team
+  repo_url: git@github.com-reydem:iHexHubs/erd-ecosystem.git
+
+git:
+  default_branch: dev
+  protected_branches:
+    - dev
+    - staging
+    - main
+  commit_signing: required
+  remote_canonical_url: git@github.com-reydem:iHexHubs/erd-ecosystem.git
+
+release:
+  scheme: semver
+  prerelease_tags_allowed: true
+  changelog_path: CHANGELOG.md
+
+vendor:
+  source: github.com/iHexHubs/ihh-devtools
+  version: v0.1.1
+  scope: full
+  vendor_dir: .devtools
+
+components:
+  - id: pmbok-backend
+    kind: service
+    path: apps/pmbok/backend
+    image: ghcr.io/elrincondeldetective/pmbok/backend
+    runtime: python
+  - id: pmbok-frontend
+    kind: webapp
+    path: apps/pmbok/frontend
+    image: ghcr.io/elrincondeldetective/pmbok/frontend
+    runtime: node
+  - id: detective-app
+    kind: webapp
+    path: apps/el-rincon-del-detective/frontend
+    image: ghcr.io/elrincondeldetective/detective-app
+    runtime: node
+  - id: sixdriven-admin
+    kind: service
+    path: apps/sixdriven/sixdriven-web/apps/admin
+    image: ghcr.io/elrincondeldetective/sixdriven/admin
+    runtime: node
+  - id: sixdriven-web
+    kind: webapp
+    path: apps/sixdriven/sixdriven-web
+    image: ghcr.io/elrincondeldetective/sixdriven/web
+    runtime: node
+
+commands:
+  ci:
+    runner: task
+    target: ci
+  app-list:
+    runner: task
+    target: app:list
+  local-bootstrap:
+    runner: task
+    target: local:bootstrap
+
+environments:
+  - name: dev
+    branch: dev
+    auto_promote: false
+  - name: staging
+    branch: staging
+    auto_promote: false
+  - name: prod
+    branch: main
+    auto_promote: false
+
+languages:
+  - bash
+  - python
+  - node
+
+policy:
+  adr_dir: docs/adr

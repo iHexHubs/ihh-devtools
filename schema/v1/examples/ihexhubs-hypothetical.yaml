@@ -1,0 +1,72 @@
+# Ejemplo hipotético: contract de un repo de la familia iHexHubs
+# distinto de ecosystem. Demuestra que el toolset acepta otros
+# dominios sin acoplar el código a "pmbok" o a "ecosystem".
+meta:
+  schema_version: 1
+  contract_name: ihh-bookkeeping
+
+identity:
+  family: iHexHubs
+  domain: bookkeeping
+  owner: finance-team
+  contact: finance-team@iHexHubs.example
+  repo_url: git@github.com:iHexHubs/ihh-bookkeeping.git
+
+git:
+  default_branch: main
+  protected_branches:
+    - main
+    - release
+  commit_signing: required
+
+release:
+  scheme: semver
+  prerelease_tags_allowed: true
+  changelog_path: CHANGELOG.md
+
+vendor:
+  source: github.com/iHexHubs/ihh-devtools
+  version: v0.1.1
+  scope: full
+
+components:
+  - id: ledger-api
+    kind: service
+    path: services/ledger
+    image: ghcr.io/iHexHubs/bookkeeping/ledger-api
+    runtime: go
+    health_check: /healthz
+  - id: invoice-worker
+    kind: worker
+    path: services/invoice-worker
+    image: ghcr.io/iHexHubs/bookkeeping/invoice-worker
+    runtime: go
+  - id: dashboard
+    kind: webapp
+    path: ui/dashboard
+    image: ghcr.io/iHexHubs/bookkeeping/dashboard
+    runtime: node
+
+commands:
+  ci:
+    runner: task
+    target: ci
+  build:
+    runner: task
+    target: build:all
+
+environments:
+  - name: staging
+    branch: release
+    auto_promote: true
+  - name: prod
+    branch: main
+    auto_promote: false
+
+languages:
+  - go
+  - node
+
+policy:
+  adr_dir: docs/adr
+  ownership_doc: CODEOWNERS

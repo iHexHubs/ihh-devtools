@@ -1,0 +1,20 @@
+# Ejemplo INVÁLIDO: este contract debe FALLAR la validación.
+# Falta el campo vendor.version, que es required según el schema v1.
+# Sirve para demostrar que el validador rechaza casos inválidos.
+meta:
+  schema_version: 1
+  contract_name: invalid-example
+
+identity:
+  owner: test
+
+git:
+  default_branch: main
+
+release:
+  scheme: semver
+
+vendor:
+  source: github.com/iHexHubs/ihh-devtools
+  scope: full
+  # version está faltando intencionalmente

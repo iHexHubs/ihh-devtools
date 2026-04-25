@@ -1,0 +1,20 @@
+# Contract más pequeño posible: solo los 5 bloques obligatorios y
+# dentro de cada uno solo los campos required. Útil como punto de
+# partida para nuevos consumidores.
+meta:
+  schema_version: 1
+  contract_name: minimal-consumer
+
+identity:
+  owner: minimal-team
+
+git:
+  default_branch: main
+
+release:
+  scheme: semver
+
+vendor:
+  source: github.com/iHexHubs/ihh-devtools
+  version: v1.0.0
+  scope: full

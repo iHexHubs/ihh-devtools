@@ -1,0 +1,54 @@
+# Ejemplo externo: organización ajena adopta ihh-devtools.
+# Demuestra universalidad del schema:
+# - default_branch=trunk (no main).
+# - release scheme=calver (no semver).
+# - sin environments (despliegue continuo desde trunk).
+# - vendor scope=manifest con pinned_paths (recibe solo subset).
+# - vendor_dir personalizado (.toolset en lugar de .devtools).
+meta:
+  schema_version: 1
+  contract_name: widget-factory
+
+identity:
+  family: acme-corp
+  owner: platform
+  contact: platform@acme.example
+
+git:
+  default_branch: trunk
+  protected_branches:
+    - trunk
+  commit_signing: optional
+
+release:
+  scheme: calver
+  prerelease_tags_allowed: false
+  changelog_path: CHANGELOG.md
+
+vendor:
+  source: github.com/iHexHubs/ihh-devtools
+  version: v0.1.1
+  scope: manifest
+  pinned_paths:
+    - bin/git-acp.sh
+    - bin/git-promote.sh
+    - lib/core/**
+  vendor_dir: .toolset
+
+components:
+  - id: widget-api
+    kind: service
+    path: cmd/widget-api
+    image: ghcr.io/acme-corp/widget-api
+    runtime: rust
+
+commands:
+  ci:
+    runner: cargo
+    target: test
+  build:
+    runner: cargo
+    target: build --release
+
+languages:
+  - rust

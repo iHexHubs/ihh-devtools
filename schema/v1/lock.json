@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iHexHubs.github.io/ihh-devtools/schema/v1/lock.json",
+  "title": "ihh-devtools vendor lock (v1)",
+  "description": "Lock generado por el toolset (no se edita a mano). Registra el estado verificable de la última operación de vendorización.",
+  "type": "object",
+  "required": ["lock_version", "contract_schema_version", "vendor", "generated_at", "generator"],
+  "additionalProperties": false,
+  "properties": {
+    "lock_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Versión del lock format."
+    },
+    "contract_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Versión del schema del contract usado al generar este lock."
+    },
+    "vendor": {
+      "type": "object",
+      "required": ["source", "version", "ref", "sha", "scope"],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ref": {
+          "type": "string",
+          "description": "Referencia git (tag, branch, etc)."
+        },
+        "sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$",
+          "description": "SHA completo del commit vendorizado."
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["full", "manifest"]
+        },
+        "pinned_paths": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "vendor_dir": {
+          "type": "string"
+        }
+      }
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp ISO-8601 de cuándo se generó el lock."
+    },
+    "generator": {
+      "type": "object",
+      "required": ["name", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "const": "ihh-devtools"
+        },
+        "version": {
+          "type": "string",
+          "description": "Versión del toolset que generó el lock."
+        }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Reservado para verificación de integridad. Opcional en v1; declarado para futura adopción.",
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "enum": ["sha256", "sha512"]
+        },
+        "digest": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
