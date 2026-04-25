@@ -69,12 +69,16 @@ lib/
     strategies/         Estrategias de merge
   wizard/               Pasos del setup wizard
   ui/                   Banners, prompts, estilos (gum)
-config/                 Archivos de configuración de ejemplo
-scripts/                Scripts auxiliares (vendorize.sh)
+config/                 Archivos de configuración (workflows.conf)
+scripts/                Scripts auxiliares (vendorize.sh, gh-policy-check.sh)
 devbox-app/             App de referencia (React + Django + Postgres + GitOps)
-tests/                  Tests contractuales
-.ci/                    Configuración de checks CI
+docs/                   ADRs (`docs/adr/`) y plan de migración (`docs/migration-2026-04/`)
+.github/workflows/      CI (lint shell + contaminación) y release de devbox-app
 ```
+
+> **Esqueleto en preparación:** `intent/`, `spec/`, `implementation/`, `integration/`, `contracts/` contienen subdirectorios reservados para artefactos de la metodología spec-anchored. Aún no hay contenido.
+>
+> **Tests contractuales (`tests/contracts/`) y `.ci/contract-checks.yaml`** se mencionan en `AGENTS.md` como objetivo. La validación actual vive en `Taskfile.yaml` (`lint:shell`, `lint:contamination`, `gh-policy-check`).
 
 ## Configuración
 

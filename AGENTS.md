@@ -11,12 +11,16 @@ lib/
   promote/      Lógica de promoción: workflows por rama, estrategias de merge, helpers
   wizard/       Pasos del setup wizard (auth, ssh, config, profile)
   ui/           Banners, prompts y estilos (gum)
-config/         Archivos de configuración de ejemplo (workflows.conf)
+config/         Archivos de configuración (workflows.conf, workflows.conf.example)
 scripts/        Scripts auxiliares (vendorize.sh, gh-policy-check.sh)
-devbox-app/     App de referencia (React + Django + Postgres + GitOps/Kustomize) para validar el tooling
-tests/          Tests contractuales y de integración
-.ci/            Configuración de checks contractuales (contract-checks.yaml)
+devbox-app/     App de referencia (React + Django + Postgres + GitOps/Kustomize)
+docs/           ADRs (`docs/adr/`) y plan de migración (`docs/migration-2026-04/`)
+.github/        Workflows: ci.yaml (lint shell, contaminación) y devbox-app-release.yaml
 ```
+
+> **Esqueleto en preparación (sin contenido todavía):** `intent/intents/`, `spec/features/`, `implementation/experiments/`, `integration/tests/`, `integration/deltas/`, `integration/wsv/`, `contracts/reviews/`. Reservados para artefactos de la metodología spec-anchored.
+>
+> **Tests contractuales (`tests/contracts/`) y `.ci/contract-checks.yaml`** son objetivos pendientes. La validación actual vive en `Taskfile.yaml`: `task lint:shell`, `task lint:contamination`, `task ci`. Nuevas reglas se añaden ahí o en `scripts/gh-policy-check.sh` mientras no exista el plano contractual.
 
 ## Reglas
 
@@ -28,11 +32,11 @@ tests/          Tests contractuales y de integración
 
 4. **Respetar el contrato en `devtools.repo.yaml`.** Este archivo define paths canónicos (`vendor_dir`, `profile_file`) y registros. No hardcodear esos valores en scripts; leerlos del contrato.
 
-5. **No introducir rutas hardcodeadas.** Nada de `/home/usuario`, `/Users/foo`, ni paths absolutos a directorios personales. Usar `$root`, `$DT_ROOT` y resolución dinámica.
+5. **No introducir rutas hardcodeadas.** Nada de `/home/usuario`, `/Users/foo`, ni paths absolutos a directorios personales. Usar `$root`, `$DT_ROOT` y resolución dinámica. El check `task lint:contamination` lo valida en cada CI.
 
 6. **Antes de tocar un flujo, entender la cadena completa.** Cada comando empieza en `bin/git-<comando>.sh`, que hace `source` de módulos en `lib/`. Trazar la cadena de sources antes de modificar.
 
-7. **Los tests contractuales viven en `tests/contracts/`** y se configuran en `.ci/contract-checks.yaml`. Los checks declaran qué cubren, qué queda parcial y qué está fuera de alcance. No presentar cobertura parcial como completa.
+7. **Validación actual del repo:** `task ci` ejecuta `lint:shell` (sintaxis bash en `bin/` y `lib/`), `lint:contamination` y `scripts/gh-policy-check.sh` (políticas GitHub Actions). Cuando exista la suite contractual planificada en `tests/contracts/` y `.ci/contract-checks.yaml`, esta nota se actualiza.
 
 ## Archivos clave
 
@@ -43,5 +47,6 @@ Siempre considerar antes de hacer cambios:
 - `lib/core/*.sh` — motor compartido (semver, config, logging, git-ops)
 - `lib/promote/workflows/common.sh` — lógica común de promoción, consume `--print-env`
 - `devtools.repo.yaml` — contrato del repo (paths, registros)
-- `.ci/contract-checks.yaml` — definición de checks contractuales
-- `VERSION` — versión semver actual del toolset
+- `vendor.manifest.yaml` — declara qué se incluye al vendorizar
+- `Taskfile.yaml` — `ci`, `lint:shell`, `lint:contamination`, `app:devbox:*`
+- `VERSION` y `.promote_tag` — versión semver actual del toolset
