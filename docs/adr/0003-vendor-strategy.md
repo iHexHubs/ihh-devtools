@@ -116,10 +116,12 @@ schema v1.1), no en archivos sueltos.
 
 ## Implementación
 
-- **Fase 2A (esta):** schema v1.1 publicado. Sin código.
-- **Fase 2B:** `lib/core/vendor.sh` con funciones
-  `vendor_resolve_tag`, `vendor_compute_tree_sha`,
-  `vendor_validate_lock`, `vendor_check_drift`. Suite BATS asociada.
+- **Fase 2A (cerrada):** schema v1.1 publicado. Sin código.
+- **Fase 2B (cerrada):** `lib/core/vendor.sh` implementado con las 5
+  funciones públicas (`vendor_resolve_tag`, `vendor_compute_tree_sha`,
+  `vendor_validate_lock`, `vendor_check_drift`, `vendor_is_excluded_tag`).
+  Suite BATS en `tests/contracts/vendor.bats`. Sin invocación
+  productiva todavía.
 - **Fase 2C:** subcomando `vendor:check` solo lectura, primer
   contacto con erd-ecosystem.
 - **Fase 2D:** primer re-vendorizado real bajo nueva estrategia.

@@ -1,0 +1,6 @@
+# Fixture: archivo no parseable como YAML válido.
+# Debe fallar validación con exit 1 (YAML no legible).
+]]] not yaml [[[
+:::
+- foo: bar:
+  invalid: indent:

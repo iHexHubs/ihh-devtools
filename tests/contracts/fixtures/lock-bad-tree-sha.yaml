@@ -1,0 +1,16 @@
+# Fixture inválido: tree_sha no cumple el pattern ^[0-9a-f]{40}$.
+# Debe fallar validación con exit 3 y mensaje sobre 'tree_sha' o pattern.
+lock_version: 1
+contract_schema_version: 1
+vendor:
+  source: github.com/iHexHubs/ihh-devtools
+  version: v0.1.0-rc.7
+  ref: v0.1.0-rc.7
+  sha: "0000000000000000000000000000000000000000"
+  tree_sha: "invalid"
+  scope: full
+  vendor_dir: .devtools
+generated_at: "2026-04-25T18:00:00Z"
+generator:
+  name: ihh-devtools
+  version: "0.2.0"

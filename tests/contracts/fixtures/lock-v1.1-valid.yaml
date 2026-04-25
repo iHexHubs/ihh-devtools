@@ -1,0 +1,16 @@
+# Fixture: lock formato v1.1 con tree_sha presente. Caso recomendado
+# para toolset >= v0.2.0. SHAs son placeholders hex válidos.
+lock_version: 1
+contract_schema_version: 1
+vendor:
+  source: github.com/iHexHubs/ihh-devtools
+  version: v0.1.0-rc.7
+  ref: v0.1.0-rc.7
+  sha: "0000000000000000000000000000000000000000"
+  tree_sha: "1111111111111111111111111111111111111111"
+  scope: full
+  vendor_dir: .devtools
+generated_at: "2026-04-25T18:00:00Z"
+generator:
+  name: ihh-devtools
+  version: "0.2.0"

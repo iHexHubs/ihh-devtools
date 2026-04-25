@@ -1,0 +1,15 @@
+# Fixture inválido: falta vendor.version (campo required).
+# Debe fallar validación con exit 3 y mensaje sobre 'version'.
+lock_version: 1
+contract_schema_version: 1
+vendor:
+  source: github.com/iHexHubs/ihh-devtools
+  ref: v0.1.0-rc.7
+  sha: "0000000000000000000000000000000000000000"
+  scope: full
+  vendor_dir: .devtools
+  # version está faltando intencionalmente
+generated_at: "2026-04-25T18:00:00Z"
+generator:
+  name: ihh-devtools
+  version: "0.1.0"
