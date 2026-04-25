@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iHexHubs.github.io/ihh-devtools/schema/v1.1/contract.json",
+  "title": "ihh-devtools consumer contract (v1.1)",
+  "description": "Contrato del consumidor. Bump menor retrocompatible respecto a v1.0: el contract NO cambia su shape; se publica v1.1 únicamente para mantener paridad con la familia de schemas (lock.json sí gana el campo opcional vendor.tree_sha en v1.1). Strict por diseño: additionalProperties=false en el top-level y en cada sub-schema (excepto extensions, escape hatch controlado).",
+  "type": "object",
+  "required": ["meta", "identity", "git", "release", "vendor"],
+  "additionalProperties": false,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["schema_version", "contract_name"],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1,
+          "description": "Versión del schema usada por este contract. Sigue siendo 1 en v1.1: el bump es a nivel de schema family, no de la versión declarada por el consumer."
+        },
+        "contract_name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{1,62}[a-z0-9]$",
+          "description": "Identidad única del consumidor en el ecosistema."
+        },
+        "contract_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Opcional. Útil para tracking interno."
+        }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "required": ["owner"],
+      "additionalProperties": false,
+      "properties": {
+        "family": {
+          "type": "string",
+          "description": "Organización o familia. Opcional."
+        },
+        "domain": {
+          "type": "string",
+          "description": "Subclasificación lógica. Opcional. NO operativo."
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Quién responde si falla en este repo. Texto libre."
+        },
+        "contact": {
+          "type": "string",
+          "description": "Email o canal. Documentación."
+        },
+        "repo_url": {
+          "type": "string",
+          "description": "URL canónica del repo. Opcional."
+        }
+      }
+    },
+    "git": {
+      "type": "object",
+      "required": ["default_branch"],
+      "additionalProperties": false,
+      "properties": {
+        "default_branch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "protected_branches": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "commit_signing": {
+          "type": "string",
+          "enum": ["required", "optional", "none"]
+        },
+        "remote_canonical_url": {
+          "type": "string"
+        }
+      }
+    },
+    "release": {
+      "type": "object",
+      "required": ["scheme"],
+      "additionalProperties": false,
+      "properties": {
+        "scheme": {
+          "type": "string",
+          "enum": ["semver", "calver", "none"]
+        },
+        "prerelease_tags_allowed": {
+          "type": "boolean"
+        },
+        "changelog_path": {
+          "type": "string"
+        }
+      }
+    },
+    "vendor": {
+      "type": "object",
+      "required": ["source", "version", "scope"],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "De dónde viene el toolset. Ej: github.com/org/repo."
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Tag git en source. Validado en runtime contra existencia."
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["full", "manifest"],
+          "description": "full=tag completo. manifest=filtrado por manifest."
+        },
+        "pinned_paths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Solo si scope es manifest."
+        },
+        "vendor_dir": {
+          "type": "string",
+          "default": ".devtools"
+        }
+      }
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "path"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{1,62}[a-z0-9]$"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["service", "webapp", "worker", "library", "static"]
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "image": {
+            "type": "string"
+          },
+          "runtime": {
+            "type": "string"
+          },
+          "health_check": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z][a-z0-9:_-]*$": {
+          "type": "object",
+          "required": ["runner", "target"],
+          "additionalProperties": false,
+          "properties": {
+            "runner": {
+              "type": "string",
+              "enum": ["task", "make", "npm", "cargo", "shell"]
+            },
+            "target": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "environments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "branch"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "branch": {
+            "type": "string",
+            "minLength": 1
+          },
+          "auto_promote": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "languages": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["bash", "python", "node", "go", "rust", "java", "ruby", "php", "other"]
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "adr_dir": { "type": "string" },
+        "ownership_doc": { "type": "string" },
+        "contributing_doc": { "type": "string" }
+      }
+    },
+    "extensions": {
+      "type": "object",
+      "description": "Datos de configuración para módulos especializados del toolset (ej. argocd, k8s, aws). El core del toolset NO debe leer estos campos. Solo los módulos en lib/extensions/<name>/ pueden consumirlos.",
+      "additionalProperties": true
+    }
+  }
+}

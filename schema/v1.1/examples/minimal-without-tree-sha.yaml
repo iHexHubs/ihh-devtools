@@ -1,0 +1,21 @@
+# Lock sin tree_sha. Demuestra que v1.1 mantiene retrocompatibilidad
+# con locks producidos por toolset que aún no implementa tree_sha.
+# Todos los SHAs son placeholders didácticos (`0000...`) — el validador
+# solo verifica el pattern ^[0-9a-f]{40}$. NO usar como referencia
+# operativa.
+# Las comillas en SHAs y timestamps fuerzan el tipo string en YAML
+# (sin ellas, 40 ceros se parsearían como integer 0 y el timestamp
+# como datetime).
+lock_version: 1
+contract_schema_version: 1
+vendor:
+  source: github.com/iHexHubs/ihh-devtools
+  version: v0.1.0-rc.7
+  ref: v0.1.0-rc.7
+  sha: "0000000000000000000000000000000000000000"
+  scope: full
+  vendor_dir: .devtools
+generated_at: "2026-04-25T18:00:00Z"
+generator:
+  name: ihh-devtools
+  version: "0.1.0"

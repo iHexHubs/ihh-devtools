@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iHexHubs.github.io/ihh-devtools/schema/v1.1/lock.json",
+  "title": "ihh-devtools vendor lock (v1.1)",
+  "description": "Lock generado por el toolset (no se edita a mano). Bump menor retrocompatible respecto a v1.0: añade el campo opcional vendor.tree_sha para detectar drift de contenido vendorizado. lock_version y contract_schema_version siguen siendo 1; locks v1.0 son válidos contra v1.1.",
+  "type": "object",
+  "required": ["lock_version", "contract_schema_version", "vendor", "generated_at", "generator"],
+  "additionalProperties": false,
+  "properties": {
+    "lock_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Versión del lock format. Se mantiene en 1 en v1.1 por retrocompatibilidad."
+    },
+    "contract_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Versión del schema del contract usado al generar este lock."
+    },
+    "vendor": {
+      "type": "object",
+      "required": ["source", "version", "ref", "sha", "scope"],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ref": {
+          "type": "string",
+          "description": "Referencia git (tag, branch, etc)."
+        },
+        "sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$",
+          "description": "SHA completo del commit vendorizado."
+        },
+        "tree_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$",
+          "description": "SHA1 del objeto tree git del directorio vendorizado en el momento de la operación. Permite detectar drift local: si el contenido en disco se modificó tras vendorizar, el tree calculado al verificar diferirá del registrado. Opcional en v1.1 por retrocompatibilidad; el toolset que escribe el lock decide si lo incluye."
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["full", "manifest"]
+        },
+        "pinned_paths": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "vendor_dir": {
+          "type": "string"
+        }
+      }
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp ISO-8601 de cuándo se generó el lock."
+    },
+    "generator": {
+      "type": "object",
+      "required": ["name", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "const": "ihh-devtools"
+        },
+        "version": {
+          "type": "string",
+          "description": "Versión del toolset que generó el lock."
+        }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Reservado para verificación de integridad genérica (paquetes, archivos individuales). NO se reutiliza para tree_sha; ese caso tiene su propio campo en v1.1.",
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "enum": ["sha256", "sha512"]
+        },
+        "digest": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

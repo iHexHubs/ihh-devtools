@@ -1,0 +1,22 @@
+# Lock completo con tree_sha incluido. Es el formato esperado de
+# toolset >= v0.2.0 según la política documentada en el ADR
+# 0003-vendor-strategy.md. Permite detectar drift de contenido en
+# .devtools/ sin necesidad de re-vendorizar para comprobar.
+# Los SHAs `0000...` y `1111...` son placeholders didácticos — el
+# validador solo verifica el pattern ^[0-9a-f]{40}$. NO usar como
+# referencia operativa.
+# Las comillas en SHAs y timestamps fuerzan el tipo string en YAML.
+lock_version: 1
+contract_schema_version: 1
+vendor:
+  source: github.com/iHexHubs/ihh-devtools
+  version: v0.1.0-rc.7
+  ref: v0.1.0-rc.7
+  sha: "0000000000000000000000000000000000000000"
+  tree_sha: "1111111111111111111111111111111111111111"
+  scope: full
+  vendor_dir: .devtools
+generated_at: "2026-04-25T18:00:00Z"
+generator:
+  name: ihh-devtools
+  version: "0.2.0"

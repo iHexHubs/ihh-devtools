@@ -218,3 +218,53 @@ ERROR: 'version' is a required property en ['vendor']
 - **P-AMBOS-3** (método canónico de vendorización) sigue pendiente. Bloquea Fase 5.
 - La rampa de migración de los 7 repos hermanos arranca tras Fase 4. Mientras tanto, los consumidores actuales siguen funcionando con el flujo legado.
 - Ningún cambio retrocompatible se introduce en v1: cualquier extensión de campos requiere bumpar a v2.
+
+## 9. Schema v1.1 (publicado en Fase 2A)
+
+Schema v1.1 es un **bump menor retrocompatible** que añade el campo
+opcional `vendor.tree_sha` al lock. Permite detectar drift local del
+contenido vendorizado: si alguien edita archivos bajo `.devtools/`
+después de vendorizar, el `tree_sha` calculado al validar diferirá
+del registrado.
+
+### Diferencias clave entre v1.0 y v1.1
+
+- `lock_version` y `contract_schema_version` siguen siendo `1`. El
+  bump es a nivel de schema family, no de versión declarada.
+- `vendor.sha` (existente desde v1.0): SHA1 del **commit** vendorizado.
+  Detecta drift de referencia (origen).
+- `vendor.tree_sha` (nuevo en v1.1, opcional): SHA1 del **tree** del
+  directorio vendorizado. Detecta drift de **contenido** (modificación
+  local).
+
+### Política operativa
+
+- Locks producidos por toolset versión < 0.2.0: NO incluyen `tree_sha`.
+  Validan contra v1.1 sin problema (campo opcional).
+- Locks producidos por toolset versión >= 0.2.0: incluyen `tree_sha`.
+- `tree_sha` no se hace obligatorio para preservar retrocompatibilidad.
+  Si en el futuro se decide hacerlo obligatorio, eso es bump
+  **breaking** y requiere v2.
+
+### Por qué no `integrity.digest`
+
+El campo `integrity.{algorithm, digest}` ya existe en el schema. Se
+podría haber reutilizado, pero se decidió crear `tree_sha` separado
+porque:
+
+- `integrity` es genérico: puede aplicar a archivos individuales,
+  paquetes, manifiestos, etc.
+- `tree_sha` es semánticamente específico: SHA1 del objeto tree git.
+- Mezclar ambos confunde a lectores y bloquea futuras extensiones de
+  `integrity` para otros propósitos.
+
+Ver `docs/adr/0003-vendor-strategy.md` para la decisión completa.
+
+### Archivos relevantes
+
+- `schema/v1.1/contract.json` (copia funcional de v1.0).
+- `schema/v1.1/lock.json` (v1.0 + `vendor.tree_sha` opcional).
+- `schema/v1.1/examples/minimal-without-tree-sha.yaml` (caso
+  retrocompatible).
+- `schema/v1.1/examples/full-with-tree-sha.yaml` (caso completo
+  recomendado).
