@@ -1,0 +1,247 @@
+/webapps/erd-ecosystem/apps/pmbok/.devtools.lock:2:DEVTOOLS_SOURCE="iHexHubs/devtools"
+/webapps/erd-ecosystem/apps/pmbok/.devtools.lock:6:DEVTOOLS_REPO="/webapps/erd-devtools"
+/webapps/erd-ecosystem/apps/pmbok/.devtools.bak.1772296466/lib/promote/workflows/to-staging.sh:207:    if [[ "${repo_root_for_overlay_check}" != "/webapps/erd-devtools" && "${repo_root_for_overlay_check}" != "/webapps/erd-ecosystem" ]]; then
+/webapps/erd-ecosystem/apps/pmbok/.devtools.bak.1772296466/README.md:4:rutas `.devtools/...` dentro del repo `erd-devtools`.
+/webapps/erd-ecosystem/apps/pmbok/.devtools.bak.1772296466/bin/git-acp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/erd-ecosystem/apps/pmbok/.devtools.bak.1772296466/bin/git-gp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/erd-ecosystem/apps/pmbok/.devtools.bak.1772296466/tests/devtools-update.bats:28:  git -C "$UPSTREAM" remote add origin "git@github.com:acme/erd-devtools.git"
+/webapps/erd-ecosystem/apps/pmbok/.devtools.bak.1772296466/tests/devtools-update.bats:98:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/pmbok/.devtools.bak.1772296466/tests/devtools-update.bats:123:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/pmbok/.devtools.bak.1772296466/tests/devtools-update.bats:175:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/erd-ecosystem/apps/pmbok/.devtools.bak.1772296466/tests/devtools-update.bats:186:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/pmbok/.devtools.bak.1772296466/tests/devtools-update.bats:207:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/erd-ecosystem/apps/pmbok/.devtools.bak.1772296466/tests/devtools-update.bats:219:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/pmbok/.devtools.bak.1772296466/tests/devtools-update.bats:227:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/erd-ecosystem/apps/pmbok/.devtools.bak.1772296466/tests/devtools-update.bats:345:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/erd-ecosystem/apps/pmbok/.devtools.bak.1772296466/tests/devtools-update.bats:350:  fixture_root="$TMP/fixture/erd-devtools-v0.0.2/.devtools/bin"
+/webapps/erd-ecosystem/apps/pmbok/.devtools.bak.1772296466/tests/devtools-update.bats:354:  tar -czf "$TMP/devtools-v0.0.2.tar.gz" -C "$TMP/fixture" "erd-devtools-v0.0.2"
+/webapps/erd-ecosystem/apps/pmbok/.devtools.bak.1772296466/tests/devtools-update.bats:384:  [[ "$output" == *"Descargando: https://github.com/acme/erd-devtools/archive/refs/tags/v0.0.2.tar.gz"* ]]
+/webapps/erd-ecosystem/apps/pmbok/.devtools.bak.1772296466/tests/devtools-update.bats:394:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/erd-ecosystem/apps/pmbok/.devtools/README.md:4:rutas `.devtools/...` dentro del repo `erd-devtools`.
+/webapps/erd-ecosystem/apps/pmbok/.devtools/bin/git-acp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/erd-ecosystem/apps/pmbok/.devtools/bin/git-gp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/erd-ecosystem/apps/pmbok/.devtools/lib/promote/workflows/to-staging.sh:207:    if [[ "${repo_root_for_overlay_check}" != "/webapps/erd-devtools" && "${repo_root_for_overlay_check}" != "/webapps/erd-ecosystem" ]]; then
+/webapps/erd-ecosystem/apps/pmbok/.devtools/tests/devtools-update.bats:28:  git -C "$UPSTREAM" remote add origin "git@github.com:acme/erd-devtools.git"
+/webapps/erd-ecosystem/apps/pmbok/.devtools/tests/devtools-update.bats:98:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/pmbok/.devtools/tests/devtools-update.bats:123:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/pmbok/.devtools/tests/devtools-update.bats:175:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/erd-ecosystem/apps/pmbok/.devtools/tests/devtools-update.bats:186:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/pmbok/.devtools/tests/devtools-update.bats:207:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/erd-ecosystem/apps/pmbok/.devtools/tests/devtools-update.bats:219:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/pmbok/.devtools/tests/devtools-update.bats:227:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/erd-ecosystem/apps/pmbok/.devtools/tests/devtools-update.bats:345:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/erd-ecosystem/apps/pmbok/.devtools/tests/devtools-update.bats:350:  fixture_root="$TMP/fixture/erd-devtools-v0.0.2/.devtools/bin"
+/webapps/erd-ecosystem/apps/pmbok/.devtools/tests/devtools-update.bats:354:  tar -czf "$TMP/devtools-v0.0.2.tar.gz" -C "$TMP/fixture" "erd-devtools-v0.0.2"
+/webapps/erd-ecosystem/apps/pmbok/.devtools/tests/devtools-update.bats:384:  [[ "$output" == *"Descargando: https://github.com/acme/erd-devtools/archive/refs/tags/v0.0.2.tar.gz"* ]]
+/webapps/erd-ecosystem/apps/pmbok/.devtools/tests/devtools-update.bats:394:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/erd-ecosystem/apps/erd/.devtools.lock:2:DEVTOOLS_SOURCE="reydem/devtools"
+/webapps/erd-ecosystem/apps/erd/.devtools.lock:6:DEVTOOLS_REPO="/webapps/erd-devtools"
+/webapps/erd-ecosystem/apps/erd/.devtools/bin/git-acp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/erd-ecosystem/apps/erd/.devtools/bin/git-gp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/erd-ecosystem/apps/erd/.devtools/README.md:4:rutas `.devtools/...` dentro del repo `erd-devtools`.
+/webapps/erd-ecosystem/apps/erd/.devtools/lib/promote/workflows/to-staging.sh:207:    if [[ "${repo_root_for_overlay_check}" != "/webapps/erd-devtools" && "${repo_root_for_overlay_check}" != "/webapps/erd-ecosystem" ]]; then
+/webapps/erd-ecosystem/apps/erd/.devtools/tests/devtools-update.bats:28:  git -C "$UPSTREAM" remote add origin "git@github.com:acme/erd-devtools.git"
+/webapps/erd-ecosystem/apps/erd/.devtools/tests/devtools-update.bats:98:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/erd/.devtools/tests/devtools-update.bats:123:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/erd/.devtools/tests/devtools-update.bats:175:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/erd-ecosystem/apps/erd/.devtools/tests/devtools-update.bats:186:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/erd/.devtools/tests/devtools-update.bats:207:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/erd-ecosystem/apps/erd/.devtools/tests/devtools-update.bats:219:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/erd/.devtools/tests/devtools-update.bats:227:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/erd-ecosystem/apps/erd/.devtools/tests/devtools-update.bats:345:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/erd-ecosystem/apps/erd/.devtools/tests/devtools-update.bats:350:  fixture_root="$TMP/fixture/erd-devtools-v0.0.2/.devtools/bin"
+/webapps/erd-ecosystem/apps/erd/.devtools/tests/devtools-update.bats:354:  tar -czf "$TMP/devtools-v0.0.2.tar.gz" -C "$TMP/fixture" "erd-devtools-v0.0.2"
+/webapps/erd-ecosystem/apps/erd/.devtools/tests/devtools-update.bats:384:  [[ "$output" == *"Descargando: https://github.com/acme/erd-devtools/archive/refs/tags/v0.0.2.tar.gz"* ]]
+/webapps/erd-ecosystem/apps/erd/.devtools/tests/devtools-update.bats:394:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/erd-ecosystem/apps/sixdriven/.devtools/README.md:4:rutas `.devtools/...` dentro del repo `erd-devtools`.
+/webapps/erd-ecosystem/apps/sixdriven/.devtools/bin/git-acp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/erd-ecosystem/apps/sixdriven/.devtools/bin/git-devtools-update.sh:37:readonly LEGACY_DEVTOOLS_SOURCE="reydem/devtools"
+/webapps/erd-ecosystem/apps/sixdriven/.devtools/bin/git-devtools-update.sh:38:readonly CANONICAL_DEVTOOLS_SOURCE="iHexHubs/devtools"
+/webapps/erd-ecosystem/apps/sixdriven/.devtools/bin/git-gp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/erd-ecosystem/apps/sixdriven/.devtools/lib/promote/workflows/to-staging.sh:207:    if [[ "${repo_root_for_overlay_check}" != "/webapps/erd-devtools" && "${repo_root_for_overlay_check}" != "/webapps/erd-ecosystem" ]]; then
+/webapps/erd-ecosystem/apps/sixdriven/.devtools/tests/devtools-update.bats:28:  git -C "$UPSTREAM" remote add origin "git@github.com:acme/erd-devtools.git"
+/webapps/erd-ecosystem/apps/sixdriven/.devtools/tests/devtools-update.bats:98:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/sixdriven/.devtools/tests/devtools-update.bats:123:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/sixdriven/.devtools/tests/devtools-update.bats:175:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/erd-ecosystem/apps/sixdriven/.devtools/tests/devtools-update.bats:186:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/sixdriven/.devtools/tests/devtools-update.bats:207:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/erd-ecosystem/apps/sixdriven/.devtools/tests/devtools-update.bats:219:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/sixdriven/.devtools/tests/devtools-update.bats:227:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/erd-ecosystem/apps/sixdriven/.devtools/tests/devtools-update.bats:345:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/erd-ecosystem/apps/sixdriven/.devtools/tests/devtools-update.bats:374:  if [[ "$remote" == "git@github.com:acme/erd-devtools.git" ]]; then
+/webapps/erd-ecosystem/apps/sixdriven/.devtools/tests/devtools-update.bats:392:  [[ "$output" == *"Clonando upstream oficial: git@github.com:acme/erd-devtools.git (tag=v0.0.2)"* ]]
+/webapps/erd-ecosystem/apps/sixdriven/.devtools/tests/devtools-update.bats:403:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/erd-ecosystem/apps/sixdriven/sixdriven-web/.devtools/README.md:4:rutas `.devtools/...` dentro del repo `erd-devtools`.
+/webapps/erd-ecosystem/apps/sixdriven/sixdriven-web/.devtools/bin/git-acp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/erd-ecosystem/apps/sixdriven/sixdriven-web/.devtools/bin/git-devtools-update.sh:37:readonly LEGACY_DEVTOOLS_SOURCE="reydem/devtools"
+/webapps/erd-ecosystem/apps/sixdriven/sixdriven-web/.devtools/bin/git-devtools-update.sh:38:readonly CANONICAL_DEVTOOLS_SOURCE="iHexHubs/devtools"
+/webapps/erd-ecosystem/apps/sixdriven/sixdriven-web/.devtools/bin/git-gp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/erd-ecosystem/apps/sixdriven/sixdriven-web/.devtools/lib/promote/workflows/to-staging.sh:207:    if [[ "${repo_root_for_overlay_check}" != "/webapps/erd-devtools" && "${repo_root_for_overlay_check}" != "/webapps/erd-ecosystem" ]]; then
+/webapps/erd-ecosystem/apps/sixdriven/sixdriven-web/.devtools/tests/devtools-update.bats:28:  git -C "$UPSTREAM" remote add origin "git@github.com:acme/erd-devtools.git"
+/webapps/erd-ecosystem/apps/sixdriven/sixdriven-web/.devtools/tests/devtools-update.bats:98:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/sixdriven/sixdriven-web/.devtools/tests/devtools-update.bats:123:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/sixdriven/sixdriven-web/.devtools/tests/devtools-update.bats:175:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/erd-ecosystem/apps/sixdriven/sixdriven-web/.devtools/tests/devtools-update.bats:186:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/sixdriven/sixdriven-web/.devtools/tests/devtools-update.bats:207:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/erd-ecosystem/apps/sixdriven/sixdriven-web/.devtools/tests/devtools-update.bats:219:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/apps/sixdriven/sixdriven-web/.devtools/tests/devtools-update.bats:227:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/erd-ecosystem/apps/sixdriven/sixdriven-web/.devtools/tests/devtools-update.bats:345:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/erd-ecosystem/apps/sixdriven/sixdriven-web/.devtools/tests/devtools-update.bats:374:  if [[ "$remote" == "git@github.com:acme/erd-devtools.git" ]]; then
+/webapps/erd-ecosystem/apps/sixdriven/sixdriven-web/.devtools/tests/devtools-update.bats:392:  [[ "$output" == *"Clonando upstream oficial: git@github.com:acme/erd-devtools.git (tag=v0.0.2)"* ]]
+/webapps/erd-ecosystem/apps/sixdriven/sixdriven-web/.devtools/tests/devtools-update.bats:403:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/erd-ecosystem/devops/scripts/new-webapp.sh:29:git submodule add -b main https://github.com/elrincondeldetective/erd-devtools.git .devtools
+/webapps/erd-ecosystem/CHANGELOG.md:1658:- release erd-devtools 3.0.0
+/webapps/erd-ecosystem/CHANGELOG.md:1678:- release erd-devtools 1.0.0
+/webapps/erd-ecosystem/CHANGELOG.md:1712:- release erd-devtools 2.0.0
+/webapps/erd-ecosystem/CHANGELOG.md:1718:- release erd-devtools 1.1.0
+/webapps/erd-ecosystem/CHANGELOG.md:1720:- release erd-devtools 1.0.0
+/webapps/erd-ecosystem/CHANGELOG.md:1744:- agregar erd-devtools como submódulo en .devtools
+/webapps/erd-ecosystem/CHANGELOG.md:1795:- actualiza `.devtools` y elimina `erd-devtools-rewrite`
+/webapps/erd-ecosystem/.devtools/README.md:4:rutas `.devtools/...` dentro del repo `erd-devtools`.
+/webapps/erd-ecosystem/.devtools/bin/git-acp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/erd-ecosystem/.devtools/bin/git-gp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/erd-ecosystem/.devtools/lib/promote/workflows/to-staging.sh:207:    if [[ "${repo_root_for_overlay_check}" != "/webapps/erd-devtools" && "${repo_root_for_overlay_check}" != "/webapps/erd-ecosystem" ]]; then
+/webapps/erd-ecosystem/.devtools/tests/devtools-update.bats:28:  git -C "$UPSTREAM" remote add origin "git@github.com:acme/erd-devtools.git"
+/webapps/erd-ecosystem/.devtools/tests/devtools-update.bats:98:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/.devtools/tests/devtools-update.bats:123:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/.devtools/tests/devtools-update.bats:175:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/erd-ecosystem/.devtools/tests/devtools-update.bats:186:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/.devtools/tests/devtools-update.bats:207:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/erd-ecosystem/.devtools/tests/devtools-update.bats:219:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/erd-ecosystem/.devtools/tests/devtools-update.bats:227:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/erd-ecosystem/.devtools/tests/devtools-update.bats:345:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/erd-ecosystem/.devtools/tests/devtools-update.bats:350:  fixture_root="$TMP/fixture/erd-devtools-v0.0.2/.devtools/bin"
+/webapps/erd-ecosystem/.devtools/tests/devtools-update.bats:354:  tar -czf "$TMP/devtools-v0.0.2.tar.gz" -C "$TMP/fixture" "erd-devtools-v0.0.2"
+/webapps/erd-ecosystem/.devtools/tests/devtools-update.bats:384:  [[ "$output" == *"Descargando: https://github.com/acme/erd-devtools/archive/refs/tags/v0.0.2.tar.gz"* ]]
+/webapps/erd-ecosystem/.devtools/tests/devtools-update.bats:394:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/erd-ecosystem/.devtools.lock:2:DEVTOOLS_SOURCE="reydem/devtools"
+/webapps/erd-ecosystem/.devtools.lock:6:DEVTOOLS_REPO="/webapps/erd-devtools"
+/webapps/tvw-ecosystem/apps/.devtools/.devtools/README.md:4:rutas `.devtools/...` dentro del repo `erd-devtools`.
+/webapps/tvw-ecosystem/apps/.devtools/.github/release-please-config.json.disabled:6:      "package-name": "erd-devtools",
+/webapps/tvw-ecosystem/apps/.devtools/bin/git-acp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/tvw-ecosystem/apps/.devtools/bin/git-gp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/tvw-ecosystem/apps/.devtools/lib/promote/workflows/to-staging.sh:207:    if [[ "${repo_root_for_overlay_check}" != "/webapps/erd-devtools" && "${repo_root_for_overlay_check}" != "/webapps/erd-ecosystem" ]]; then
+/webapps/tvw-ecosystem/apps/.devtools/tests/devtools-update.bats:28:  git -C "$UPSTREAM" remote add origin "git@github.com:acme/erd-devtools.git"
+/webapps/tvw-ecosystem/apps/.devtools/tests/devtools-update.bats:98:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/tvw-ecosystem/apps/.devtools/tests/devtools-update.bats:123:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/tvw-ecosystem/apps/.devtools/tests/devtools-update.bats:175:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/tvw-ecosystem/apps/.devtools/tests/devtools-update.bats:186:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/tvw-ecosystem/apps/.devtools/tests/devtools-update.bats:207:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/tvw-ecosystem/apps/.devtools/tests/devtools-update.bats:219:  [[ "$output" == *"Consultando upstream oficial: https://github.com/acme/erd-devtools.git"* ]]
+/webapps/tvw-ecosystem/apps/.devtools/tests/devtools-update.bats:227:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/tvw-ecosystem/apps/.devtools/tests/devtools-update.bats:345:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/tvw-ecosystem/apps/.devtools/tests/devtools-update.bats:350:  fixture_root="$TMP/fixture/erd-devtools-v0.0.2/.devtools/bin"
+/webapps/tvw-ecosystem/apps/.devtools/tests/devtools-update.bats:354:  tar -czf "$TMP/devtools-v0.0.2.tar.gz" -C "$TMP/fixture" "erd-devtools-v0.0.2"
+/webapps/tvw-ecosystem/apps/.devtools/tests/devtools-update.bats:384:  [[ "$output" == *"Descargando: https://github.com/acme/erd-devtools/archive/refs/tags/v0.0.2.tar.gz"* ]]
+/webapps/tvw-ecosystem/apps/.devtools/tests/devtools-update.bats:394:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/sixdriven/.devtools/README.md:4:rutas `.devtools/...` dentro del repo `erd-devtools`.
+/webapps/sixdriven/.devtools/bin/git-acp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/sixdriven/.devtools/bin/git-devtools-update.sh:37:readonly LEGACY_DEVTOOLS_SOURCE="reydem/devtools"
+/webapps/sixdriven/.devtools/bin/git-devtools-update.sh:38:readonly CANONICAL_DEVTOOLS_SOURCE="iHexHubs/devtools"
+/webapps/sixdriven/.devtools/bin/git-gp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/sixdriven/.devtools/lib/promote/workflows/to-staging.sh:207:    if [[ "${repo_root_for_overlay_check}" != "/webapps/erd-devtools" && "${repo_root_for_overlay_check}" != "/webapps/erd-ecosystem" ]]; then
+/webapps/sixdriven/.devtools/tests/devtools-update.bats:28:  git -C "$UPSTREAM" remote add origin "git@github.com:acme/erd-devtools.git"
+/webapps/sixdriven/.devtools/tests/devtools-update.bats:98:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/sixdriven/.devtools/tests/devtools-update.bats:123:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/sixdriven/.devtools/tests/devtools-update.bats:175:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/sixdriven/.devtools/tests/devtools-update.bats:186:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/sixdriven/.devtools/tests/devtools-update.bats:207:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/sixdriven/.devtools/tests/devtools-update.bats:219:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/sixdriven/.devtools/tests/devtools-update.bats:227:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/sixdriven/.devtools/tests/devtools-update.bats:345:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/sixdriven/.devtools/tests/devtools-update.bats:374:  if [[ "$remote" == "git@github.com:acme/erd-devtools.git" ]]; then
+/webapps/sixdriven/.devtools/tests/devtools-update.bats:392:  [[ "$output" == *"Clonando upstream oficial: git@github.com:acme/erd-devtools.git (tag=v0.0.2)"* ]]
+/webapps/sixdriven/.devtools/tests/devtools-update.bats:403:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/rust-w3schools/.devtools/README.md:4:rutas `.devtools/...` dentro del repo `erd-devtools`.
+/webapps/rust-w3schools/.devtools/bin/git-acp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/rust-w3schools/.devtools/bin/git-devtools-update.sh:37:readonly LEGACY_DEVTOOLS_SOURCE="reydem/devtools"
+/webapps/rust-w3schools/.devtools/bin/git-devtools-update.sh:38:readonly CANONICAL_DEVTOOLS_SOURCE="iHexHubs/devtools"
+/webapps/rust-w3schools/.devtools/bin/git-gp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/rust-w3schools/.devtools/lib/promote/workflows/to-staging.sh:207:    if [[ "${repo_root_for_overlay_check}" != "/webapps/erd-devtools" && "${repo_root_for_overlay_check}" != "/webapps/erd-ecosystem" ]]; then
+/webapps/rust-w3schools/.devtools/tests/devtools-update.bats:28:  git -C "$UPSTREAM" remote add origin "git@github.com:acme/erd-devtools.git"
+/webapps/rust-w3schools/.devtools/tests/devtools-update.bats:98:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/rust-w3schools/.devtools/tests/devtools-update.bats:123:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/rust-w3schools/.devtools/tests/devtools-update.bats:175:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/rust-w3schools/.devtools/tests/devtools-update.bats:186:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/rust-w3schools/.devtools/tests/devtools-update.bats:207:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/rust-w3schools/.devtools/tests/devtools-update.bats:219:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/rust-w3schools/.devtools/tests/devtools-update.bats:227:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/rust-w3schools/.devtools/tests/devtools-update.bats:345:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/rust-w3schools/.devtools/tests/devtools-update.bats:374:  if [[ "$remote" == "git@github.com:acme/erd-devtools.git" ]]; then
+/webapps/rust-w3schools/.devtools/tests/devtools-update.bats:392:  [[ "$output" == *"Clonando upstream oficial: git@github.com:acme/erd-devtools.git (tag=v0.0.2)"* ]]
+/webapps/rust-w3schools/.devtools/tests/devtools-update.bats:403:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/rust-lang-book/.devtools/README.md:4:rutas `.devtools/...` dentro del repo `erd-devtools`.
+/webapps/rust-lang-book/.devtools/bin/git-acp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/rust-lang-book/.devtools/bin/git-devtools-update.sh:37:readonly LEGACY_DEVTOOLS_SOURCE="reydem/devtools"
+/webapps/rust-lang-book/.devtools/bin/git-devtools-update.sh:38:readonly CANONICAL_DEVTOOLS_SOURCE="iHexHubs/devtools"
+/webapps/rust-lang-book/.devtools/bin/git-gp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/rust-lang-book/.devtools/lib/promote/workflows/to-staging.sh:207:    if [[ "${repo_root_for_overlay_check}" != "/webapps/erd-devtools" && "${repo_root_for_overlay_check}" != "/webapps/erd-ecosystem" ]]; then
+/webapps/rust-lang-book/.devtools/tests/devtools-update.bats:28:  git -C "$UPSTREAM" remote add origin "git@github.com:acme/erd-devtools.git"
+/webapps/rust-lang-book/.devtools/tests/devtools-update.bats:98:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/rust-lang-book/.devtools/tests/devtools-update.bats:123:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/rust-lang-book/.devtools/tests/devtools-update.bats:175:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/rust-lang-book/.devtools/tests/devtools-update.bats:186:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/rust-lang-book/.devtools/tests/devtools-update.bats:207:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/rust-lang-book/.devtools/tests/devtools-update.bats:219:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/rust-lang-book/.devtools/tests/devtools-update.bats:227:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/rust-lang-book/.devtools/tests/devtools-update.bats:345:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/rust-lang-book/.devtools/tests/devtools-update.bats:374:  if [[ "$remote" == "git@github.com:acme/erd-devtools.git" ]]; then
+/webapps/rust-lang-book/.devtools/tests/devtools-update.bats:392:  [[ "$output" == *"Clonando upstream oficial: git@github.com:acme/erd-devtools.git (tag=v0.0.2)"* ]]
+/webapps/rust-lang-book/.devtools/tests/devtools-update.bats:403:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/agents-control-plane/.devtools/README.md:4:rutas `.devtools/...` dentro del repo `erd-devtools`.
+/webapps/agents-control-plane/.devtools/bin/git-acp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/agents-control-plane/.devtools/bin/git-devtools-update.sh:37:readonly LEGACY_DEVTOOLS_SOURCE="reydem/devtools"
+/webapps/agents-control-plane/.devtools/bin/git-devtools-update.sh:38:readonly CANONICAL_DEVTOOLS_SOURCE="iHexHubs/devtools"
+/webapps/agents-control-plane/.devtools/bin/git-gp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/agents-control-plane/.devtools/lib/promote/workflows/to-staging.sh:207:    if [[ "${repo_root_for_overlay_check}" != "/webapps/erd-devtools" && "${repo_root_for_overlay_check}" != "/webapps/erd-ecosystem" ]]; then
+/webapps/agents-control-plane/.devtools/tests/devtools-update.bats:28:  git -C "$UPSTREAM" remote add origin "git@github.com:acme/erd-devtools.git"
+/webapps/agents-control-plane/.devtools/tests/devtools-update.bats:98:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/agents-control-plane/.devtools/tests/devtools-update.bats:123:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/agents-control-plane/.devtools/tests/devtools-update.bats:175:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/agents-control-plane/.devtools/tests/devtools-update.bats:186:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/agents-control-plane/.devtools/tests/devtools-update.bats:207:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/agents-control-plane/.devtools/tests/devtools-update.bats:219:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/agents-control-plane/.devtools/tests/devtools-update.bats:227:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/agents-control-plane/.devtools/tests/devtools-update.bats:345:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/agents-control-plane/.devtools/tests/devtools-update.bats:374:  if [[ "$remote" == "git@github.com:acme/erd-devtools.git" ]]; then
+/webapps/agents-control-plane/.devtools/tests/devtools-update.bats:392:  [[ "$output" == *"Clonando upstream oficial: git@github.com:acme/erd-devtools.git (tag=v0.0.2)"* ]]
+/webapps/agents-control-plane/.devtools/tests/devtools-update.bats:403:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/sixdriven-web/.devtools/README.md:4:rutas `.devtools/...` dentro del repo `erd-devtools`.
+/webapps/sixdriven-web/.devtools/bin/git-acp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/sixdriven-web/.devtools/bin/git-devtools-update.sh:37:readonly LEGACY_DEVTOOLS_SOURCE="reydem/devtools"
+/webapps/sixdriven-web/.devtools/bin/git-devtools-update.sh:38:readonly CANONICAL_DEVTOOLS_SOURCE="iHexHubs/devtools"
+/webapps/sixdriven-web/.devtools/bin/git-gp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/sixdriven-web/.devtools/lib/promote/workflows/to-staging.sh:207:    if [[ "${repo_root_for_overlay_check}" != "/webapps/erd-devtools" && "${repo_root_for_overlay_check}" != "/webapps/erd-ecosystem" ]]; then
+/webapps/sixdriven-web/.devtools/tests/devtools-update.bats:28:  git -C "$UPSTREAM" remote add origin "git@github.com:acme/erd-devtools.git"
+/webapps/sixdriven-web/.devtools/tests/devtools-update.bats:98:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/sixdriven-web/.devtools/tests/devtools-update.bats:123:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/sixdriven-web/.devtools/tests/devtools-update.bats:175:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/sixdriven-web/.devtools/tests/devtools-update.bats:186:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/sixdriven-web/.devtools/tests/devtools-update.bats:207:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/sixdriven-web/.devtools/tests/devtools-update.bats:219:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/sixdriven-web/.devtools/tests/devtools-update.bats:227:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/sixdriven-web/.devtools/tests/devtools-update.bats:345:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/sixdriven-web/.devtools/tests/devtools-update.bats:374:  if [[ "$remote" == "git@github.com:acme/erd-devtools.git" ]]; then
+/webapps/sixdriven-web/.devtools/tests/devtools-update.bats:392:  [[ "$output" == *"Clonando upstream oficial: git@github.com:acme/erd-devtools.git (tag=v0.0.2)"* ]]
+/webapps/sixdriven-web/.devtools/tests/devtools-update.bats:403:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/pmbok/.devtools/README.md:4:rutas `.devtools/...` dentro del repo `erd-devtools`.
+/webapps/pmbok/.devtools/bin/git-acp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/pmbok/.devtools/bin/git-devtools-update.sh:37:readonly LEGACY_DEVTOOLS_SOURCE="reydem/devtools"
+/webapps/pmbok/.devtools/bin/git-devtools-update.sh:38:readonly CANONICAL_DEVTOOLS_SOURCE="iHexHubs/devtools"
+/webapps/pmbok/.devtools/bin/git-gp.sh:19:        "/webapps/erd-devtools/bin/${__script_name}"
+/webapps/pmbok/.devtools/lib/promote/workflows/to-staging.sh:207:    if [[ "${repo_root_for_overlay_check}" != "/webapps/erd-devtools" && "${repo_root_for_overlay_check}" != "/webapps/erd-ecosystem" ]]; then
+/webapps/pmbok/.devtools/tests/devtools-update.bats:28:  git -C "$UPSTREAM" remote add origin "git@github.com:acme/erd-devtools.git"
+/webapps/pmbok/.devtools/tests/devtools-update.bats:98:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/pmbok/.devtools/tests/devtools-update.bats:123:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/pmbok/.devtools/tests/devtools-update.bats:175:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/pmbok/.devtools/tests/devtools-update.bats:186:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/pmbok/.devtools/tests/devtools-update.bats:207:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/pmbok/.devtools/tests/devtools-update.bats:219:  [[ "$output" == *"Consultando upstream oficial: git@github.com:acme/erd-devtools.git"* ]]
+/webapps/pmbok/.devtools/tests/devtools-update.bats:227:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/pmbok/.devtools/tests/devtools-update.bats:345:DEVTOOLS_SOURCE="acme/erd-devtools"
+/webapps/pmbok/.devtools/tests/devtools-update.bats:374:  if [[ "$remote" == "git@github.com:acme/erd-devtools.git" ]]; then
+/webapps/pmbok/.devtools/tests/devtools-update.bats:392:  [[ "$output" == *"Clonando upstream oficial: git@github.com:acme/erd-devtools.git (tag=v0.0.2)"* ]]
+/webapps/pmbok/.devtools/tests/devtools-update.bats:403:DEVTOOLS_SOURCE="local/erd-devtools"
+/webapps/.claude/settings.local.json:10:      "Bash(git -C /webapps/erd-devtools status --short)",
+/webapps/.claude/settings.local.json:11:      "Bash(git -C /webapps/erd-devtools branch --show-current)",
+/webapps/.claude/settings.local.json:12:      "Bash(git -C /webapps/erd-devtools tag)",
