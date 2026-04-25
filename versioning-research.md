@@ -1,0 +1,714 @@
+# Versioning Research — `ihh-devtools`
+
+> Documento de gobierno técnico. Se actualiza cuando se descubren nuevos hallazgos,
+> se toman decisiones arquitectónicas, se cierran tareas o se desbloquean dependencias.
+>
+> Convención de etiquetas: T (Tarea), H (Hallazgo), J (Decisión), P (Pregunta), B (Bloqueo).
+> Sufijos: `-IHH-` (afecta a este repo), `-ERD-` (afecta a `erd-ecosystem`), `-AMBOS-` (afecta a ambos).
+
+---
+
+## 1. Propósito del documento
+
+Este archivo registra:
+
+- Criterios de versionado del toolset (SemVer estricto desde ADR 0001 J-05).
+- Decisiones arquitectónicas tomadas (referenciadas a las ADRs).
+- Riesgos de compatibilidad con repos consumidores (8 identificados).
+- Contratos publicados (`devtools.repo.yaml`, `vendor.manifest.yaml`).
+- Tareas de estabilización pendientes.
+- Hallazgos técnicos relacionados con vendorizado, releases, integración con consumidores.
+- Referencias cruzadas con `erd-ecosystem`.
+
+---
+
+## 2. Estado actual del repo
+
+| Aspecto | Valor | Verificación |
+|---|---|---|
+| Tipo | Toolset CLI (Bash) | Verificado en archivo (`README.md`, ADR 0001) |
+| Lenguaje | Bash | Verificado por inspección |
+| Cantidad de scripts | 17 entrypoints en `bin/`, ~32 archivos en `lib/` | Verificado por listado |
+| Gestor de entorno | Devbox (Nix) | Verificado en `devbox.json` |
+| Orquestador | go-task (`Taskfile.yaml`) | Verificado |
+| Versionado | SemVer estricto `vX.Y.Z[-rc.N][+build.N]` | Verificado en ADR 0001 J-05 |
+| `VERSION` actual | `0.1.0` | Verificado |
+| `.promote_tag` actual | `v0.1.0` (env=prod) | Verificado |
+| Rama según reporte previo | `main-b80c3c4` (75 commits adelante de `main`) | Verificado por reporte previo |
+| Tests contractuales (`tests/contracts/`) | Declarados como objetivo, no implementados | Verificado por inspección |
+
+**Documentación encontrada:**
+
+- `README.md` (actualizado por auditoría 2026-04-25; ahora declara explícitamente lo que aún no existe).
+- `AGENTS.md` (reglas para agentes IA; alineado con el estado real).
+- `docs/adr/0001-devtools-consolidation.md` (canónica de la consolidación del toolset).
+- `docs/migration-2026-04/README.md` (plan de migración).
+- `docs/migration-2026-04/legacy-devtools-references.txt` (247 hits en 8 repos).
+- `devtools.repo.yaml` (contrato declarado, schema_version 1).
+- `vendor.manifest.yaml` (manifest de vendoring **no aplicado** — ver `H-AMBOS-8`).
+
+**Lo que aún NO está verificado:**
+
+- Estado real de la rama `main-b80c3c4` y su desfase con `main`.
+- Coherencia entre `vendor.manifest.yaml` y el contenido real de `git archive` por tag.
+- Existencia del tag `v0.1.1-rc.1+build.40` declarado en el lock de `erd-ecosystem`.
+- Comportamiento end-to-end de `git devtools-update` desde un consumidor real.
+
+---
+
+## 3. Relación con `erd-ecosystem`
+
+`ihh-devtools` es **productor** y `erd-ecosystem` es uno de los 8 consumidores. La relación se materializa en:
+
+- El consumidor vendoriza `.devtools/` desde un tag de este repo.
+- El consumidor declara la versión en su `.devtools.lock`.
+- El script `git devtools-update` (en `bin/`) sincroniza la copia.
+- El `devbox.json` del toolset es el que el consumidor usa como entorno (vía symlink en `new-webapp.sh:36` o equivalente).
+
+**Inventario de consumidores:** 8 repos (ver `docs/migration-2026-04/README.md`):
+
+1. `erd-ecosystem` (`iHexHubs/ihh-ecosystem`).
+2. `agents-control-plane` (`reydem/openai-agents`).
+3. `pmbok` (`sixdriven/pmbok`).
+4. `rust-lang-book` (`reydem/rust-lang-book`).
+5. `rust-w3schools` (`reydem/rust-w3schools`).
+6. `sixdriven` (`reydem/sixdriven`).
+7. `sixdriven-web` (`reydem/sixdriven-web`).
+8. `tvw-ecosystem` (`reydem/tvw-ecosystem`).
+
+Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devtools-references.txt` (247 hits).
+
+---
+
+## 4. Decisiones arquitectónicas
+
+### J-IHH-1 — Repo legado `iHexHubs/devtools` queda archivado
+
+- estado: resuelto (ADR 0001 J-02, ejecutado 2026-04-24)
+- contexto: existían dos toolsets en paralelo. El legado ya no recibe cambios.
+- decisión: el repo legado queda en modo solo-lectura en GitHub. Eliminación definitiva diferida hasta que los 8 repos consumidores migren.
+- justificación: archivar permite revertir si algo se rompe durante la migración.
+- consecuencias: período de transición con `.devtools/` vendorizados desde el legado siguen funcionales hasta que el operador los actualice.
+- repos afectados: ambos.
+- tareas relacionadas: `T-AMBOS-1` (migrar 7 repos hermanos), `T-AMBOS-11` (eliminación definitiva).
+
+### J-IHH-2 — SemVer estricto para tags nuevos
+
+- estado: resuelto (ADR 0001 J-05)
+- contexto: el repo tenía tags estilo `ihh-devtools-v0.1.0.rc.1-build.1-rev.1`, fuera del estándar SemVer.
+- decisión: tags nuevos siguen `v<major>.<minor>.<patch>[-rc.<n>][+build.<n>]`. El esquema histórico queda deprecado.
+- justificación: alineación con herramientas estándar que asumen SemVer.
+- consecuencias: tags históricos no se renombran (rompería referencias). Scripts que parseen tags deben aceptar ambos formatos.
+- repos afectados: ambos.
+- tareas relacionadas: `T-IHH-1`.
+
+### J-AMBOS-1 — `iHexHubs/ihh-devtools` es el toolset canónico
+
+- estado: resuelto (ADR 0001 J-01, aceptada 2026-04-24)
+- contexto: replicada en `erd-ecosystem/versioning-research.md`. Aquí se referencia para trazabilidad.
+- decisión: este repo es la única fuente de verdad para la vendorización.
+- repos afectados: ambos.
+- tareas relacionadas: ver `T-IHH-2`.
+
+### J-AMBOS-2 — Vendorización debe ser output exacto del manifest
+
+- estado: abierto
+- contexto: ADR 0001 J-04 declara que `.devtools/` en consumidores debe ser el output exacto del contrato declarado en `vendor.manifest.yaml`.
+- decisión: no se toleran enlaces rotos ni directorios fantasma.
+- justificación: integridad del contrato.
+- consecuencias: el método concreto (submódulo, copia determinista, ambos) queda diferido a ADR 0003.
+- nota: actualmente el contrato NO se cumple (ver `H-AMBOS-8`). Inferencia pendiente de validación: la decisión J-04 está aceptada, pero la implementación no la respeta.
+- repos afectados: ambos.
+- tareas relacionadas: `T-IHH-4`, `T-AMBOS-10`, `P-AMBOS-3`.
+
+### J-AMBOS-3 — URL canónica = SSH con host alias
+
+- estado: resuelto (ADR 0001 J-06)
+- contexto: replicada en `erd-ecosystem/versioning-research.md`.
+- decisión: `git@github.com-reydem:iHexHubs/ihh-devtools.git`.
+- repos afectados: ambos.
+
+### J-AMBOS-4 — Migración progresiva, no urgente
+
+- estado: resuelto (ADR 0001 J-07)
+- contexto: replicada en `erd-ecosystem/versioning-research.md`.
+- repos afectados: ambos.
+
+---
+
+## 5. Hallazgos técnicos
+
+### H-IHH-1 — Rama `main-b80c3c4` desfasada de `main`
+
+- estado: abierto
+- severidad: alta
+- evidencia: el reporte de auditoría previa indica que esta rama tiene 75 commits adelante de `main`, y que `tests/devbox-shell-smoke.sh` está untracked.
+- archivo: estado del repo (no inspeccionable desde el zip sin `.git`).
+- línea: no aplicable.
+- impacto: cualquier `git clone` aterriza en `main` (estado obsoleto). Tags publicados que apunten a `main-b80c3c4` quedan inválidos si la rama se renombra.
+- tarea relacionada: `T-IHH-2`.
+- repos afectados: `ihh-devtools`.
+
+### H-IHH-2 — Confusión sobre rol de `tests/`
+
+- estado: abierto
+- severidad: alta
+- evidencia: `AGENTS.md` declara que `tests/contracts/` y `.ci/contract-checks.yaml` son "objetivos pendientes" (corrección aplicada por auditoría previa). El reporte previo menciona un `tests/devbox-shell-smoke.sh` untracked. No hay decisión sobre si ese archivo se trackea como parte del esqueleto futuro o se mueve.
+- archivo: `tests/` (estado no en zip).
+- línea: no aplicable.
+- impacto: documentación y código divergen sobre qué representa `tests/`.
+- tarea relacionada: `T-IHH-2`.
+- repos afectados: `ihh-devtools`.
+
+### H-IHH-3 — `git-devtools-update.sh` sin rollback automático
+
+- estado: abierto
+- severidad: alta
+- evidencia: `bin/git-devtools-update.sh:367-378`. El flujo es:
+  ```
+  mv "${ROOT}/${TARGET_PATH}" "$backup_path"
+  mkdir -p "${ROOT}/${TARGET_PATH}"
+  cp -R "${src_dir}/." "${ROOT}/${TARGET_PATH}/"
+  ```
+  Si `cp -R` falla tras el `mv`, el destino queda vacío. El backup queda intacto pero el script no revierte.
+- archivo: `bin/git-devtools-update.sh`.
+- línea: 367-378.
+- impacto: una falla de disco o permisos durante la actualización deja al consumidor sin `.devtools/`. El usuario tiene que descubrir manualmente el `.bak.<timestamp>` y revertir.
+- tarea relacionada: `T-IHH-5`.
+- repos afectados: `ihh-devtools` (impacta a los 8 consumidores).
+
+### H-IHH-4 — README no documenta todos los entrypoints
+
+- estado: abierto
+- severidad: media
+- evidencia: README declara `git acp`, `git promote`, `git feature`, `git gp`, `git rp`, `git sweep`, `git devtools-update`. Existen también en `bin/`: `git-ci.sh`, `git-lim.sh`, `git-pipeline.sh`, `git-pr.sh`, `git-release-draft.sh`, `git-sw.sh`, `setup-wizard.sh`.
+- archivo: `README.md`, `bin/`.
+- línea: no aplicable.
+- impacto: comandos no documentados se descubren por accidente o no se descubren.
+- tarea relacionada: `T-IHH-6`.
+- repos afectados: `ihh-devtools`.
+
+### H-IHH-5 — Patrón inconsistente en `lib/promote/workflows/`
+
+- estado: abierto
+- severidad: media
+- evidencia: `lib/promote/workflows/to-local/` está dividido en 8 sub-archivos numerados (`00-env.sh` a `90-main.sh`). Los demás workflows (`to-dev.sh`, `to-staging.sh`, `to-prod.sh`, `dev-update.sh`, `hotfix.sh`) son monolíticos.
+- archivo: `lib/promote/workflows/`.
+- línea: no aplicable.
+- impacto: dos patrones distintos para problemas similares. Mantenibilidad y descubribilidad inconsistentes.
+- tarea relacionada: `T-IHH-7`.
+- repos afectados: `ihh-devtools`.
+
+### H-IHH-6 — Solapamiento entre `lib/core/git*.sh` y `lib/git*.sh`
+
+- estado: abierto
+- severidad: media
+- evidencia: `lib/core/git.sh`, `lib/core/git-ops.sh`, `lib/git-context.sh`, `lib/git-flow.sh`, `lib/git-profile.sh`. Sin documentación de dominio de cada uno.
+- archivo: varios.
+- línea: no aplicable.
+- impacto: posible duplicación de helpers. Decisión de "dónde añadir lógica nueva" es ambigua.
+- tarea relacionada: `T-IHH-8`.
+- repos afectados: `ihh-devtools`.
+
+### H-IHH-7 — `vendor.manifest.yaml` sin schema, sin validación
+
+- estado: abierto
+- severidad: baja
+- evidencia: archivo de 4 líneas con lista plana de globs. Sin `schema_version`. Ningún script lo lee (ver también `H-AMBOS-8`).
+- archivo: `vendor.manifest.yaml`.
+- línea: 1-7.
+- impacto: cambio en el manifest no produce ningún efecto observable.
+- tarea relacionada: `T-IHH-4`, `T-AMBOS-10`.
+- repos afectados: ambos.
+
+### H-IHH-8 — Wrappers cortos en `bin/git-lim.sh` y `bin/git-sw.sh`
+
+- estado: abierto
+- severidad: baja
+- evidencia: archivos de 176 y 187 bytes respectivamente. Probables wrappers/aliases.
+- archivo: `bin/git-lim.sh`, `bin/git-sw.sh`.
+- línea: archivos completos.
+- impacto: si son redirecciones triviales, considerar consolidar o documentar el patrón.
+- tarea relacionada: `T-IHH-9`.
+- repos afectados: `ihh-devtools`.
+
+### H-IHH-9 — `devtools.repo.yaml` con `registries: null` sin documentación de comportamiento
+
+- estado: abierto
+- severidad: baja
+- evidencia: el archivo declara `registries.build: null` y `registries.deploy: null` con un comentario sobre "defaults permitidos". El comportamiento de "null = usa default" no está documentado en código.
+- archivo: `devtools.repo.yaml`.
+- línea: 4-7.
+- impacto: ambigüedad para implementadores nuevos.
+- tarea relacionada: `T-IHH-10`.
+- repos afectados: `ihh-devtools`.
+
+### H-IHH-10 — `bin/.codex/` directorio de propósito desconocido
+
+- estado: abierto
+- severidad: baja
+- evidencia: directorio listado en `bin/`. Probable artefacto de la herramienta Codex.
+- archivo: `bin/.codex/`.
+- línea: no aplicable.
+- impacto: si es residuo, ocupa espacio y confunde. Si es funcional, no está documentado.
+- tarea relacionada: `T-IHH-11`.
+- repos afectados: `ihh-devtools`.
+
+### H-IHH-11 — `git-acp.sh:218` hace `git fetch --tags --force` tras rebase
+
+- estado: abierto
+- severidad: media
+- evidencia: tras un push rechazado, el script intenta `pull --rebase` y, si tiene éxito, ejecuta `git fetch --tags --force` antes del retry de push.
+- archivo: `bin/git-acp.sh`.
+- línea: 218.
+- impacto: sobrescribe tags locales del usuario sin advertencia. Comportamiento sorprendente para un comando básico de "add+commit+push".
+- tarea relacionada: `T-IHH-12`.
+- repos afectados: `ihh-devtools` (impacta a todos los usuarios del comando `git acp`).
+
+### H-IHH-12 — `git-promote.sh:272` hace `checkout` con variable potencialmente vacía
+
+- estado: abierto
+- severidad: baja
+- evidencia: línea 272 ejecuta `git_safe checkout "${DEVTOOLS_PROMOTE_FROM_BRANCH:-}" >/dev/null 2>&1 || true`. Si la variable está vacía, equivale a `git checkout ""` que falla silenciosamente.
+- archivo: `bin/git-promote.sh`.
+- línea: 272.
+- impacto: en cleanup tras error, si la variable se perdió, el restore no ocurre y el operador queda en una rama inesperada.
+- tarea relacionada: `T-IHH-13`.
+- repos afectados: `ihh-devtools`.
+
+### H-IHH-13 — `lint:contamination` no escanea `bin/` ni `lib/`
+
+- estado: abierto
+- severidad: alta
+- evidencia: `Taskfile.yaml` define el lint con `TARGETS=(README.md CHANGELOG.md scripts devtools.repo.yaml)`. NO incluye `bin` ni `lib`.
+- archivo: `Taskfile.yaml`.
+- línea: 17-30.
+- impacto: una ruta hardcodeada (p. ej. `/webapps/...`) en código bash NO se detecta. La inspección manual confirma que actualmente el código está limpio, pero por suerte, no por contrato.
+- tarea relacionada: `T-IHH-14`.
+- repos afectados: ambos (impacta a calidad del código que se vendoriza).
+
+### H-IHH-14 — `git-acp.sh:187` hace `git add .` sin filtros
+
+- estado: abierto
+- severidad: alta
+- evidencia: línea 187: `git add .`. Sin opción `--staged-only`, sin preview, sin `git add -p`.
+- archivo: `bin/git-acp.sh`.
+- línea: 187.
+- impacto: combinado con el push automático, puede commitear archivos no intencionados (artefactos, archivos temporales, secrets accidentales).
+- tarea relacionada: `T-IHH-15`.
+- repos afectados: ambos.
+
+### H-AMBOS-1 — `.devtools.lock` declara versión inexistente
+
+- estado: abierto
+- severidad: crítica
+- evidencia: detallado en `erd-ecosystem/versioning-research.md`. Resumen aquí: el consumidor declara `DEVTOOLS_VERSION="v0.1.1-rc.1+build.40"`. Este toolset tiene `VERSION=0.1.0` y `.promote_tag=v0.1.0`. El tag no existe en este repo.
+- archivo: `erd-ecosystem/.devtools.lock` (líneas 9-13).
+- línea: 9-13 del lock del consumidor.
+- impacto: bloquea `git devtools-update` del consumidor.
+- tarea relacionada: `T-AMBOS-4`.
+- repos afectados: ambos.
+
+### H-AMBOS-2 — 11 BATS suites no migradas al canónico
+
+- estado: abierto
+- severidad: alta
+- evidencia: detallado en `erd-ecosystem/versioning-research.md`.
+- archivo: `erd-ecosystem/.devtools/tests/*.bats` (no en zip), `ihh-devtools/tests/`.
+- línea: no aplicable.
+- impacto: re-vendorizar borra cobertura.
+- tarea relacionada: `T-AMBOS-5`.
+- repos afectados: ambos.
+
+### H-AMBOS-3 — Contrato del consumidor no se valida
+
+- estado: abierto
+- severidad: alta
+- evidencia: detallado en `erd-ecosystem/versioning-research.md`.
+- archivo: `lib/core/contract.sh`, `bin/git-devtools-update.sh`.
+- línea: pendiente de revisión completa.
+- impacto: errores de contrato se descubren en runtime.
+- tarea relacionada: `T-IHH-3`.
+- repos afectados: ambos.
+
+### H-AMBOS-8 — `vendorize.sh` placeholder; manifest decorativo
+
+- estado: abierto
+- severidad: crítica
+- evidencia:
+  - `scripts/vendorize.sh` (33 líneas) solo verifica que existen `bin/devtools` y `lib/`.
+  - `bin/git-devtools-update.sh:356` usa `git archive --format=tar "$tag"` para extraer el árbol completo. Ignora `vendor.manifest.yaml`.
+- archivo: `scripts/vendorize.sh`, `bin/git-devtools-update.sh:356`, `vendor.manifest.yaml`.
+- línea: 1-33 del placeholder; 356 del flujo real.
+- impacto: el contrato anunciado (incluir solo `bin/**, lib/**, config/**, scripts/**, VERSION, README.md`) NO se cumple. El consumidor recibe el árbol completo del tag (incluyendo `devbox-app/`, `docs/`, `devbox.json` con secret).
+- tarea relacionada: `T-IHH-4`, `T-AMBOS-10`, `P-AMBOS-3`.
+- repos afectados: ambos.
+
+### H-AMBOS-9 — Toolset acoplado a PMBOK con secret hardcodeado
+
+- estado: abierto
+- severidad: crítica
+- evidencia:
+  - `devbox.json:30-33`: `DB_NAME=pmbok_db`, `DB_USER=pmbok_user`, `DB_PASSWORD=secretpassword123`.
+  - `devbox.json:152-153`: scripts `backend` y `frontend` ejecutan `cd apps/pmbok/...`.
+  - `devbox.json:145`: el menú "Dev" exporta `DEVBOX_ENV_NAME=PMBOK`.
+- archivo: `devbox.json`.
+- línea: 30-33, 145, 152-153.
+- impacto:
+  - Vía `H-AMBOS-8`, el `devbox.json` viaja a cada consumidor.
+  - El password hardcodeado termina en cada repo consumidor.
+  - El toolset se anuncia como genérico pero está específico de PMBOK.
+- tarea relacionada: `T-AMBOS-3`.
+- repos afectados: ambos. Decisión humana requerida (`P-AMBOS-5`).
+
+---
+
+## 6. Tareas ejecutables
+
+### T-IHH-1 — Validar parsers de tags ante esquema dual (legacy + SemVer estricto)
+
+- estado: abierto
+- prioridad: P2
+- hallazgo relacionado: `J-IHH-2`.
+- qué se hizo: nada.
+- qué falta: revisar `lib/core/semver.sh` y otros parsers para confirmar que aceptan ambos esquemas.
+- bloqueos: ninguno.
+- siguiente paso: leer parsers y crear tests si es necesario.
+
+### T-IHH-2 — Resolver desfase `main-b80c3c4` ↔ `main` y decidir destino de `tests/devbox-shell-smoke.sh`
+
+- estado: abierto
+- prioridad: P0
+- hallazgo relacionado: `H-IHH-1`, `H-IHH-2`.
+- qué se hizo: nada.
+- qué falta: decidir si `main-b80c3c4` se mergea, renombra o se hace nueva rama. Decidir si `tests/devbox-shell-smoke.sh` se trackea o se mueve a `tests/contracts/`.
+- bloqueos: ninguno.
+- siguiente paso: ejecutar `git rev-parse main && git rev-parse HEAD` y comparar.
+
+### T-IHH-3 — Implementar validación del contrato del consumidor
+
+- estado: abierto
+- prioridad: P1
+- hallazgo relacionado: `H-AMBOS-3`.
+- qué se hizo: nada.
+- qué falta: en `lib/core/contract.sh`, añadir verificación de que el consumidor tiene `devtools.repo.yaml` válido. Llamarla desde `git-devtools-update.sh` antes de cualquier operación destructiva.
+- bloqueos: ninguno.
+- siguiente paso: diseñar la firma de la función y los códigos de error.
+
+### T-IHH-4 — Implementar `vendorize.sh` real o eliminar manifest
+
+- estado: abierto
+- prioridad: P0
+- hallazgo relacionado: `H-AMBOS-8`, `H-IHH-7`.
+- qué se hizo: nada (decisión humana pendiente).
+- qué falta: decisión `P-AMBOS-3` (método canónico de vendorización). Si se conserva el manifest, implementar `vendorize.sh` que produzca un snapshot real respetando los globs. Si se elimina, retirar el manifest y ajustar documentación.
+- bloqueos: `P-AMBOS-3`.
+- siguiente paso: pedir decisión arquitectónica.
+
+### T-IHH-5 — Implementar rollback automático en `git-devtools-update.sh`
+
+- estado: abierto
+- prioridad: P1
+- hallazgo relacionado: `H-IHH-3`.
+- qué se hizo: nada.
+- qué falta: si `cp -R` falla tras el `mv`, restaurar el backup. Limpieza programada de `.bak.<timestamp>` viejos.
+- bloqueos: ninguno.
+- siguiente paso: editar `apply_vendored_snapshot_from_repo_tag` (línea 343-396).
+
+### T-IHH-6 — Documentar todos los entrypoints en README
+
+- estado: abierto
+- prioridad: P2
+- hallazgo relacionado: `H-IHH-4`.
+- qué se hizo: nada.
+- qué falta: tabla completa de comandos en README, separando "públicos" e "internos".
+- bloqueos: ninguno.
+- siguiente paso: redactar.
+
+### T-IHH-7 — Decidir patrón único en `lib/promote/workflows/`
+
+- estado: abierto
+- prioridad: P2
+- hallazgo relacionado: `H-IHH-5`.
+- qué se hizo: nada.
+- qué falta: o convertir todos los workflows al patrón numerado de `to-local/`, o consolidar `to-local/` en un solo archivo.
+- bloqueos: ninguno.
+- siguiente paso: discutir patrón.
+
+### T-IHH-8 — Documentar dominio de `lib/core/git*.sh` y `lib/git*.sh`
+
+- estado: abierto
+- prioridad: P2
+- hallazgo relacionado: `H-IHH-6`.
+- qué se hizo: nada.
+- qué falta: cabecera por archivo explicando responsabilidad. O consolidar.
+- bloqueos: ninguno.
+- siguiente paso: revisar cada archivo.
+
+### T-IHH-9 — Documentar o consolidar `bin/git-lim.sh` y `bin/git-sw.sh`
+
+- estado: abierto
+- prioridad: P2
+- hallazgo relacionado: `H-IHH-8`.
+- qué se hizo: nada.
+- qué falta: leer ambos archivos y decidir.
+- bloqueos: ninguno.
+- siguiente paso: leer.
+
+### T-IHH-10 — Documentar comportamiento de `registries: null`
+
+- estado: abierto
+- prioridad: P2
+- hallazgo relacionado: `H-IHH-9`.
+- qué se hizo: nada.
+- qué falta: documentar en `lib/core/contract.sh` y/o en el comentario de `devtools.repo.yaml`.
+- bloqueos: ninguno.
+- siguiente paso: redactar.
+
+### T-IHH-11 — Verificar pertenencia de `bin/.codex/`
+
+- estado: abierto
+- prioridad: P2
+- hallazgo relacionado: `H-IHH-10`.
+- qué se hizo: nada.
+- qué falta: confirmar con operador si pertenece al repo o se elimina.
+- bloqueos: ninguno.
+- siguiente paso: confirmar.
+
+### T-IHH-12 — Quitar `--force` en `git fetch` de `git-acp.sh`
+
+- estado: abierto
+- prioridad: P1
+- hallazgo relacionado: `H-IHH-11`.
+- qué se hizo: nada.
+- qué falta: editar línea 218 quitando `--force`. Si hay razón documentada para mantenerlo, escribirla en comentario.
+- bloqueos: ninguno.
+- siguiente paso: editar y testear con un escenario de tags divergentes.
+
+### T-IHH-13 — Validar variable antes de `checkout` en `git-promote.sh:272`
+
+- estado: abierto
+- prioridad: P2
+- hallazgo relacionado: `H-IHH-12`.
+- qué se hizo: nada.
+- qué falta: añadir `[[ -n "$var" ]] || return` antes del checkout.
+- bloqueos: ninguno.
+- siguiente paso: editar.
+
+### T-IHH-14 — Ampliar `lint:contamination` a `bin/` y `lib/`
+
+- estado: abierto
+- prioridad: P1
+- hallazgo relacionado: `H-IHH-13`.
+- qué se hizo: nada.
+- qué falta: editar `Taskfile.yaml` línea 21 añadiendo `bin lib` al array `TARGETS`.
+- bloqueos: ninguno.
+- siguiente paso: edición de una línea.
+
+### T-IHH-15 — Refactorizar `git-acp.sh` para `git add` controlado
+
+- estado: abierto
+- prioridad: P1
+- hallazgo relacionado: `H-IHH-14`.
+- qué se hizo: nada.
+- qué falta: ofrecer flag `--staged-only` y/o modo interactivo `git add -p` cuando `SIMPLE_MODE=false`.
+- bloqueos: ninguno.
+- siguiente paso: diseño + implementación.
+
+### T-IHH-16 — Crear `tests/contracts/` con suite base
+
+- estado: abierto
+- prioridad: P1
+- hallazgo relacionado: `H-IHH-2`.
+- qué se hizo: nada.
+- qué falta: estructura `tests/contracts/`, smoke test inicial. Crear `.ci/contract-checks.yaml` planificado.
+- bloqueos: ninguno.
+- siguiente paso: definir el formato de un check contractual.
+
+---
+
+## 7. Preguntas abiertas
+
+### P-IHH-1 — ¿`bin/.codex/` pertenece al repo?
+
+- estado: abierto
+- pregunta: ¿el directorio es funcional o un artefacto residual de la herramienta Codex?
+- contexto: `H-IHH-10`.
+- decisión requerida: conservar o eliminar.
+- impacto si no se responde: continúa la duda.
+- responsable sugerido: operador del repo.
+
+### P-AMBOS-1 — Unificar `services.yaml` vs `apps.yaml` (ADR 0002)
+
+- estado: abierto
+- contexto: replicada en `erd-ecosystem/versioning-research.md`.
+- responsable sugerido: arquitecto del ecosistema.
+
+### P-AMBOS-3 — Método canónico de vendorización
+
+- estado: abierto
+- contexto: ADR 0001 P-02. Detallada en `erd-ecosystem/versioning-research.md`.
+- decisión requerida: ADR 0003.
+- impacto si no se responde: el manifest seguirá decorativo. Bloquea `T-IHH-4`.
+- responsable sugerido: mantenedor de este repo.
+
+### P-AMBOS-5 — Toolset genérico vs específico de PMBOK
+
+- estado: abierto
+- contexto: hallazgo `H-AMBOS-9`. Detallada en `erd-ecosystem/versioning-research.md`.
+- decisión requerida: si genérico → mover variables PMBOK fuera. Si específico → renombrar repo.
+- impacto si no se responde: secret seguirá viajando a consumidores no-PMBOK.
+- responsable sugerido: operador + arquitecto.
+
+---
+
+## 8. Bloqueos externos
+
+### B-IHH-1 — Tag inexistente en `.devtools.lock` del consumidor (`H-AMBOS-1`)
+
+- estado: abierto
+- bloqueo: el lock declara `v0.1.1-rc.1+build.40` pero este repo no tiene ese tag.
+- causa: el tag se heredó del legado `iHexHubs/devtools`.
+- impacto: cualquier `git devtools-update` desde el consumidor falla.
+- dependencia externa: decidir tag base real (acción en este repo) y reescribir el lock (acción en `erd-ecosystem`).
+- siguiente paso: ver `T-AMBOS-4`.
+
+### B-AMBOS-2 — ADR 0002 sin escribir bloquea sync de catálogos
+
+- estado: abierto
+- contexto: replicada.
+
+### B-AMBOS-3 — Genericidad del toolset bloqueada por `H-AMBOS-9`
+
+- estado: abierto
+- contexto: replicada.
+
+---
+
+## 9. Tareas conjuntas con `erd-ecosystem`
+
+### T-AMBOS-1 — Migrar 7 repos hermanos al canónico (T-ADR-05)
+
+- estado: abierto
+- prioridad: P2
+- hallazgo relacionado: 247 referencias inventariadas.
+- qué se hizo: inventario completo en `docs/migration-2026-04/legacy-devtools-references.txt`.
+- qué falta: ejecutar el procedimiento de migración en cada repo cuando tenga trabajo activo.
+- bloqueos: `J-AMBOS-4` permite que sea progresivo.
+- siguiente paso: el operador decide en qué orden.
+
+### T-AMBOS-3 — Aislar variables específicas de PMBOK del `devbox.json`
+
+- estado: abierto
+- prioridad: P0
+- hallazgo relacionado: `H-AMBOS-9`, `H-ERD-8`.
+- qué se hizo: nada.
+- qué falta: decisión `P-AMBOS-5`. Implementación correspondiente.
+- bloqueos: `P-AMBOS-5`.
+- siguiente paso: pedir decisión.
+
+### T-AMBOS-4 — Decidir tag base real y reescribir `.devtools.lock`
+
+- estado: abierto
+- prioridad: P0
+- hallazgo relacionado: `H-AMBOS-1`.
+- qué se hizo: nada.
+- qué falta: en este repo, decidir si crear un tag SemVer (p. ej. `v0.1.0` ya existe; o nuevo `v0.1.1`). En el consumidor, reescribir el lock.
+- bloqueos: ninguno operacional.
+- siguiente paso: confirmar tag y editar.
+
+### T-AMBOS-5 — Migrar 11 BATS suites al canónico antes de re-vendorizar
+
+- estado: abierto
+- prioridad: P0
+- hallazgo relacionado: `H-AMBOS-2`.
+- qué se hizo: nada.
+- qué falta: identificar las 11 suites en `erd-ecosystem/.devtools/tests/`, copiarlas a `ihh-devtools/tests/contracts/` (o estructura aceptada), validar que pasan en este repo. Solo entonces ejecutar `T-ERD-3`.
+- bloqueos: ninguno.
+- siguiente paso: listar suites y diseñar la integración.
+
+### T-AMBOS-6 — Estandarizar URL canónica en todos los lugares
+
+- estado: en-progreso (parcialmente aplicada en `erd-ecosystem`)
+- prioridad: P1
+- hallazgo relacionado: `H-AMBOS-4`.
+- qué se hizo: lock corregido a `iHexHubs/ihh-devtools` en el consumidor; `new-webapp.sh:31` cambió a HTTPS público.
+- qué falta: cambiar `new-webapp.sh:31` a SSH con host alias. Auditar todas las referencias en docs.
+- bloqueos: ninguno.
+- siguiente paso: editar y validar.
+
+### T-AMBOS-7 — Documentar relación `VERSION` ↔ `.promote_tag`
+
+- estado: abierto
+- prioridad: P2
+- hallazgo relacionado: `H-AMBOS-5`.
+- qué se hizo: nada.
+- qué falta: documentación cruzada en ambos `docs/versionado.md`.
+- bloqueos: ninguno.
+- siguiente paso: redactar.
+
+### T-AMBOS-8 — Decidir gobernanza de `cliff.toml`
+
+- estado: abierto
+- prioridad: P2
+- hallazgo relacionado: `H-AMBOS-6`.
+- qué se hizo: nada.
+- qué falta: decidir si se vendoriza desde este repo o se mantiene independiente.
+- bloqueos: ninguno.
+- siguiente paso: discutir.
+
+### T-AMBOS-9 — Estandarizar convenciones de "guías para agentes IA"
+
+- estado: abierto
+- prioridad: P2
+- hallazgo relacionado: `H-AMBOS-7`.
+- qué se hizo: nada.
+- qué falta: decidir si `AGENTS.md` es el único, o si conviven con `GEMINI.md` y `.claude/`.
+- bloqueos: ninguno.
+- siguiente paso: discutir.
+
+### T-AMBOS-10 — Resolver `vendor.manifest.yaml` decorativo
+
+- estado: abierto
+- prioridad: P0
+- hallazgo relacionado: `H-AMBOS-8`.
+- qué se hizo: nada.
+- qué falta: decisión `P-AMBOS-3`. Si se conserva el manifest, implementar `vendorize.sh` real. Si no, eliminar el manifest y ajustar docs.
+- bloqueos: `P-AMBOS-3`.
+- siguiente paso: pedir decisión.
+
+### T-AMBOS-11 — Eliminación definitiva de `iHexHubs/devtools` (T-ADR-07)
+
+- estado: abierto
+- prioridad: P2
+- hallazgo relacionado: `J-IHH-1`.
+- qué se hizo: el repo legado está archivado.
+- qué falta: ejecutar tras `T-AMBOS-1` y `T-ADR-06` (auditoría final de residuos).
+- bloqueos: depende de cierre de migración.
+- siguiente paso: posterior.
+
+---
+
+## 10. Checklist para próxima auditoría
+
+- [ ] `git status -sb && git log --oneline -10`
+- [ ] `git rev-parse main && git rev-parse HEAD`  → confirmar estado de `H-IHH-1`
+- [ ] `task ci`  → exit 0 esperado
+- [ ] `bash scripts/gh-policy-check.sh`  → exit 0
+- [ ] `bash scripts/vendorize.sh; echo "exit=$?"`  → confirmar `H-AMBOS-8` (solo verifica paths)
+- [ ] `find tests -type f`  → confirmar contenido real de `tests/`
+- [ ] `git tag --list | sort -V | tail -10`  → verificar si existe `v0.1.1-rc.1+build.40` (`H-AMBOS-1`)
+- [ ] `grep -nE 'DB_PASSWORD|pmbok' devbox.json`  → confirmar `H-AMBOS-9`
+- [ ] `grep -rEn '/webapps/[a-z]|/home/[a-z]+/|/Users/[A-Za-z]+/' bin lib`  → debe estar limpio
+- [ ] Validar que `git-devtools-update.sh` tiene rollback (post `T-IHH-5`)
+
+---
+
+## 11. Referencias
+
+- `docs/adr/0001-devtools-consolidation.md` (canónica de la consolidación).
+- `docs/migration-2026-04/README.md` (plan de migración).
+- `docs/migration-2026-04/legacy-devtools-references.txt` (247 hits).
+- `erd-ecosystem/versioning-research.md` (gobierno paralelo del consumidor principal).
+- `erd-ecosystem/AUDITORIA_TECNICA_PARALELA.md` (fase 1).
+- `erd-ecosystem/AUDITORIA_INDEPENDIENTE_FASE_2.md` (fase 2).
