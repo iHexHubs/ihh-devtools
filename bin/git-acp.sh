@@ -215,7 +215,7 @@ do_push() {
       log_warn "El push fue rechazado. Intentando pull --rebase..."
       if GIT_TERMINAL_PROMPT=0 git pull --rebase "$remote" "$branch"; then
           log_success "Rebase exitoso. Reintentando push..."
-          GIT_TERMINAL_PROMPT=0 git fetch --tags --force "$remote" >/dev/null 2>&1 || true
+          GIT_TERMINAL_PROMPT=0 git fetch --tags "$remote" >/dev/null 2>&1 || true
           if GIT_TERMINAL_PROMPT=0 git push "$remote" "$branch"; then
               push_success=true
           fi
