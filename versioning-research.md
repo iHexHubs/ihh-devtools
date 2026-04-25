@@ -256,7 +256,7 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 
 ### H-IHH-11 — `git-acp.sh:218` hace `git fetch --tags --force` tras rebase
 
-- estado: abierto
+- estado: resuelto (commit 6515740b)
 - severidad: media
 - evidencia: tras un push rechazado, el script intenta `pull --rebase` y, si tiene éxito, ejecuta `git fetch --tags --force` antes del retry de push.
 - archivo: `bin/git-acp.sh`.
@@ -278,7 +278,7 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 
 ### H-IHH-13 — `lint:contamination` no escanea `bin/` ni `lib/`
 
-- estado: abierto
+- estado: resuelto (commit 5b0252a5)
 - severidad: alta
 - evidencia: `Taskfile.yaml` define el lint con `TARGETS=(README.md CHANGELOG.md scripts devtools.repo.yaml)`. NO incluye `bin` ni `lib`.
 - archivo: `Taskfile.yaml`.
@@ -297,6 +297,17 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 - impacto: combinado con el push automático, puede commitear archivos no intencionados (artefactos, archivos temporales, secrets accidentales).
 - tarea relacionada: `T-IHH-15`.
 - repos afectados: ambos.
+
+### H-IHH-15 — `lint:contamination` confunde docs legítima con contaminación
+
+- estado: resuelto (commit 5b0252a5)
+- severidad: media
+- evidencia: descubierto durante T-IHH-14. El filtro original solo perdonaba `CHANGELOG.md:.devtools/releases/(prod|staging).md`. Cualquier mención literal de `.devtools/` en otros docs disparaba el lint, incluyendo el README de gobierno publicado en a346790d.
+- archivo: `Taskfile.yaml`.
+- línea: tarea `lint:contamination`, regla `filtered`.
+- impacto: lint falla en baseline tras publicar gobierno técnico, bloqueando `task ci` en clones limpios.
+- tarea relacionada: `T-IHH-17`.
+- repos afectados: `ihh-devtools`.
 
 ### H-AMBOS-1 — `.devtools.lock` declara versión inexistente
 
@@ -477,11 +488,11 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 
 ### T-IHH-12 — Quitar `--force` en `git fetch` de `git-acp.sh`
 
-- estado: abierto
+- estado: resuelto
 - prioridad: P1
 - hallazgo relacionado: `H-IHH-11`.
-- qué se hizo: nada.
-- qué falta: editar línea 218 quitando `--force`. Si hay razón documentada para mantenerlo, escribirla en comentario.
+- qué se hizo: en commit 6515740b se quitó `--force` de la línea 218 de `bin/git-acp.sh`. El `git fetch --tags` ya no sobrescribe tags locales divergentes; git emite `[rejected] (would clobber existing tag)` aunque el `2>&1` lo silencia (deuda menor T-IHH-19).
+- qué falta: nada. Verificado con sandbox aislado en dos escenarios (con/sin `--force`).
 - bloqueos: ninguno.
 - siguiente paso: editar y testear con un escenario de tags divergentes.
 
@@ -497,11 +508,11 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 
 ### T-IHH-14 — Ampliar `lint:contamination` a `bin/` y `lib/`
 
-- estado: abierto
+- estado: resuelto
 - prioridad: P1
 - hallazgo relacionado: `H-IHH-13`.
-- qué se hizo: nada.
-- qué falta: editar `Taskfile.yaml` línea 21 añadiendo `bin lib` al array `TARGETS`.
+- qué se hizo: en commit 5b0252a5 se amplió `TARGETS` del lint a `bin` y `lib` (cubre 79 scripts shell productivos). Se descubrió que el lint pesimista trataba como contaminación menciones legítimas de `.devtools/` en docs (nuevo hallazgo H-IHH-15); se resolvió en el mismo commit con un filtro multi-regla (T-IHH-17). H-IHH-13 confirmado como falso positivo: `bin/` y `lib/` no tenían contaminación real, solo 4 falsos positivos clasificados (2 self-ref + 2 string match URL).
+- qué falta: nada. Verificado con `task ci` y contraprueba canary.
 - bloqueos: ninguno.
 - siguiente paso: edición de una línea.
 
@@ -524,6 +535,25 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 - qué falta: estructura `tests/contracts/`, smoke test inicial. Crear `.ci/contract-checks.yaml` planificado.
 - bloqueos: ninguno.
 - siguiente paso: definir el formato de un check contractual.
+
+### T-IHH-17 — Separar reglas de contaminación entre código y documentación
+
+- estado: resuelto
+- prioridad: P1
+- hallazgo relacionado: `H-IHH-15`.
+- qué se hizo: en commit 5b0252a5 se amplió el filtro de `lint:contamination` de 1 a 4 reglas. (1) Backticks en markdown para `.devtools/` legítimo en docs. (2) Self-reference de la propia definición del pattern en `lib/promote/workflows/common.sh`. (3) String match de URLs `://github.com/` en `lib/wizard/step-04-profile.sh`. (4) La regla CHANGELOG existente intacta. PATTERN base sin cambios; el filtro NO perdona rutas absolutas ni URLs sin contexto. Verificado con cuatro contrapruebas.
+- qué falta: nada.
+- bloqueos: ninguno.
+
+### T-IHH-19 — Hacer visible el aviso de tag-clobber en `git-acp.sh`
+
+- estado: abierto
+- prioridad: P2
+- hallazgo relacionado: ninguno (deuda menor descubierta al cerrar T-IHH-12).
+- qué se hizo: nada.
+- qué falta: el `2>&1` en `bin/git-acp.sh:218` sigue suprimiendo el mensaje `[rejected] (would clobber existing tag)`. El usuario no ve el conflicto en pantalla aunque el tag se preserve. Posible solución: separar stdout (silenciado) de stderr (visible) y filtrar para mostrar solo el aviso relevante.
+- bloqueos: ninguno.
+- siguiente paso: experimentar con `2> >(grep -E "rejected|clobber" >&2)` o similar; medir UX.
 
 ---
 
