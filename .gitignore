@@ -20,3 +20,6 @@ prod.md
 
 # Datos personales de git-acp — NUNCA versionar
 **/.git-acprc
+
+# Local env file (SEC-23)
+.env
