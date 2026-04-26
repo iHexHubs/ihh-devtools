@@ -357,20 +357,24 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 
 ### H-AMBOS-9 — Toolset acoplado a PMBOK con secret hardcodeado
 
-- estado: abierto
+- estado: parcialmente resuelto (Phase1 cerrada 2026-04-26; Phase2 pendiente)
 - severidad: crítica
-- evidencia:
+- evidencia original:
   - `devbox.json:30-33`: `DB_NAME=pmbok_db`, `DB_USER=pmbok_user`, `DB_PASSWORD=secretpassword123`.
   - `devbox.json:152-153`: scripts `backend` y `frontend` ejecutan `cd apps/pmbok/...`.
   - `devbox.json:145`: el menú "Dev" exporta `DEVBOX_ENV_NAME=PMBOK`.
-- archivo: `devbox.json`.
-- línea: 30-33, 145, 152-153.
-- impacto:
-  - Vía `H-AMBOS-8`, el `devbox.json` viaja a cada consumidor.
-  - El password hardcodeado termina en cada repo consumidor.
-  - El toolset se anuncia como genérico pero está específico de PMBOK.
-- tarea relacionada: `T-AMBOS-3`.
-- repos afectados: ambos. Decisión humana requerida (`P-AMBOS-5`).
+- evidencia post-Phase1:
+  - `devbox.json` `env`: bloque retirado, solo conserva `DEVBOX_ENV_NAME=IHH` (identificador del shell, no app).
+  - `devbox.json` `scripts.backend`/`frontend`: eliminados.
+  - `devbox.json` `init_hook` línea 143: aviso genérico; línea 145 case "Dev": `DEVBOX_ENV_NAME=DEV`.
+- pendiente Phase2:
+  - ~40 menciones literales `pmbok` en `lib/promote/workflows/common.sh`, `to-dev.sh`, `to-local/*.sh` (refactor mayor; coupled a `tests/`).
+- archivo: `devbox.json` (Phase1) + `lib/promote/workflows/**` (Phase2).
+- impacto residual:
+  - Vía `H-AMBOS-8`, el `devbox.json` ya purgado de PMBOK viajará a cada consumer cuando re-vendorize. Riesgo principal acotado.
+  - El acoplamiento en `lib/promote/workflows/**` sigue activo hasta Phase2.
+- tarea relacionada: `T-AMBOS-3` (Phase1 cerrada, Phase2 abierta).
+- repos afectados: ambos.
 
 ---
 
@@ -581,11 +585,16 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 
 ### P-AMBOS-5 — Toolset genérico vs específico de PMBOK
 
-- estado: abierto
-- contexto: hallazgo `H-AMBOS-9`. Detallada en `erd-ecosystem/versioning-research.md`.
-- decisión requerida: si genérico → mover variables PMBOK fuera. Si específico → renombrar repo.
-- impacto si no se responde: secret seguirá viajando a consumidores no-PMBOK.
-- responsable sugerido: operador + arquitecto.
+- estado: cerrado parcialmente el 2026-04-26 (bloque SEC-2B-Phase1).
+- decisión tomada: **toolset genérico**. ihh-devtools no asume `pmbok` ni stack Django/Vite.
+- implementación Phase1 (bloque SEC-2B-Phase1):
+  - `devbox.json` `env`: bloque retirado salvo `DEVBOX_ENV_NAME`.
+  - `devbox.json` `scripts.backend`/`frontend`: eliminados.
+  - `devbox.json` `init_hook`: ajustes de mensaje y label.
+  - `README.md`: nota de cierre + migration note para consumers.
+  - `versioning-research.md`: este cierre.
+- pendiente Phase2: refactor de `lib/promote/workflows/**` (~40 menciones literales `pmbok`). Bloqueado conceptualmente por `tests/contracts/` no implementados (T-IHH-16).
+- responsable Phase2: mantenedor de este repo.
 
 ---
 
@@ -626,13 +635,13 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 
 ### T-AMBOS-3 — Aislar variables específicas de PMBOK del `devbox.json`
 
-- estado: abierto
-- prioridad: P0
+- estado: Phase1 resuelto (2026-04-26); Phase2 abierto
+- prioridad: P0 → P1 (Phase2)
 - hallazgo relacionado: `H-AMBOS-9`, `H-ERD-8`.
-- qué se hizo: nada.
-- qué falta: decisión `P-AMBOS-5`. Implementación correspondiente.
-- bloqueos: `P-AMBOS-5`.
-- siguiente paso: pedir decisión.
+- qué se hizo Phase1: bloque SEC-2B-Phase1. `devbox.json` `env` retirado, `scripts` PMBOK eliminados, `init_hook` ajustado.
+- qué falta Phase2: refactor de `lib/promote/workflows/**` (~40 hits literales). Coupled a `tests/contracts/` (T-IHH-16) que aún no existen — el refactor sin tests es riesgoso.
+- bloqueos Phase2: T-IHH-16 (suite contractual base).
+- siguiente paso: cuando se implemente T-IHH-16, abrir SEC-2B-Phase2.
 
 ### T-AMBOS-4 — Decidir tag base real y reescribir `.devtools.lock`
 

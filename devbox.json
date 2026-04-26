@@ -26,20 +26,6 @@
   "git-cliff": "latest"
 },
   "env": {
-    "SECRET_KEY": "django-insecure-dev-key-for-local-devbox",
-    "DB_NAME": "pmbok_db",
-    "DB_USER": "pmbok_user",
-    "DB_PASSWORD": "secretpassword123",
-    "DB_HOST": "localhost",
-    "DB_PORT": "5432",
-    "DB_SSLMODE": "disable",
-    "RUN_MIGRATIONS": "1",
-    "RUN_SEED": "auto",
-    "RUN_COLLECTSTATIC": "0",
-    "VITE_API_URL": "http\u003a\u002f\u002flocalhost:8000/api",
-    "CORS_ALLOWED_ORIGINS": "http\u003a\u002f\u002flocalhost:5173,http\u003a\u002f\u002f127.0.0.1:5173",
-    "CSRF_TRUSTED_ORIGINS": "http\u003a\u002f\u002flocalhost:5173,http\u003a\u002f\u002f127.0.0.1:5173",
-    "EXTRA_ALLOWED_HOSTS": "127.0.0.1,localhost",
     "DEVBOX_ENV_NAME": "I\u0048H"
   },
   "shell": {
@@ -140,17 +126,15 @@
       "  PROJECT_NAME=\"$(basename \"$root\")\"",
       "  echo \"🚀 Estás en el proyecto ${PROJECT_NAME}\"",
       "  echo '✅ Database credentials & SSL settings applied automatically.'",
-      "  echo '💡 Try running: devbox run backend'",
+      "  echo '💡 Devbox shell listo. Comandos git efímeros disponibles (acp, gp, promote, feature, rp).'",
       "  # --- 4. Menu Simplificado (Fallback Seguro) ---",
-      "  if [[ -t 0 && -t 1 ]]; then DEVX_CHOICE=\"\"; if command -v gum >/dev/null 2>&1; then DEVX_CHOICE=\"$(gum choose --header \"Selecciona tu Rol:\" \"Admin\" \"Dev\" \"Ops\")\"; else echo \"Selecciona tu Rol:\"; select opt in \"Admin\" \"Dev\" \"Ops\"; do DEVX_CHOICE=\"$opt\"; break; done; fi; case \"$DEVX_CHOICE\" in \"Admin\") export DEVBOX_ENV_NAME=\"I\"\"HH\" ;; \"Dev\") export DEVBOX_ENV_NAME=\"PMBOK\" ;; \"Ops\") export DEVBOX_ENV_NAME=\"GITOPS\" ;; *) export DEVBOX_ENV_NAME=\"${DEVBOX_ENV_NAME:-DEVBOX}\" ;; esac; devx() { export DEVBOX_ENV_NAME=\"$1\"; }; fi",
+      "  if [[ -t 0 && -t 1 ]]; then DEVX_CHOICE=\"\"; if command -v gum >/dev/null 2>&1; then DEVX_CHOICE=\"$(gum choose --header \"Selecciona tu Rol:\" \"Admin\" \"Dev\" \"Ops\")\"; else echo \"Selecciona tu Rol:\"; select opt in \"Admin\" \"Dev\" \"Ops\"; do DEVX_CHOICE=\"$opt\"; break; done; fi; case \"$DEVX_CHOICE\" in \"Admin\") export DEVBOX_ENV_NAME=\"I\"\"HH\" ;; \"Dev\") export DEVBOX_ENV_NAME=\"DEV\" ;; \"Ops\") export DEVBOX_ENV_NAME=\"GITOPS\" ;; *) export DEVBOX_ENV_NAME=\"${DEVBOX_ENV_NAME:-DEVBOX}\" ;; esac; devx() { export DEVBOX_ENV_NAME=\"$1\"; }; fi",
       "  # --- 5. Prompt: Starship ---",
       "  if command -v starship >/dev/null 2>&1; then top=\"$(git rev-parse --show-toplevel 2>/dev/null || true)\"; sp=\"$(git rev-parse --show-superproject-working-tree 2>/dev/null || true)\"; root=\"${top:-${sp:-$(pwd)}}\"; export STARSHIP_CONFIG=\"$root/.starship.toml\"; if [[ -n \"${ZSH_VERSION:-}\" ]]; then eval \"$(starship init zsh)\"; else eval \"$(starship init bash)\"; fi; else if [[ -n \"${ZSH_VERSION:-}\" ]]; then export PROMPT=\"(devbox ${DEVBOX_ENV_NAME}) ${PROMPT}\"; else export PS1=\"(devbox ${DEVBOX_ENV_NAME}) ${PS1}\"; fi; fi",
       "fi"
     ]
   },
   "scripts": {
-    "backend": "cd apps/pmbok/backend && chmod +x entrypoint.sh && poetry run ./entrypoint.sh python manage.py runserver 0.0.0.0:8000",
-    "frontend": "cd apps/pmbok/frontend && npm run dev",
     "setup-k8s": "./devops/scripts/setup-cluster.sh",
     "dev:tunnels": "task cluster:connect",
     "dev:resume": "minikube start --driver=docker && task cluster:connect",

@@ -2,7 +2,7 @@
 
 Toolset CLI en Bash para estandarizar el ciclo de vida de código en repos que usan Git.
 
-> **Nota crítica activa (`H-AMBOS-9`):** este toolset declara variables específicas del proyecto PMBOK en su `devbox.json` y contiene un `DB_PASSWORD` hardcodeado. La promesa de "toolset genérico" no se cumple en la práctica. Decisión humana pendiente — ver [`./versioning-research.md`](./versioning-research.md), pregunta `P-AMBOS-5`.
+> **Estado de genericidad:** `H-AMBOS-9` y `P-AMBOS-5` cerrados parcialmente el 2026-04-26 (bloque SEC-2B-Phase1). El bloque `env` del `devbox.json` raíz fue retirado; los scripts `backend`/`frontend` PMBOK eliminados. Las ~40 menciones literales `pmbok` en `lib/promote/workflows/**` se difieren a Phase2. Ver [`./versioning-research.md`](./versioning-research.md) para detalle.
 
 ## 1. Descripción
 
@@ -63,6 +63,19 @@ Equipos con múltiples repos necesitan un flujo consistente de commits, promocio
 | `bin/devtools` | Dispatcher principal del toolset. Ejemplo de uso: `devtools apps sync [--only <app>]`. |
 | `bin/setup-wizard.sh` | Wizard interactivo de setup local (identidades SSH/GPG, perfiles); se invoca al entrar por primera vez a `devbox shell`. |
 | `bin/git-devtools-update.sh` | Implementación real de `git devtools-update` (vendoring vía `git archive` del tag base). |
+
+## 5.1 Migration note para consumers existentes (SEC-2B-Phase1, 2026-04-26)
+
+El bloque `env` del `devbox.json` raíz fue retirado en Phase1. Los consumers que dependían de variables exportadas por el shell `devbox` del toolset (p. ej. `SECRET_KEY`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `VITE_API_URL`, etc.) deben definirlas localmente:
+
+- En su propio `devbox.json` (en el `env` del consumer, no del toolset vendorizado).
+- O en `.env.local` ignorado por git, cargado por el flujo del consumer.
+
+Los scripts `backend` y `frontend` que ejecutaban `cd apps/pmbok/...` también fueron retirados. Los consumers que los usaban deben definirlos en su propio `devbox.json`.
+
+Aliases git (`acp`, `gp`, `rp`, `promote`, `feature`) y scripts `setup-k8s`, `dev:*` se conservan. Esta migración no rompe el flujo de promoción.
+
+Phase2 (futura) abordará las ~40 menciones literales `pmbok` en `lib/promote/workflows/**`.
 
 ## 6. Requisitos previos
 
@@ -204,20 +217,19 @@ Sufijos: `-IHH-` (este repo), `-ERD-` (`erd-ecosystem`), `-AMBOS-` (afecta a amb
 | ID | Severidad | Resumen |
 |---|---|---|
 | `H-AMBOS-8` | Crítica | `vendorize.sh` placeholder; `vendor.manifest.yaml` decorativo |
-| `H-AMBOS-9` | Crítica | Toolset acoplado a PMBOK con secret hardcodeado |
 | `H-AMBOS-1` | Crítica | Lock del consumidor declara versión que no existe aquí |
 | `H-IHH-1` | Alta | Rama `main-b80c3c4` desfasada |
 | `H-IHH-3` | Alta | `git-devtools-update.sh` sin rollback automático |
 | `H-IHH-14` | Alta | `git-acp.sh` hace `git add .` sin filtros |
 | `H-AMBOS-2` | Alta | 11 BATS suites del consumer no migradas al canónico |
 
-> Hallazgos resueltos en la auditoría 2026-04-26: `H-IHH-4` (entrypoints documentados), `H-IHH-12` (cleanup `git-promote.sh` con variable validada), T-IHH-19 (aviso tag-clobber visible en `git-acp.sh`). Ya resueltos previamente: `H-IHH-11`, `H-IHH-13`, `H-IHH-15`. Detalles en [`./versioning-research.md`](./versioning-research.md).
+> Hallazgos resueltos en la auditoría 2026-04-26: `H-IHH-4` (entrypoints documentados), `H-IHH-12` (cleanup `git-promote.sh` con variable validada), T-IHH-19 (aviso tag-clobber visible en `git-acp.sh`), **`H-AMBOS-9` Phase1** (bloque `env` PMBOK retirado del `devbox.json`; ~40 menciones literales en `lib/promote/workflows/**` quedan para Phase2). Ya resueltos previamente: `H-IHH-11`, `H-IHH-13`, `H-IHH-15`. Detalles en [`./versioning-research.md`](./versioning-research.md).
 
 ### Tareas P0 abiertas
 
 - `T-IHH-2` — Resolver desfase `main-b80c3c4` ↔ `main` y destino de `tests/devbox-shell-smoke.sh`.
 - `T-IHH-4` — Implementar `vendorize.sh` real o eliminar manifest (bloqueado por `P-AMBOS-3`).
-- `T-AMBOS-3` — Aislar variables específicas de PMBOK del `devbox.json` (bloqueado por `P-AMBOS-5`).
+- `T-AMBOS-3` — Phase1 cerrada el 2026-04-26: bloque `env` retirado del `devbox.json` raíz + scripts PMBOK eliminados. Phase2 pendiente: refactor de `lib/promote/workflows/**` (~40 menciones literales).
 - `T-AMBOS-4` — Decidir tag base real y reescribir `.devtools.lock` del consumidor.
 - `T-AMBOS-5` — Migrar 11 BATS suites antes de re-vendorizar.
 - `T-AMBOS-10` — Resolver `vendor.manifest.yaml` decorativo (bloqueado por `P-AMBOS-3`).
@@ -234,7 +246,6 @@ Sufijos: `-IHH-` (este repo), `-ERD-` (`erd-ecosystem`), `-AMBOS-` (afecta a amb
 
 - `B-IHH-1` — Tag fantasma en `.devtools.lock` del consumidor.
 - `B-AMBOS-2` — ADR 0002 sin escribir.
-- `B-AMBOS-3` — Genericidad bloqueada por acoplamiento a PMBOK.
 
 ## 14. Auditorías paralelas
 
