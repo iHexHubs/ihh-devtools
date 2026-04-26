@@ -255,8 +255,9 @@ cleanup_on_exit() {
         # 2) preguntar borrado de rama origen (dev/local y si aterrizó bien)
         if [[ "$landed_ok" -eq 1 ]] \
             && [[ "${TARGET_ENV:-}" == "dev" || "${TARGET_ENV:-}" == "local" ]] \
+            && [[ -n "${DEVTOOLS_PROMOTE_FROM_BRANCH:-}" ]] \
             && declare -F maybe_delete_source_branch >/dev/null 2>&1; then
-            maybe_delete_source_branch "${DEVTOOLS_PROMOTE_FROM_BRANCH:-}"
+            maybe_delete_source_branch "${DEVTOOLS_PROMOTE_FROM_BRANCH}"
         fi
 
         exit 0
