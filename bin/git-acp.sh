@@ -215,7 +215,19 @@ do_push() {
       log_warn "El push fue rechazado. Intentando pull --rebase..."
       if GIT_TERMINAL_PROMPT=0 git pull --rebase "$remote" "$branch"; then
           log_success "Rebase exitoso. Reintentando push..."
-          GIT_TERMINAL_PROMPT=0 git fetch --tags "$remote" >/dev/null 2>&1 || true
+          # T-IHH-19: stdout silenciado, stderr filtrado para mostrar solo
+          # los avisos de tag-clobber (sin --force, git rechaza tags
+          # divergentes con un mensaje útil que antes se perdía).
+          local fetch_stderr
+          fetch_stderr="$(GIT_TERMINAL_PROMPT=0 git fetch --tags "$remote" 2>&1 >/dev/null || true)"
+          if [[ -n "$fetch_stderr" ]]; then
+              local clobber_msgs
+              clobber_msgs="$(printf '%s\n' "$fetch_stderr" | grep -E 'rejected|clobber' || true)"
+              if [[ -n "$clobber_msgs" ]]; then
+                  log_warn "Tags locales preservados (no se sobrescriben con --force):"
+                  printf '%s\n' "$clobber_msgs" | sed 's/^/    /' >&2
+              fi
+          fi
           if GIT_TERMINAL_PROMPT=0 git push "$remote" "$branch"; then
               push_success=true
           fi

@@ -264,12 +264,18 @@ cleanup_on_exit() {
 
     # FALLO/CANCEL: restaurar rama inicial
     ui_error "⛔ ABORTADO (seguridad): promote finalizó con error (rc=${exit_code})."
-    ui_warn "↩️ Cleanup: restaurando rama original '${DEVTOOLS_PROMOTE_FROM_BRANCH:-}'."
-    if declare -F git_restore_branch_safely >/dev/null 2>&1; then
-        git_restore_branch_safely "${DEVTOOLS_PROMOTE_FROM_BRANCH:-}"
+    local from_branch="${DEVTOOLS_PROMOTE_FROM_BRANCH:-}"
+    if [[ -z "$from_branch" ]]; then
+        ui_warn "↩️ Cleanup: rama original desconocida (DEVTOOLS_PROMOTE_FROM_BRANCH vacía); no se restaura."
+        ui_warn "   Verifica tu rama actual con 'git status -sb' antes de continuar."
     else
-        ui_warn "Finalizando script. Volviendo a ${DEVTOOLS_PROMOTE_FROM_BRANCH:-}..."
-        git_safe checkout "${DEVTOOLS_PROMOTE_FROM_BRANCH:-}" >/dev/null 2>&1 || true
+        ui_warn "↩️ Cleanup: restaurando rama original '${from_branch}'."
+        if declare -F git_restore_branch_safely >/dev/null 2>&1; then
+            git_restore_branch_safely "$from_branch"
+        else
+            ui_warn "Finalizando script. Volviendo a ${from_branch}..."
+            git_safe checkout "$from_branch" >/dev/null 2>&1 || true
+        fi
     fi
 
     exit "$exit_code"

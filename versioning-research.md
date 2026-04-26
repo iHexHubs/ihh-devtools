@@ -179,12 +179,12 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 
 ### H-IHH-4 — README no documenta todos los entrypoints
 
-- estado: abierto
+- estado: resuelto (auditoría 2026-04-26)
 - severidad: media
-- evidencia: README declara `git acp`, `git promote`, `git feature`, `git gp`, `git rp`, `git sweep`, `git devtools-update`. Existen también en `bin/`: `git-ci.sh`, `git-lim.sh`, `git-pipeline.sh`, `git-pr.sh`, `git-release-draft.sh`, `git-sw.sh`, `setup-wizard.sh`.
-- archivo: `README.md`, `bin/`.
-- línea: no aplicable.
-- impacto: comandos no documentados se descubren por accidente o no se descubren.
+- evidencia: README sección 5 reescrita en tres tablas: "Públicos (uso diario)", "Auxiliares y wrappers", "De infraestructura (no se exponen como `git ...`)". Cada entrada lista comando, entrypoint y descripción. Cubre `git acp/promote/feature/gp/rp/sweep/devtools-update` (públicos), `git ci/pipeline/pr/release-draft/lim/sw` (auxiliares), y `bin/devtools`, `bin/setup-wizard.sh`, `bin/git-devtools-update.sh` (infraestructura).
+- archivo: `README.md`.
+- línea: 36-66 (post-fix).
+- impacto: descubribilidad completa.
 - tarea relacionada: `T-IHH-6`.
 - repos afectados: `ihh-devtools`.
 
@@ -267,12 +267,12 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 
 ### H-IHH-12 — `git-promote.sh:272` hace `checkout` con variable potencialmente vacía
 
-- estado: abierto
+- estado: resuelto (auditoría 2026-04-26)
 - severidad: baja
-- evidencia: línea 272 ejecuta `git_safe checkout "${DEVTOOLS_PROMOTE_FROM_BRANCH:-}" >/dev/null 2>&1 || true`. Si la variable está vacía, equivale a `git checkout ""` que falla silenciosamente.
+- evidencia: el bloque de cleanup ahora valida `DEVTOOLS_PROMOTE_FROM_BRANCH` antes de invocar checkout. Si está vacío, emite aviso `↩️ Cleanup: rama original desconocida ...; no se restaura.` y sugiere `git status -sb`. Si tiene valor, restaura como antes.
 - archivo: `bin/git-promote.sh`.
-- línea: 272.
-- impacto: en cleanup tras error, si la variable se perdió, el restore no ocurre y el operador queda en una rama inesperada.
+- línea: 265-282 (post-fix).
+- impacto: el operador ya no queda en rama inesperada sin saberlo. Sintaxis validada con `bash -n`.
 - tarea relacionada: `T-IHH-13`.
 - repos afectados: `ihh-devtools`.
 
@@ -428,13 +428,12 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 
 ### T-IHH-6 — Documentar todos los entrypoints en README
 
-- estado: abierto
+- estado: resuelto (auditoría 2026-04-26)
 - prioridad: P2
 - hallazgo relacionado: `H-IHH-4`.
-- qué se hizo: nada.
-- qué falta: tabla completa de comandos en README, separando "públicos" e "internos".
+- qué se hizo: README sección 5 reescrita con tres tablas (públicos, auxiliares, infraestructura). Cada entrada con entrypoint y descripción.
+- qué falta: nada.
 - bloqueos: ninguno.
-- siguiente paso: redactar.
 
 ### T-IHH-7 — Decidir patrón único en `lib/promote/workflows/`
 
@@ -498,13 +497,12 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 
 ### T-IHH-13 — Validar variable antes de `checkout` en `git-promote.sh:272`
 
-- estado: abierto
+- estado: resuelto (auditoría 2026-04-26)
 - prioridad: P2
 - hallazgo relacionado: `H-IHH-12`.
-- qué se hizo: nada.
-- qué falta: añadir `[[ -n "$var" ]] || return` antes del checkout.
+- qué se hizo: cleanup_on_exit captura `DEVTOOLS_PROMOTE_FROM_BRANCH` en variable local `from_branch`; si está vacía, salta el restore con aviso explícito. Sintaxis validada con `bash -n`.
+- qué falta: nada.
 - bloqueos: ninguno.
-- siguiente paso: editar.
 
 ### T-IHH-14 — Ampliar `lint:contamination` a `bin/` y `lib/`
 
@@ -547,13 +545,12 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 
 ### T-IHH-19 — Hacer visible el aviso de tag-clobber en `git-acp.sh`
 
-- estado: abierto
+- estado: resuelto (auditoría 2026-04-26)
 - prioridad: P2
 - hallazgo relacionado: ninguno (deuda menor descubierta al cerrar T-IHH-12).
-- qué se hizo: nada.
-- qué falta: el `2>&1` en `bin/git-acp.sh:218` sigue suprimiendo el mensaje `[rejected] (would clobber existing tag)`. El usuario no ve el conflicto en pantalla aunque el tag se preserve. Posible solución: separar stdout (silenciado) de stderr (visible) y filtrar para mostrar solo el aviso relevante.
+- qué se hizo: el `git fetch --tags` post-rebase ahora redirige stdout a `/dev/null` y captura stderr en variable. Si stderr contiene "rejected" o "clobber", se muestran al operador prefijados como aviso (`Tags locales preservados ...`). Sintaxis validada con `bash -n`.
+- qué falta: nada. UX queda visible sin perder el silencio del flujo normal.
 - bloqueos: ninguno.
-- siguiente paso: experimentar con `2> >(grep -E "rejected|clobber" >&2)` o similar; medir UX.
 
 ---
 

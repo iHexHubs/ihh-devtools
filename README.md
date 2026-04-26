@@ -33,18 +33,36 @@ Equipos con múltiples repos necesitan un flujo consistente de commits, promocio
 
 ## 5. Comandos disponibles
 
-| Comando | Descripción | Documentado |
-|---|---|---|
-| `git acp` | Add + commit + push con gestión de identidades SSH y enforcement de feature branch | Sí |
-| `git promote` | Promoción entre ramas con gates por SHA, versionado SemVer, changelog automático y tags | Sí |
-| `git feature` | Crear/actualizar ramas `feature/*` desde `dev` | Sí |
-| `git gp` | Generar prompt para IA con el diff actual | Sí |
-| `git rp` | Reset + force push destructivo del último commit (solo ramas no protegidas) | Sí |
-| `git sweep` | Limpieza masiva de ramas y tags obsoletos | Sí |
-| `git devtools-update` | Actualizar la copia vendorizada en repos consumidores | Sí |
-| `git ci`, `git lim`, `git pipeline`, `git pr`, `git release-draft`, `git sw` | Existen en `bin/`, no documentados | No (`H-IHH-4`) |
+### Públicos (uso diario)
 
-> Una tabla completa con descripción y propósito de cada entrypoint está pendiente (`T-IHH-6`).
+| Comando | Entrypoint | Descripción |
+|---|---|---|
+| `git acp` | `bin/git-acp.sh` | Add + commit + push con gestión de identidades SSH y enforcement de feature branch. |
+| `git promote` | `bin/git-promote.sh` | Promoción entre ramas con gates por SHA, versionado SemVer, changelog automático y tags. |
+| `git feature` | `bin/git-feature.sh` | Crear/actualizar ramas `feature/*` desde `dev`. |
+| `git gp` | `bin/git-gp.sh` | Generar prompt para IA con el diff actual. |
+| `git rp` | `bin/git-rp.sh` | Reset + force push destructivo del último commit (solo ramas no protegidas). |
+| `git sweep` | `bin/git-sweep.sh` | Limpieza masiva de ramas y tags obsoletos. |
+| `git devtools-update` | `bin/git-devtools-update` (wrapper) → `git-devtools-update.sh` | Actualizar la copia vendorizada en repos consumidores. |
+
+### Auxiliares y wrappers
+
+| Comando | Entrypoint | Descripción |
+|---|---|---|
+| `git ci` | `bin/git-ci.sh` | Ejecuta el menú de CI detectado para el repo actual. |
+| `git pipeline` | `bin/git-pipeline.sh` | Ejecuta el pipeline local detectado para el repo actual. |
+| `git pr` | `bin/git-pr.sh` | Crea o abre un PR en GitHub para la rama actual (`BASE_BRANCH=dev` por defecto). |
+| `git release-draft` | `bin/git-release-draft.sh` | Crea o actualiza un release draft en GitHub para un tag existente (`TAG=v1.2.3`). |
+| `git lim` | `bin/git-lim.sh` | Alias rápido: `git-sweep --apply --no-tags`. |
+| `git sw` | `bin/git-sw.sh` | Alias plano hacia `git-sweep` (pasa argumentos tal cual). |
+
+### De infraestructura (no se exponen como `git ...`)
+
+| Entrypoint | Descripción |
+|---|---|
+| `bin/devtools` | Dispatcher principal del toolset. Ejemplo de uso: `devtools apps sync [--only <app>]`. |
+| `bin/setup-wizard.sh` | Wizard interactivo de setup local (identidades SSH/GPG, perfiles); se invoca al entrar por primera vez a `devbox shell`. |
+| `bin/git-devtools-update.sh` | Implementación real de `git devtools-update` (vendoring vía `git archive` del tag base). |
 
 ## 6. Requisitos previos
 
@@ -181,7 +199,7 @@ Sufijos: `-IHH-` (este repo), `-ERD-` (`erd-ecosystem`), `-AMBOS-` (afecta a amb
 | P1 | Importante / próximo ciclo |
 | P2 | Mejora / deuda no bloqueante |
 
-### Resumen de deuda técnica abierta (al 2026-04-25)
+### Resumen de deuda técnica abierta (al 2026-04-26)
 
 | ID | Severidad | Resumen |
 |---|---|---|
@@ -190,30 +208,27 @@ Sufijos: `-IHH-` (este repo), `-ERD-` (`erd-ecosystem`), `-AMBOS-` (afecta a amb
 | `H-AMBOS-1` | Crítica | Lock del consumidor declara versión que no existe aquí |
 | `H-IHH-1` | Alta | Rama `main-b80c3c4` desfasada |
 | `H-IHH-3` | Alta | `git-devtools-update.sh` sin rollback automático |
-| `H-IHH-13` | Alta | `lint:contamination` no escanea `bin/`/`lib/` |
 | `H-IHH-14` | Alta | `git-acp.sh` hace `git add .` sin filtros |
-| `H-IHH-11` | Media | `git fetch --tags --force` tras rebase |
+| `H-AMBOS-2` | Alta | 11 BATS suites del consumer no migradas al canónico |
 
-Listado completo en [`./versioning-research.md`](./versioning-research.md).
+> Hallazgos resueltos en la auditoría 2026-04-26: `H-IHH-4` (entrypoints documentados), `H-IHH-12` (cleanup `git-promote.sh` con variable validada), T-IHH-19 (aviso tag-clobber visible en `git-acp.sh`). Ya resueltos previamente: `H-IHH-11`, `H-IHH-13`, `H-IHH-15`. Detalles en [`./versioning-research.md`](./versioning-research.md).
 
 ### Tareas P0 abiertas
 
 - `T-IHH-2` — Resolver desfase `main-b80c3c4` ↔ `main` y destino de `tests/devbox-shell-smoke.sh`.
-- `T-IHH-4` — Implementar `vendorize.sh` real o eliminar manifest.
-- `T-AMBOS-3` — Aislar variables específicas de PMBOK del `devbox.json`.
+- `T-IHH-4` — Implementar `vendorize.sh` real o eliminar manifest (bloqueado por `P-AMBOS-3`).
+- `T-AMBOS-3` — Aislar variables específicas de PMBOK del `devbox.json` (bloqueado por `P-AMBOS-5`).
 - `T-AMBOS-4` — Decidir tag base real y reescribir `.devtools.lock` del consumidor.
 - `T-AMBOS-5` — Migrar 11 BATS suites antes de re-vendorizar.
-- `T-AMBOS-10` — Resolver `vendor.manifest.yaml` decorativo.
+- `T-AMBOS-10` — Resolver `vendor.manifest.yaml` decorativo (bloqueado por `P-AMBOS-3`).
 
 ### Tareas P1 abiertas
 
 - `T-IHH-3` — Validación de contrato del consumidor.
 - `T-IHH-5` — Rollback automático en `git-devtools-update.sh`.
-- `T-IHH-12` — Quitar `--force` en `git fetch` de `git-acp.sh`.
-- `T-IHH-14` — Ampliar `lint:contamination` a `bin/` y `lib/`.
 - `T-IHH-15` — Refactorizar `git-acp.sh` para `git add` controlado.
 - `T-IHH-16` — Crear `tests/contracts/` con suite base.
-- `T-AMBOS-6` — Estandarizar URL canónica.
+- `T-AMBOS-6` — Estandarizar URL canónica (parcialmente resuelta en `erd-ecosystem` el 2026-04-26).
 
 ### Bloqueos activos
 
