@@ -564,6 +564,7 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 - qué falta: nada del scope original. Cobertura intencionalmente excluida (orquestadores end-to-end, funciones que requieren docker/kubectl/argocd/red): pendiente como bloque P2 separado si surge necesidad.
 - bloqueos: ninguno.
 - impacto: SEC-2B-Phase2 desbloqueada conceptualmente; el refactor de las ~40 menciones literales `pmbok` queda pendiente de ejecución como bloque separado, ya con red de seguridad contractual.
+- complemento (B-4): la decisión arquitectónica previa al refactor está registrada en ADR 0002 (`docs/adr/0002-services-source-of-truth.md`): fuente de verdad de servicios (Forma A `services.yaml` operativa, Forma B `contract.yaml/components[]` futura) + jerarquía oficial de resolución (ENV var → archivo declarativo → error claro, sin fallback silencioso a literales). `devtools.repo.yaml.registries.deploy` cableado con default `ecosystem/services.yaml`.
 
 ---
 

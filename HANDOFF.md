@@ -127,6 +127,15 @@ no operativa.
 - **Hallazgos cerrados:** `N-SCR-1`, `N-SCR-2`, deuda documental de paths absolutos, coherencia README L262 con `P-AMBOS-5` cerrado.
 - **Fuera de alcance:** `H-IHH-14` (refactor `git-acp.sh`), `T-IHH-20` (suite de regresión específica de workflows), Phase2.
 
+### Bloque B-4 — ADR 0002 + cableado SSoT de servicios
+
+- **Objetivo:** registrar la decisión arquitectónica de fuente de verdad de servicios y jerarquía oficial de resolución antes de SEC-2B-Phase2 (B-5). Bloque structural sin código nuevo.
+- **Archivos principales:** `docs/adr/0002-services-source-of-truth.md` (nuevo), `docs/adr/README.md` (índice), `devtools.repo.yaml` (`registries.deploy: ecosystem/services.yaml`).
+- **Validaciones:** YAML válido (`yq`); `task ci` exit 0; suites contractuales sin regresión.
+- **Resultado:** ADR 0002 acepta compatibilidad híbrida `services.yaml` (Forma A, SSoT presente) + `contract.yaml/components[]` (Forma B, futura v2). Jerarquía oficial: ENV var → archivo declarativo → error claro. Cero fallback silencioso a literales (`pmbok`, `iHexHubs`, `elrincondeldetective`). Schema v1.1 no requiere modificación.
+- **Hallazgos cerrados:** decisión arquitectónica registrada (precondición de B-5).
+- **Fuera de alcance:** `lib/core/services.sh` (B-5), refactor `lib/promote/workflows/**` (B-5), migración Forma A → Forma B (deuda v2 futura).
+
 ## 5. Decisiones cerradas
 
 - **5.1** ihh-devtools será toolset universal, no específico-multi.
@@ -142,6 +151,7 @@ no operativa.
   sujeto a validación de contenido en Fase 2C.
 - **5.9** P-AMBOS-4 diferida hasta Fase 2D. NO bloquea Fases 2A-2C.
 - **5.10** P-AMBOS-5 cerrada parcialmente en SEC-2B-Phase1 (commit `d190e9e6`, 2026-04-26): toolset genérico sin asunciones de stack (Django/Vite/PMBOK) en `devbox.json` raíz. Phase2 (refactor de `lib/promote/workflows/**`, ~40 menciones literales `pmbok`) desbloqueada conceptualmente tras cierre de `T-IHH-20` en B-3; pendiente de ejecución como bloque separado.
+- **5.11** ADR 0002 (B-4): fuente de verdad de servicios (Forma A `services.yaml` operativa + Forma B `contract.yaml/components[]` futura) y jerarquía oficial de resolución (ENV var → archivo declarativo → error claro, sin fallback silencioso a literales). `devtools.repo.yaml.registries.deploy` cableado con default `ecosystem/services.yaml`. Precondición arquitectónica de SEC-2B-Phase2 (B-5).
 
 ## 6. Archivos clave actuales
 
