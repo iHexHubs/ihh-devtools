@@ -259,7 +259,7 @@ Ambos archivos viven en `erd-ecosystem` por convención del operador.
 1. Verificar baseline en terminal antes de modificar nada (ver checklist en `versioning-research.md` sección 10).
 2. Resolver `T-IHH-2` (rama y tests) — alto impacto, bajo esfuerzo.
 3. Aplicar `T-IHH-14` (lint:contamination) — cambio de una línea, alto valor.
-4. Decidir `P-AMBOS-3` (vendorización) y `P-AMBOS-5` (genericidad).
+4. Decidir `P-AMBOS-3` (vendorización). `P-AMBOS-5` cerrado parcialmente en SEC-2B-Phase1 (2026-04-26); Phase2 dependiente de T-IHH-16.
 5. Implementar `T-IHH-5` (rollback) antes de cualquier `git devtools-update` masivo.
 
 ## 16. Licencia

@@ -43,7 +43,7 @@ Para cada repo N:
 1. Verificar que ningún cambio local pendiente.
 2. Actualizar `.devtools.lock`:
    - `DEVTOOLS_SOURCE="iHexHubs/ihh-devtools"`
-   - `DEVTOOLS_REPO="/webapps/ihh-devtools"` (o URL remota si aplica).
+   - `DEVTOOLS_REPO="${DEVTOOLS_REPO:-/path/to/ihh-devtools}"` (ajustar al path local del clon, o usar URL remota si aplica).
 3. Ejecutar `git devtools-update` para re-vendorizar `.devtools/` desde el canónico.
 4. Borrar `.devtools.bak.*` si existe.
 5. Probar que los comandos `git acp`, `git promote`, etc. funcionan.

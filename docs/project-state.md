@@ -55,7 +55,7 @@ contenido (tree_sha) es detectable por `vendor_check_drift`.
 - **Documentado en:** `docs/schema-v1.md` (sección 1), este doc.
 - **Resumen:** el contract publicado en `schema/v1/contract.json` es
   estricto (`additionalProperties: false`) y agnóstico de proyecto. Los
-  acoplamientos hoy presentes (44 menciones literales a "pmbok" en
+  acoplamientos hoy presentes (~40 menciones literales a "pmbok" en, post-Phase1).
   `lib/promote/workflows/*`) son deuda activa que se resuelve en Fase 3,
   no nuevo diseño.
 
@@ -107,7 +107,7 @@ contenido (tree_sha) es detectable por `vendor_check_drift`.
 | Fase 2C | pendiente | — | subcomando `vendor:check` solo lectura, primer contacto con erd-ecosystem |
 | Fase 2D | bloqueada | — | re-vendorizado real (bloqueada por P-AMBOS-4) |
 | Fase 2E | pendiente | — | limpieza de drift y automatización estable |
-| Fase 3 | pendiente | — | reemplazo de hardcodings PMBOK (44 menciones, 9 archivos) |
+| Fase 3 | parcial (Phase1 cerrada 2026-04-26) | SEC-2B-Phase1 | Phase1: ~5 menciones retiradas de `devbox.json`. Phase2: ~40 menciones restantes en `lib/promote/workflows/**`. |
 | Fase 4 | pendiente | — | erd-ecosystem adopta el `contract.yaml` |
 | Fase 5 | bloqueada | — | resolución del tag fantasma con re-vendorizado real (depende de P-AMBOS-3 + P-AMBOS-4) |
 | Fase 6 | pendiente | — | docs estables + adaptadores legacy |
@@ -130,7 +130,7 @@ contenido (tree_sha) es detectable por `vendor_check_drift`.
   migración de cache `.devtools.bak.*` a TTL configurable, automatización
   CI de `vendor:check` en repos consumidores.
 
-- **Fase 3** — eliminación de las 44 menciones literales a `pmbok` en
+- **Fase 3** — eliminación de las ~40 menciones literales a `pmbok` (Phase2) en
   `lib/promote/workflows/{to-local/*,common.sh,to-dev.sh}` y
   `devbox.json`. Templatizar `DB_PASSWORD` y `SECRET_KEY` con referencias
   a `.env.local`. Decidir naming canónico del dominio Detective
@@ -225,7 +225,7 @@ y vean menciones a "P-AMBOS-3 abierta".
 
 ### 5.2 Deudas P1 (operativas y arquitectónicas)
 
-- **44 hardcodings literales a "pmbok"** en 9 archivos del toolset
+- **~40 hardcodings literales a "pmbok" (Phase2)** en 9 archivos del toolset
   (concentrados en `lib/promote/workflows/to-local/`). Cierra en
   Fase 3.
 - **`vendorize.sh` decorativo** (33 líneas, NO lee `vendor.manifest.yaml`).
@@ -354,7 +354,7 @@ y vean menciones a "P-AMBOS-3 abierta".
 
 | Repo | Rol | Rama de trabajo | Última HEAD conocida |
 |---|---|---|---|
-| `/webapps/ihh-devtools` | toolset canónico (productor) | `ihh/work` | `ddf04486` (Fase 2B) |
+| `<local clone of ihh-devtools>` | toolset canónico (productor) | `ihh/work` | `ddf04486` (Fase 2B) |
 | `/webapps/erd-ecosystem` | primer consumidor real | `erd/work` | `ac975ba` (governance sync) |
 
 Solo estos dos repos están en el alcance del proyecto actual. Los 7

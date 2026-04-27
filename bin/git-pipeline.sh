@@ -23,8 +23,8 @@ fi
 # CAMBIO FASE 1.1: Usar K8S_FULL_CMD en lugar de LOCAL_PIPELINE_CMD
 if [[ -n "${K8S_FULL_CMD:-}" ]]; then
   echo "▶️  Ejecutando: $K8S_FULL_CMD"
-  # Usamos eval para permitir comandos compuestos (ej. "task build && task deploy")
-  eval "$K8S_FULL_CMD"
+  # Usamos bash -c para permitir comandos compuestos sin abrir scope eval del shell actual.
+  bash -c "$K8S_FULL_CMD"
 else
   log_error "No se detectó un comando de pipeline local."
   echo "   Define una tarea 'pipeline:local' (si usas Taskfile) o configura el contrato de CI."

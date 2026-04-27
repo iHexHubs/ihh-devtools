@@ -172,7 +172,7 @@ python3 - <<'PY'
 import json, yaml, sys
 from jsonschema import Draft202012Validator
 
-with open("/webapps/ihh-devtools/schema/v1/contract.json") as f:
+with open("./schema/v1/contract.json") as f:  # asume CWD = root del repo
     schema = json.load(f)
 
 with open("ruta/a/tu/contract.yaml") as f:

@@ -15,7 +15,7 @@ de los 8 repositorios consumidores.
 ## Contexto
 
 ### Estado previo a la decisión
-- `iHexHubs/ihh-devtools` (path local `/webapps/ihh-devtools/`): toolset con
+- `iHexHubs/ihh-devtools` (path local del clon, ej. `./ihh-devtools/`): toolset con
   tags estilo `ihh-devtools-v0.1.0.rc.1-build.1-rev.1` (no-SemVer estricto).
   Es el más actualizado y la fuente de verdad declarada.
 - `iHexHubs/devtools` (path local `/webapps/erd-devtools/`): toolset paralelo

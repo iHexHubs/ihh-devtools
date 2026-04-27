@@ -80,6 +80,10 @@ ensure_clean_git
 
 # 3. Actualizar rama base (dev) usando git-core.sh
 # update_branch_from_remote <branch> <remote> <no_pull_bool>
+if [[ -z "${BASE_BRANCH:-}" || -z "${REMOTE:-}" ]]; then
+  log_error "BASE_BRANCH o REMOTE vacío; no se puede continuar."
+  exit 1
+fi
 update_branch_from_remote "$BASE_BRANCH" "$REMOTE" "$NO_PULL"
 
 # 4. Crear o Actualizar Feature Branch
