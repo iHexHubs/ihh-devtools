@@ -557,14 +557,13 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 
 ### T-IHH-20 — Suite de regresión para `lib/promote/workflows/**`
 
-- estado: abierto
+- estado: resuelto (B-3)
 - prioridad: P1
 - hallazgo relacionado: `H-AMBOS-9` Phase2.
-- qué se hizo: nada.
-- qué falta: definir la estrategia de tests (snapshot/golden tests u otra) sobre los 9 archivos en `lib/promote/workflows/{to-local/*,common.sh,to-dev.sh}` que serán refactorizados en SEC-2B-Phase2 para retirar las ~40 menciones literales `pmbok`. Implementar la suite y dejarla pasando antes de tocar el código productivo.
-- bloqueos: ninguno operativo. Decisión humana previa: estrategia de tests (snapshot vs invocación dry-run vs combinación).
-- siguiente paso: ADR breve o nota de diseño que fije la estrategia, luego implementación.
-- impacto si no se cierra: SEC-2B-Phase2 sigue bloqueada.
+- qué se hizo: suite contractual `tests/contracts/promote-workflows.bats` con 21 tests cubriendo las funciones casi puras de `lib/promote/workflows/{common.sh,to-local/10-utils.sh,to-local/50-k8s.sh}`: `resolve_promote_component` (6 tests), `promote_is_protected_branch` (4 tests), `promote_local_is_valid_tag_name` (3 tests), `promote_local_read_overlay_tag_from_text` (2 tests), `promote_local_next_tag_from_previous` (2 tests, con mocks de `promote_base_tag_for_local` / `promote_strip_rev_from_tag`), `promote_local_pull_policy` (3 tests) e invariante estructural (1 test). Estrategia escogida: invocación dry-run de funciones aisladas con stubs de logging y mocks puntuales para dependencias de `lib/promote/version-strategy.sh`.
+- qué falta: nada del scope original. Cobertura intencionalmente excluida (orquestadores end-to-end, funciones que requieren docker/kubectl/argocd/red): pendiente como bloque P2 separado si surge necesidad.
+- bloqueos: ninguno.
+- impacto: SEC-2B-Phase2 desbloqueada conceptualmente; el refactor de las ~40 menciones literales `pmbok` queda pendiente de ejecución como bloque separado, ya con red de seguridad contractual.
 
 ---
 
@@ -603,7 +602,7 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
   - `devbox.json` `init_hook`: ajustes de mensaje y label.
   - `README.md`: nota de cierre + migration note para consumers.
   - `versioning-research.md`: este cierre.
-- pendiente Phase2: refactor de `lib/promote/workflows/**` (~40 menciones literales `pmbok`). Bloqueado por `T-IHH-20` (suite de regresión específica de workflows). Nota: `T-IHH-16` cerrado en `ddf04486`.
+- pendiente Phase2: refactor de `lib/promote/workflows/**` (~40 menciones literales `pmbok`). Desbloqueado conceptualmente: `T-IHH-20` resuelto en B-3 (`tests/contracts/promote-workflows.bats`); pendiente de ejecución como bloque separado. Nota: `T-IHH-16` cerrado en `ddf04486`.
 - responsable Phase2: mantenedor de este repo.
 
 ---
@@ -649,9 +648,9 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 - prioridad: P0 → P1 (Phase2)
 - hallazgo relacionado: `H-AMBOS-9`, `H-ERD-8`.
 - qué se hizo Phase1: bloque SEC-2B-Phase1. `devbox.json` `env` retirado, `scripts` PMBOK eliminados, `init_hook` ajustado.
-- qué falta Phase2: refactor de `lib/promote/workflows/**` (~40 hits literales). Bloqueado por `T-IHH-20` (suite de regresión específica de workflows) — el refactor sin tests es riesgoso.
-- bloqueos Phase2: `T-IHH-20` (suite de regresión específica de `lib/promote/workflows/**`).
-- siguiente paso: cuando se cierre `T-IHH-20`, abrir SEC-2B-Phase2.
+- qué falta Phase2: refactor de `lib/promote/workflows/**` (~40 hits literales). `T-IHH-20` resuelto en B-3 (`tests/contracts/promote-workflows.bats`); SEC-2B-Phase2 desbloqueado conceptualmente, pendiente de ejecución como bloque separado.
+- bloqueos Phase2: ninguno conceptual. Pendiente de ejecución (decisión de scheduling humana).
+- siguiente paso: abrir SEC-2B-Phase2 cuando el operador lo priorice; la suite contractual ya cubre las funciones casi puras de los 3 archivos núcleo.
 
 ### T-AMBOS-4 — Decidir tag base real y reescribir `.devtools.lock`
 

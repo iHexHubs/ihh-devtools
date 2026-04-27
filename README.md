@@ -176,7 +176,7 @@ El directorio `devbox-app/` contiene una aplicación de referencia (React + Djan
 | `task lint:contamination` | **Solo escanea `README.md, CHANGELOG.md, scripts, devtools.repo.yaml`** (`H-IHH-13`). NO escanea `bin/` ni `lib/` |
 | `bash scripts/gh-policy-check.sh` | Detectado, no ejecutado |
 | `bash scripts/vendorize.sh` | **Es un placeholder** (`H-AMBOS-8`). Solo verifica que existen `bin/devtools` y `lib/`. No empaqueta nada |
-| BATS tests | `tests/contracts/vendor.bats` (Fase 2B, 18 tests, validación de `lib/core/vendor.sh`) + `tests/contracts/git-acp.bats` (B-2, 19 tests, validación de los modos de staging de `bin/git-acp.sh` + `lib/core/acp-mode.sh`). |
+| BATS tests | `tests/contracts/vendor.bats` (Fase 2B, 18 tests, validación de `lib/core/vendor.sh`) + `tests/contracts/git-acp.bats` (B-2, 19 tests, validación de los modos de staging de `bin/git-acp.sh` + `lib/core/acp-mode.sh`) + `tests/contracts/promote-workflows.bats` (B-3, 21 tests, regresión de funciones casi puras de `lib/promote/workflows/**`). |
 
 ## 13. Auditoría técnica y gobierno del repo
 
@@ -239,7 +239,7 @@ Sufijos: `-IHH-` (este repo), `-ERD-` (`erd-ecosystem`), `-AMBOS-` (afecta a amb
 - `T-IHH-5` — Rollback automático en `git-devtools-update.sh`.
 - `T-IHH-15` — Refactorizar `git-acp.sh` para `git add` controlado. (resuelto en B-2)
 - `T-IHH-16` — Crear `tests/contracts/` con suite base. (resuelto en commit `ddf04486`, Fase 2B)
-- `T-IHH-20` — Suite de regresión específica para `lib/promote/workflows/**` (bloqueador real de SEC-2B-Phase2).
+- `T-IHH-20` — Suite de regresión específica para `lib/promote/workflows/**`. (resuelto en B-3, `tests/contracts/promote-workflows.bats` con 21 tests; SEC-2B-Phase2 desbloqueada conceptualmente)
 - `T-AMBOS-6` — Estandarizar URL canónica (parcialmente resuelta en `erd-ecosystem` el 2026-04-26).
 
 ### Bloqueos activos
@@ -259,7 +259,7 @@ Ambos archivos viven en `erd-ecosystem` por convención del operador.
 1. Verificar baseline en terminal antes de modificar nada (ver checklist en `versioning-research.md` sección 10).
 2. Resolver `T-IHH-2` (rama y tests) — alto impacto, bajo esfuerzo.
 3. Aplicar `T-IHH-14` (lint:contamination) — cambio de una línea, alto valor.
-4. Decidir `P-AMBOS-3` (vendorización). `P-AMBOS-5` cerrado parcialmente en SEC-2B-Phase1 (2026-04-26); Phase2 dependiente de T-IHH-20.
+4. Decidir `P-AMBOS-3` (vendorización). `P-AMBOS-5` cerrado parcialmente en SEC-2B-Phase1 (2026-04-26); Phase2 desbloqueada conceptualmente tras `T-IHH-20` (B-3), pendiente de ejecución.
 5. Implementar `T-IHH-5` (rollback) antes de cualquier `git devtools-update` masivo.
 
 ## 16. Licencia

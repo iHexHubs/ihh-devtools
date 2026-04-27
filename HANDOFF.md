@@ -141,7 +141,7 @@ no operativa.
 - **5.8** Tag de referencia futuro recomendado: `v0.1.0-rc.7`,
   sujeto a validación de contenido en Fase 2C.
 - **5.9** P-AMBOS-4 diferida hasta Fase 2D. NO bloquea Fases 2A-2C.
-- **5.10** P-AMBOS-5 cerrada parcialmente en SEC-2B-Phase1 (commit `d190e9e6`, 2026-04-26): toolset genérico sin asunciones de stack (Django/Vite/PMBOK) en `devbox.json` raíz. Phase2 (refactor de `lib/promote/workflows/**`, ~40 menciones literales `pmbok`) bloqueada por `T-IHH-20` (suite de regresión específica de `lib/promote/workflows/**`, sin diseño cerrado).
+- **5.10** P-AMBOS-5 cerrada parcialmente en SEC-2B-Phase1 (commit `d190e9e6`, 2026-04-26): toolset genérico sin asunciones de stack (Django/Vite/PMBOK) en `devbox.json` raíz. Phase2 (refactor de `lib/promote/workflows/**`, ~40 menciones literales `pmbok`) desbloqueada conceptualmente tras cierre de `T-IHH-20` en B-3; pendiente de ejecución como bloque separado.
 
 ## 6. Archivos clave actuales
 
@@ -197,17 +197,17 @@ Garantías comprobadas por la suite BATS:
 - Sin migración de erd-ecosystem.
 - Sin modificación de `.devtools.lock` legacy.
 - Sin resolución de P-AMBOS-4.
-- Eliminación de hardcodings PMBOK Phase1 cerrada (SEC-2B-Phase1, commit `d190e9e6`): `devbox.json` raíz purgado de literales superficiales. Phase2 pendiente: ~40 menciones literales `pmbok` en `lib/promote/workflows/**`. Bloqueada por `T-IHH-20`.
+- Eliminación de hardcodings PMBOK Phase1 cerrada (SEC-2B-Phase1, commit `d190e9e6`): `devbox.json` raíz purgado de literales superficiales. Phase2 pendiente: ~40 menciones literales `pmbok` en `lib/promote/workflows/**`. Desbloqueada conceptualmente tras cierre de `T-IHH-20` (B-3); pendiente de ejecución.
 
 ## 9. Próximo paso recomendado
 
 Tres opciones reales según prioridad operativa. **Elegir una; no avanzar en paralelo sin ADR.**
 
-### 9.1 Opción A — `T-IHH-20` (suite de regresión para `lib/promote/workflows/**`)
+### 9.1 Opción A — `T-IHH-20` (suite de regresión para `lib/promote/workflows/**`) — APLICADA EN B-3
 
-- **Por qué:** desbloquea SEC-2B-Phase2 con tests de regresión específicos sobre los 9 archivos a refactorizar (`lib/promote/workflows/{to-local/*,common.sh,to-dev.sh}`, ~40 menciones literales `pmbok`). Sin tests no es seguro tocar 9 archivos críticos.
-- **Esfuerzo estimado:** mediano-alto: decisión de estrategia de tests previa (snapshot/dry-run/combinación) + implementación. Archivos nuevos vivirán en `tests/contracts/` o subcarpeta dedicada (`tests/regression/` o similar, decisión de diseño).
-- **Cierra:** habilita SEC-2B-Phase2; completa el plano de regresión necesario antes de templatizar workflows.
+- **Estado:** resuelto en bloque B-3.
+- **Resultado:** suite contractual `tests/contracts/promote-workflows.bats` con 21 tests cubriendo funciones casi puras de `lib/promote/workflows/{common.sh,to-local/10-utils.sh,to-local/50-k8s.sh}`: `resolve_promote_component` (6), `promote_is_protected_branch` (4), `promote_local_is_valid_tag_name` (3), `promote_local_read_overlay_tag_from_text` (2), `promote_local_next_tag_from_previous` (2 con mocks puntuales), `promote_local_pull_policy` (3) e invariante estructural (1). Estrategia: invocación dry-run con stubs de logging. Funciones que requieren docker/kubectl/argocd/red excluidas a propósito (techo del alcance de B-3).
+- **Cierra:** `T-IHH-20`. Desbloquea conceptualmente SEC-2B-Phase2 (refactor `pmbok` en `lib/promote/workflows/**`), pendiente de ejecución como bloque separado.
 
 ### 9.2 Opción B — `H-IHH-14` (refactor `git-acp.sh` con `git add` controlado) — APLICADA EN B-2
 
