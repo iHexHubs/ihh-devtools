@@ -209,11 +209,11 @@ Tres opciones reales según prioridad operativa. **Elegir una; no avanzar en par
 - **Esfuerzo estimado:** mediano-alto: decisión de estrategia de tests previa (snapshot/dry-run/combinación) + implementación. Archivos nuevos vivirán en `tests/contracts/` o subcarpeta dedicada (`tests/regression/` o similar, decisión de diseño).
 - **Cierra:** habilita SEC-2B-Phase2; completa el plano de regresión necesario antes de templatizar workflows.
 
-### 9.2 Opción B — `H-IHH-14` (refactor `git-acp.sh:187` con `git add` controlado)
+### 9.2 Opción B — `H-IHH-14` (refactor `git-acp.sh` con `git add` controlado) — APLICADA EN B-2
 
-- **Por qué:** el wrapper diario más usado hace `git add .` sin filtros; combinado con push automático puede commitear secrets accidentales o artefactos. Reduce riesgo operativo cotidiano.
-- **Esfuerzo estimado:** mediano (refactor + flag `--staged-only` + test interactivo).
-- **Cierra:** `H-IHH-14`, deuda P0/P1 abierta.
+- **Estado:** resuelto en bloque B-2.
+- **Resultado:** default de staging cambia a `confirm` (muestra `git status --short` y pide `[Y/n]` antes de `git add .`). Flags nuevos: `--staged-only` / `--no-add` (no toca el index), `--interactive` / `-p` (`git add -p`), `--yes` / `--no-confirm` (legacy explícito). Variable `DEVTOOLS_ACP_DEFAULT_MODE` (`confirm \| staged \| interactive \| yes`) controla el default; flag CLI siempre gana. Helper en `lib/core/acp-mode.sh`. Suite contractual en `tests/contracts/git-acp.bats` (19 tests, todos verde).
+- **Cierra:** `H-IHH-14` y `T-IHH-15`.
 
 ### 9.3 Opción C — pausar trabajo en ihh-devtools y avanzar en erd-ecosystem (SEC-2C)
 

@@ -86,6 +86,7 @@ LIB_DIR="${SCRIPT_DIR}/../lib"
 
 # Orden de carga importante
 source "${LIB_DIR}/core/utils.sh"       # Helpers UI, Logs, TTY
+source "${LIB_DIR}/core/acp-mode.sh"    # Modo de staging (--staged-only, --interactive, --yes; H-IHH-14)
 export DEVTOOLS_DEFER_PERSISTENT_CONFIG=1
 source "${LIB_DIR}/core/config.sh"      # Configuración y Defaults
 unset DEVTOOLS_DEFER_PERSISTENT_CONFIG
@@ -133,16 +134,25 @@ check_superrepo_guard "$0" "${ORIG_ARGS[@]}"
 
 NO_PUSH=false
 DRY_RUN=false
+ACP_MODE_CLI=""
+ACP_FLAGS_SEEN=()
 ARGS=()
 
 while (( $# )); do
   case "$1" in
     --no-push) NO_PUSH=true; shift ;;
     --dry-run) DRY_RUN=true; shift ;;
+    --staged-only|--no-add) ACP_FLAGS_SEEN+=("staged"); shift ;;
+    --interactive|-p) ACP_FLAGS_SEEN+=("interactive"); shift ;;
+    --yes|--no-confirm) ACP_FLAGS_SEEN+=("yes"); shift ;;
     --force|--i-know-what-im-doing) shift ;; # Ya procesado, lo saltamos
     *) ARGS+=("$1"); shift ;;
   esac
 done
+
+# Validar combinación de flags de modo y resolver el modo CLI explícito.
+acp_check_flag_compat "${ACP_FLAGS_SEEN[@]:-}" || exit 1
+ACP_MODE_CLI="${ACP_FLAGS_SEEN[0]:-}"
 
 MSG="${ARGS[*]:-}"
 if [[ -z "${MSG//[[:space:]]/}" ]]; then
@@ -183,12 +193,13 @@ do_commit() {
   local count="$2"
   local timestamp
   timestamp="$(date '+%Y-%m-%d %H:%M')"
-  
-  git add .
-  
-  if $INTERACTIVE; then 
+
+  # Estrategia de staging delegada a acp_run_add_strategy en EJECUCIÓN
+  # PRINCIPAL (H-IHH-14). Aquí solo commiteamos lo que esté en el index.
+
+  if $INTERACTIVE; then
       git commit
-  else 
+  else
       git commit -m "$msg" -m "📅 Fecha: $timestamp" -m "${REFS_LABEL} #$count"
   fi
 }
@@ -268,11 +279,15 @@ if ! $DRY_RUN; then
     ui_info "Antes estabas en: $before_branch"
     echo
   fi
-  
-  # B. Commit
+
+  # B. Resolver modo de staging y aplicar la estrategia (H-IHH-14, T-IHH-15).
+  RESOLVED_ACP_MODE="$(acp_resolve_mode "${ACP_MODE_CLI:-}")"
+  acp_run_add_strategy "$RESOLVED_ACP_MODE"
+
+  # C. Commit
   do_commit "${MSG:-}" "$NEXT"
-  
-  # C. Push
+
+  # D. Push
   if ! $NO_PUSH; then
     # $push_target viene exportado desde setup_git_identity (o es origin)
     do_push "$push_target"

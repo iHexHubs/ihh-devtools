@@ -37,7 +37,7 @@ Equipos con múltiples repos necesitan un flujo consistente de commits, promocio
 
 | Comando | Entrypoint | Descripción |
 |---|---|---|
-| `git acp` | `bin/git-acp.sh` | Add + commit + push con gestión de identidades SSH y enforcement de feature branch. |
+| `git acp` | `bin/git-acp.sh` | Add + commit + push con gestión de identidades SSH y enforcement de feature branch. Modos de staging: default `confirm` (pide `[Y/n]`), `--staged-only`/`--no-add`, `--interactive`/`-p`, `--yes`/`--no-confirm`. Variable `DEVTOOLS_ACP_DEFAULT_MODE` (`confirm \| staged \| interactive \| yes`) controla el default. |
 | `git promote` | `bin/git-promote.sh` | Promoción entre ramas con gates por SHA, versionado SemVer, changelog automático y tags. |
 | `git feature` | `bin/git-feature.sh` | Crear/actualizar ramas `feature/*` desde `dev`. |
 | `git gp` | `bin/git-gp.sh` | Generar prompt para IA con el diff actual. |
@@ -176,7 +176,7 @@ El directorio `devbox-app/` contiene una aplicación de referencia (React + Djan
 | `task lint:contamination` | **Solo escanea `README.md, CHANGELOG.md, scripts, devtools.repo.yaml`** (`H-IHH-13`). NO escanea `bin/` ni `lib/` |
 | `bash scripts/gh-policy-check.sh` | Detectado, no ejecutado |
 | `bash scripts/vendorize.sh` | **Es un placeholder** (`H-AMBOS-8`). Solo verifica que existen `bin/devtools` y `lib/`. No empaqueta nada |
-| BATS tests | `tests/contracts/vendor.bats` implementado (Fase 2B, 18 tests). Validación contractual de `lib/core/vendor.sh`. |
+| BATS tests | `tests/contracts/vendor.bats` (Fase 2B, 18 tests, validación de `lib/core/vendor.sh`) + `tests/contracts/git-acp.bats` (B-2, 19 tests, validación de los modos de staging de `bin/git-acp.sh` + `lib/core/acp-mode.sh`). |
 
 ## 13. Auditoría técnica y gobierno del repo
 
@@ -220,10 +220,9 @@ Sufijos: `-IHH-` (este repo), `-ERD-` (`erd-ecosystem`), `-AMBOS-` (afecta a amb
 | `H-AMBOS-1` | Crítica | Lock del consumidor declara versión que no existe aquí |
 | `H-IHH-1` | Alta | Rama `main-b80c3c4` desfasada |
 | `H-IHH-3` | Alta | `git-devtools-update.sh` sin rollback automático |
-| `H-IHH-14` | Alta | `git-acp.sh` hace `git add .` sin filtros |
 | `H-AMBOS-2` | Alta | 11 BATS suites del consumer no migradas al canónico |
 
-> Hallazgos resueltos en la auditoría 2026-04-26: `H-IHH-4` (entrypoints documentados), `H-IHH-12` (cleanup `git-promote.sh` con variable validada), T-IHH-19 (aviso tag-clobber visible en `git-acp.sh`), **`H-AMBOS-9` Phase1** (bloque `env` PMBOK retirado del `devbox.json`; ~40 menciones literales en `lib/promote/workflows/**` quedan para Phase2). Ya resueltos previamente: `H-IHH-11`, `H-IHH-13`, `H-IHH-15`. Detalles en [`./versioning-research.md`](./versioning-research.md).
+> Hallazgos resueltos en la auditoría 2026-04-26: `H-IHH-4` (entrypoints documentados), `H-IHH-12` (cleanup `git-promote.sh` con variable validada), T-IHH-19 (aviso tag-clobber visible en `git-acp.sh`), **`H-AMBOS-9` Phase1** (bloque `env` PMBOK retirado del `devbox.json`; ~40 menciones literales en `lib/promote/workflows/**` quedan para Phase2), **`H-IHH-14`** (refactor opción F en `git-acp.sh` con flags `--staged-only`/`--interactive`/`--yes` + variable `DEVTOOLS_ACP_DEFAULT_MODE`; bloque B-2). Ya resueltos previamente: `H-IHH-11`, `H-IHH-13`, `H-IHH-15`. Detalles en [`./versioning-research.md`](./versioning-research.md).
 
 ### Tareas P0 abiertas
 
@@ -238,7 +237,7 @@ Sufijos: `-IHH-` (este repo), `-ERD-` (`erd-ecosystem`), `-AMBOS-` (afecta a amb
 
 - `T-IHH-3` — Validación de contrato del consumidor.
 - `T-IHH-5` — Rollback automático en `git-devtools-update.sh`.
-- `T-IHH-15` — Refactorizar `git-acp.sh` para `git add` controlado.
+- `T-IHH-15` — Refactorizar `git-acp.sh` para `git add` controlado. (resuelto en B-2)
 - `T-IHH-16` — Crear `tests/contracts/` con suite base. (resuelto en commit `ddf04486`, Fase 2B)
 - `T-IHH-20` — Suite de regresión específica para `lib/promote/workflows/**` (bloqueador real de SEC-2B-Phase2).
 - `T-AMBOS-6` — Estandarizar URL canónica (parcialmente resuelta en `erd-ecosystem` el 2026-04-26).

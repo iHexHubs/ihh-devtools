@@ -116,6 +116,28 @@ export DEVTOOLS_RP_PR_WAIT_TIMEOUT_SECONDS="${DEVTOOLS_RP_PR_WAIT_TIMEOUT_SECOND
 export DEVTOOLS_RP_PR_WAIT_POLL_SECONDS="${DEVTOOLS_RP_PR_WAIT_POLL_SECONDS:-2}"
 
 # ==============================================================================
+# DEFAULT MODE PARA git-acp (H-IHH-14, T-IHH-15)
+# ==============================================================================
+# Objetivo:
+# - Controlar el comportamiento de staging por defecto del wrapper git-acp.
+# - Valores aceptados:
+#     confirm      Pide [Y/n] tras mostrar git status --short antes de git add . (default).
+#     staged       NO toca el index; commitea exactamente lo que ya estaba staged.
+#     interactive  Invoca git add -p antes del commit.
+#     yes          git add . directo sin preguntar (legacy).
+# - Los flags --staged-only/--no-add, --interactive/-p, --yes/--no-confirm
+#   sobreescriben este default cuando se pasan en CLI.
+export DEVTOOLS_ACP_DEFAULT_MODE="${DEVTOOLS_ACP_DEFAULT_MODE:-confirm}"
+case "${DEVTOOLS_ACP_DEFAULT_MODE}" in
+  confirm|staged|interactive|yes) ;;
+  *)
+    echo "❌ Configuración inválida: DEVTOOLS_ACP_DEFAULT_MODE='${DEVTOOLS_ACP_DEFAULT_MODE}'." >&2
+    echo "   Valores aceptados: confirm | staged | interactive | yes." >&2
+    exit 2
+    ;;
+esac
+
+# ==============================================================================
 # 4. DETERMINICIÓN DE MODO (SIMPLE vs PRO)
 # ==============================================================================
 

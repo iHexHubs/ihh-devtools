@@ -289,13 +289,13 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 
 ### H-IHH-14 — `git-acp.sh:187` hace `git add .` sin filtros
 
-- estado: abierto
+- estado: resuelto (B-2)
 - severidad: alta
-- evidencia: línea 187: `git add .`. Sin opción `--staged-only`, sin preview, sin `git add -p`.
-- archivo: `bin/git-acp.sh`.
-- línea: 187.
-- impacto: combinado con el push automático, puede commitear archivos no intencionados (artefactos, archivos temporales, secrets accidentales).
-- tarea relacionada: `T-IHH-15`.
+- evidencia original: línea 187 ejecutaba `git add .` sin preview, sin `--staged-only`, sin `git add -p`.
+- evidencia post-fix: `git add .` ya no aparece como statement directo en `bin/git-acp.sh`. La estrategia de staging vive en `lib/core/acp-mode.sh` (helper `acp_run_add_strategy`) y se selecciona via flag CLI o variable `DEVTOOLS_ACP_DEFAULT_MODE`. El default es `confirm` (muestra `git status --short` y pide `[Y/n]` antes de stagear).
+- archivo: `bin/git-acp.sh` + `lib/core/acp-mode.sh` + `lib/core/config.sh`.
+- impacto residual: ninguno con default `confirm`. El comportamiento legacy sigue disponible explícitamente con `--yes` / `--no-confirm` o `DEVTOOLS_ACP_DEFAULT_MODE=yes`.
+- tarea relacionada: `T-IHH-15` (resuelto en el mismo bloque).
 - repos afectados: ambos.
 
 ### H-IHH-15 — `lint:contamination` confunde docs legítima con contaminación
@@ -520,13 +520,12 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 
 ### T-IHH-15 — Refactorizar `git-acp.sh` para `git add` controlado
 
-- estado: abierto
+- estado: resuelto (B-2)
 - prioridad: P1
 - hallazgo relacionado: `H-IHH-14`.
-- qué se hizo: nada.
-- qué falta: ofrecer flag `--staged-only` y/o modo interactivo `git add -p` cuando `SIMPLE_MODE=false`.
+- qué se hizo: refactor opción F (combinación de modos). Default cambia a `confirm` (muestra `git status --short`, pide `[Y/n]` antes de `git add .`). Flags nuevos: `--staged-only` (alias `--no-add`), `--interactive` (alias `-p`, invoca `git add -p`), `--yes` (alias `--no-confirm`, comportamiento legacy). Variable `DEVTOOLS_ACP_DEFAULT_MODE` (`confirm | staged | interactive | yes`) controla el default; flag CLI siempre gana. Helper en `lib/core/acp-mode.sh`. Suite contractual en `tests/contracts/git-acp.bats` (19 tests).
+- qué falta: nada del scope original.
 - bloqueos: ninguno.
-- siguiente paso: diseño + implementación.
 
 ### T-IHH-16 — Crear `tests/contracts/` con suite base
 
