@@ -357,7 +357,7 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 
 ### H-AMBOS-9 — Toolset acoplado a PMBOK con secret hardcodeado
 
-- estado: parcialmente resuelto (Phase1 cerrada 2026-04-26; Phase2 pendiente)
+- estado: resuelto (Phase1 cerrada 2026-04-26 SEC-2B-Phase1; Phase2 cerrada 2026-04-27 B-5 SEC-2B-Phase2)
 - severidad: crítica
 - evidencia original:
   - `devbox.json:30-33`: `DB_NAME=pmbok_db`, `DB_USER=pmbok_user`, `DB_PASSWORD=secretpassword123`.
@@ -367,13 +367,13 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
   - `devbox.json` `env`: bloque retirado, solo conserva `DEVBOX_ENV_NAME=IHH` (identificador del shell, no app).
   - `devbox.json` `scripts.backend`/`frontend`: eliminados.
   - `devbox.json` `init_hook` línea 143: aviso genérico; línea 145 case "Dev": `DEVBOX_ENV_NAME=DEV`.
-- pendiente Phase2:
-  - ~40 menciones literales `pmbok` en `lib/promote/workflows/common.sh`, `to-dev.sh`, `to-local/*.sh` (refactor mayor; coupled a `tests/`).
-- archivo: `devbox.json` (Phase1) + `lib/promote/workflows/**` (Phase2).
-- impacto residual:
-  - Vía `H-AMBOS-8`, el `devbox.json` ya purgado de PMBOK viajará a cada consumer cuando re-vendorize. Riesgo principal acotado.
-  - El acoplamiento en `lib/promote/workflows/**` sigue activo hasta Phase2.
-- tarea relacionada: `T-AMBOS-3` (Phase1 cerrada, Phase2 abierta).
+- evidencia post-Phase2 (B-5):
+  - `lib/core/services.sh` (helper canónico) + jerarquía oficial ENV var → archivo declarativo (`ecosystem/services.yaml`) → error claro, conforme a ADR 0002.
+  - 8 archivos refactorizados: `lib/promote/workflows/common.sh`, `to-dev.sh`, `to-local/{10-utils,20-ci-gate,40-build,50-k8s,60-argocd,90-main}.sh`. Cero defaults literales `pmbok` en lógica de control de flujo.
+  - Las 5 categorías virtuales de `resolve_promote_component` (`ihh`, `pmbok`, `iHexHubs`, `devbox`, `ihh-ecosystem`) se preservan tal cual; son etiquetas de cambio, no IDs de servicios.
+- archivo: `devbox.json` (Phase1) + `lib/promote/workflows/**` (Phase2) + `lib/core/services.sh` (helper).
+- impacto residual: ninguno. Comportamiento iHexHubs-específico, si surge en el futuro, se condiciona al campo declarativo `identity.family` del contract (ADR 0002 §5).
+- tarea relacionada: `T-AMBOS-3` (Phase1 + Phase2 cerradas).
 - repos afectados: ambos.
 
 ---
@@ -645,13 +645,13 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 
 ### T-AMBOS-3 — Aislar variables específicas de PMBOK del `devbox.json`
 
-- estado: Phase1 resuelto (2026-04-26); Phase2 abierto
-- prioridad: P0 → P1 (Phase2)
+- estado: resuelto (Phase1 SEC-2B-Phase1 2026-04-26; Phase2 SEC-2B-Phase2 / B-5 2026-04-27)
+- prioridad: P0 → cerrado
 - hallazgo relacionado: `H-AMBOS-9`, `H-ERD-8`.
 - qué se hizo Phase1: bloque SEC-2B-Phase1. `devbox.json` `env` retirado, `scripts` PMBOK eliminados, `init_hook` ajustado.
-- qué falta Phase2: refactor de `lib/promote/workflows/**` (~40 hits literales). `T-IHH-20` resuelto en B-3 (`tests/contracts/promote-workflows.bats`); SEC-2B-Phase2 desbloqueado conceptualmente, pendiente de ejecución como bloque separado.
-- bloqueos Phase2: ninguno conceptual. Pendiente de ejecución (decisión de scheduling humana).
-- siguiente paso: abrir SEC-2B-Phase2 cuando el operador lo priorice; la suite contractual ya cubre las funciones casi puras de los 3 archivos núcleo.
+- qué se hizo Phase2 (B-5): refactor mecánico de `lib/promote/workflows/**` (~40 hits literales) consumiendo `lib/core/services.sh` (helper canónico que implementa ADR 0002). Los 8 archivos núcleo del flujo dejan de tener defaults literales `pmbok` en lógica de control de flujo. Suite contractual nueva `tests/contracts/services.bats` (22 tests) y regresión cero confirmada en las 3 suites previas (vendor 18/18, git-acp 19/19, promote-workflows 21/21).
+- bloqueos Phase2: ninguno.
+- siguiente paso: ninguno; SEC-2B-Phase2 cerrado.
 
 ### T-AMBOS-4 — Decidir tag base real y reescribir `.devtools.lock`
 

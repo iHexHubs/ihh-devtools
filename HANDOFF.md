@@ -136,6 +136,15 @@ no operativa.
 - **Hallazgos cerrados:** decisión arquitectónica registrada (precondición de B-5).
 - **Fuera de alcance:** `lib/core/services.sh` (B-5), refactor `lib/promote/workflows/**` (B-5), migración Forma A → Forma B (deuda v2 futura).
 
+### Bloque B-5 — SEC-2B-Phase2 (helper de servicios + refactor workflows)
+
+- **Objetivo:** implementar la jerarquía oficial registrada en ADR 0002 y refactorizar mecánicamente los 8 archivos de `lib/promote/workflows/**` con ~40 menciones literales `pmbok` para que consuman el helper.
+- **Archivos principales:** `lib/core/services.sh` (nuevo, helper canónico), `lib/promote/workflows/{common.sh,to-dev.sh,to-local/{10-utils,20-ci-gate,40-build,50-k8s,60-argocd,90-main}.sh}` (refactor), `tests/contracts/services.bats` (suite nueva, 22 tests).
+- **Validaciones:** `bash -n` OK en los 9 archivos shell; `task lint:shell` exit 0; `task lint:contamination` exit 0; `task ci` exit 0; las 4 suites contractuales verde (vendor 18/18, git-acp 19/19, promote-workflows 21/21 sin regresión, services 22/22 nueva).
+- **Resultado:** `lib/core/services.sh` con 8 funciones públicas (`services_resolve_path`, `services_load`, `services_resolve_by_id`, `services_resolve_by_path`, `services_image_for`, `services_argocd_app_for`, `services_changelog_for`, `services_local_image_name`) que implementan la jerarquía oficial ENV var → archivo declarativo → error claro. Cero defaults literales `pmbok` en lógica de control de flujo. Las 5 categorías virtuales de `resolve_promote_component` (`ihh`, `pmbok`, `iHexHubs`, `devbox`, `ihh-ecosystem`) se preservan como etiquetas de cambio.
+- **Hallazgos cerrados:** `H-AMBOS-9` Phase2, `T-AMBOS-3` Phase2, SEC-2B-Phase2.
+- **Fuera de alcance:** templates de workflows GitHub Actions (futuro), `.ci/contract-checks.yaml` (sub-deuda P2), migración Forma A → Forma B (deuda v2 futura).
+
 ## 5. Decisiones cerradas
 
 - **5.1** ihh-devtools será toolset universal, no específico-multi.
@@ -152,6 +161,7 @@ no operativa.
 - **5.9** P-AMBOS-4 diferida hasta Fase 2D. NO bloquea Fases 2A-2C.
 - **5.10** P-AMBOS-5 cerrada parcialmente en SEC-2B-Phase1 (commit `d190e9e6`, 2026-04-26): toolset genérico sin asunciones de stack (Django/Vite/PMBOK) en `devbox.json` raíz. Phase2 (refactor de `lib/promote/workflows/**`, ~40 menciones literales `pmbok`) desbloqueada conceptualmente tras cierre de `T-IHH-20` en B-3; pendiente de ejecución como bloque separado.
 - **5.11** ADR 0002 (B-4): fuente de verdad de servicios (Forma A `services.yaml` operativa + Forma B `contract.yaml/components[]` futura) y jerarquía oficial de resolución (ENV var → archivo declarativo → error claro, sin fallback silencioso a literales). `devtools.repo.yaml.registries.deploy` cableado con default `ecosystem/services.yaml`. Precondición arquitectónica de SEC-2B-Phase2 (B-5).
+- **5.12** SEC-2B-Phase2 cerrada en B-5 (2026-04-27): `lib/core/services.sh` implementa la jerarquía de ADR 0002; `lib/promote/workflows/**` consume el helper sin defaults literales `pmbok`. Las 5 categorías virtuales de `resolve_promote_component` (`ihh`, `pmbok`, `iHexHubs`, `devbox`, `ihh-ecosystem`) se preservan como etiquetas de cambio (no son IDs de servicios; ADR 0002 §1).
 
 ## 6. Archivos clave actuales
 

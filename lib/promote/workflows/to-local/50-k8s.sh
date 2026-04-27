@@ -73,9 +73,19 @@ promote_local_verify_overlay_image_settings_or_die() {
 
 promote_local_log_render_hints() {
     local rendered_text="$1"
+    local backend_img frontend_img
+    backend_img="$(__promote_local_backend_image_name 2>/dev/null || true)"
+    frontend_img="$(__promote_local_frontend_image_name 2>/dev/null || true)"
+    local hint_pattern='^[[:space:]]*(-[[:space:]]*)?image:|^[[:space:]]*name:[[:space:]].*(frontend|backend)'
+    if [[ -n "$backend_img" ]]; then
+        hint_pattern="${hint_pattern}|${backend_img}"
+    fi
+    if [[ -n "$frontend_img" ]]; then
+        hint_pattern="${hint_pattern}|${frontend_img}"
+    fi
     local hints=""
     hints="$(printf '%s\n' "$rendered_text" \
-        | grep -nE '^[[:space:]]*(-[[:space:]]*)?image:|^[[:space:]]*name:[[:space:]].*(frontend|backend)|pmbok-frontend|pmbok-backend' \
+        | grep -nE "$hint_pattern" \
         | head -n 20 || true)"
     if [[ -n "${hints:-}" ]]; then
         log_warn "🧾 Pistas del render (top 20):"
@@ -110,17 +120,20 @@ promote_local_verify_rendered_tags_or_die() {
     local frontend_image=""
     local rendered_images=""
     local rendered_images_count="0"
+    local expected_backend expected_frontend
+    expected_backend="$(__promote_local_backend_image_name)"
+    expected_frontend="$(__promote_local_frontend_image_name)"
     log_info "🔎 GitOps render: ${overlay_dir}"
-    log_info "🎯 Esperadas: backend=pmbok-backend frontend=pmbok-frontend tag=${expected_tag}"
+    log_info "🎯 Esperadas: backend=${expected_backend} frontend=${expected_frontend} tag=${expected_tag}"
     rendered_images="$(printf '%s\n' "$rendered" \
         | sed -nE 's/^[[:space:]]*(-[[:space:]]*)?image:[[:space:]]*"?([^"[:space:]]+)"?.*$/\2/p')"
     rendered_images_count="$(printf '%s\n' "$rendered_images" | sed '/^[[:space:]]*$/d' | wc -l | tr -d '[:space:]')"
     log_info "🔍 Imágenes detectadas en render: ${rendered_images_count}"
 
     backend_image="$(printf '%s\n' "$rendered_images" \
-        | awk '($0 ~ /(^|\/)backend:/ || $0 ~ /pmbok-backend:/) { print; exit }')"
+        | awk -v expected="${expected_backend}:" '($0 ~ /(^|\/)backend:/ || index($0, expected) > 0) { print; exit }')"
     frontend_image="$(printf '%s\n' "$rendered_images" \
-        | awk '($0 ~ /(^|\/)frontend:/ || $0 ~ /pmbok-frontend:/) { print; exit }')"
+        | awk -v expected="${expected_frontend}:" '($0 ~ /(^|\/)frontend:/ || index($0, expected) > 0) { print; exit }')"
 
     if [[ -z "${backend_image:-}" ]]; then
         log_error "⛔ ABORTADO (seguridad): backend no aparece en render de ${overlay_dir}."

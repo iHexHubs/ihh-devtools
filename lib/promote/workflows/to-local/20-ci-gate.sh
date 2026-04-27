@@ -531,10 +531,24 @@ promote_local_detect_changes() {
     local diff_files=""
     diff_files="$(git diff --name-only "$base_commit" "$source_sha" 2>/dev/null || true)"
 
-    if echo "$diff_files" | grep -q "^apps/pmbok/backend/"; then
+    # Iterar servicios declarados en la SSoT (ADR 0002). kind=service => backend,
+    # kind=webapp => frontend. Si la SSoT no carga, conservar el comportamiento
+    # legacy de asumir cambios en ambos componentes.
+    if declare -F services_load >/dev/null 2>&1 && services_load 2>/dev/null; then
+        local svc_kind svc_path
+        while IFS=$'\t' read -r svc_kind svc_path; do
+            [[ -z "${svc_path:-}" ]] && continue
+            if echo "$diff_files" | grep -q "^${svc_path}/"; then
+                case "$svc_kind" in
+                    service) backend_changed=1 ;;
+                    webapp)  frontend_changed=1 ;;
+                esac
+            fi
+        done < <(printf '%s' "${__DEVTOOLS_SERVICES_CONTENT:-}" \
+                    | yq eval -r '.services[] | [.kind, .path] | @tsv' - 2>/dev/null || true)
+    else
+        log_warn "No pude cargar services.yaml; asumo cambios en backend y frontend."
         backend_changed=1
-    fi
-    if echo "$diff_files" | grep -q "^apps/pmbok/frontend/"; then
         frontend_changed=1
     fi
 

@@ -156,7 +156,12 @@ promote_dev_argocd_optional_mode_enabled() {
 }
 
 promote_dev_preflight_argocd_or_die() {
-    local argocd_app="${DEVTOOLS_PROMOTE_ARGOCD_APP:-pmbok}"
+    local argocd_app="${DEVTOOLS_PROMOTE_ARGOCD_APP:-}"
+    if [[ -z "$argocd_app" ]]; then
+        log_error "❌ promote_dev_preflight_argocd_or_die: DEVTOOLS_PROMOTE_ARGOCD_APP no definida."
+        log_error "   Exporta DEVTOOLS_PROMOTE_ARGOCD_APP=<nombre-app-argocd>. Ver ADR 0002 (docs/adr/0002-services-source-of-truth.md)."
+        return 2
+    fi
 
     if declare -F promote_preflight_argocd_or_die >/dev/null 2>&1; then
         if promote_preflight_argocd_or_die "$argocd_app"; then
@@ -274,8 +279,13 @@ promote_dev_ensure_tag_remote_or_die() {
 
 promote_dev_sync_argocd_with_tag_or_die() {
     local tag="${1:-}"
-    local argocd_app="${DEVTOOLS_PROMOTE_ARGOCD_APP:-pmbok}"
+    local argocd_app="${DEVTOOLS_PROMOTE_ARGOCD_APP:-}"
     local wait_timeout="${DEVTOOLS_ARGOCD_WAIT_TIMEOUT:-300}"
+    if [[ -z "$argocd_app" ]]; then
+        log_error "❌ promote_dev_sync_argocd_with_tag_or_die: DEVTOOLS_PROMOTE_ARGOCD_APP no definida."
+        log_error "   Exporta DEVTOOLS_PROMOTE_ARGOCD_APP=<nombre-app-argocd>. Ver ADR 0002."
+        return 2
+    fi
 
     if [[ "${DEVTOOLS_PROMOTE_DEV_ARGOCD_SKIPPED:-0}" == "1" ]]; then
         log_warn "⚠️ ArgoCD omitido por preflight opcional (CI/no interactivo)."

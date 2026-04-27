@@ -24,6 +24,20 @@ if ! declare -F banner >/dev/null 2>&1; then
 fi
 
 # ==============================================================================
+# COMPAT: helper canónico de servicios (lib/core/services.sh) puede no estar
+# cargado por el caller. Source defensivo para que las invocaciones a
+# services_argocd_app_for / services_image_for / etc. resuelvan siempre.
+# Ver ADR 0002 (B-4) y SEC-2B-Phase2 (B-5).
+# ==============================================================================
+if ! declare -F services_resolve_path >/dev/null 2>&1; then
+    __promote_common_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [[ -f "${__promote_common_dir}/../../core/services.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "${__promote_common_dir}/../../core/services.sh"
+    fi
+fi
+
+# ==============================================================================
 # HELPERS: Gestión de repositorio y limpieza
 # ==============================================================================
 
@@ -454,7 +468,11 @@ promote_preflight_docker_or_die() {
 }
 
 promote_preflight_argocd_or_die() {
-    local argocd_app="${1:-pmbok}"
+    local argocd_app="${1:-}"
+    if [[ -z "$argocd_app" ]]; then
+        log_error "❌ promote_preflight_argocd_or_die: nombre de app ArgoCD vacío. Pasa el id explícito o exporta DEVTOOLS_PROMOTE_ARGOCD_APP. Ver ADR 0002."
+        return 2
+    fi
 
     if ! command -v argocd >/dev/null 2>&1; then
         log_error "❌ ArgoCD CLI no disponible o sin login. Ejecuta: argocd login <server> ..."
@@ -511,10 +529,14 @@ promote_ensure_tag_remote_or_die() {
 
 promote_argocd_sync_by_tag_or_die() {
     local tag="${1:-}"
-    local argocd_app="${2:-pmbok}"
+    local argocd_app="${2:-}"
     local wait_timeout="${3:-${DEVTOOLS_ARGOCD_WAIT_TIMEOUT:-300}}"
 
     [[ -n "${tag:-}" ]] || { log_error "❌ Tag vacío para sync ArgoCD."; return 2; }
+    if [[ -z "$argocd_app" ]]; then
+        log_error "❌ promote_argocd_sync_by_tag_or_die: nombre de app ArgoCD vacío. Pasa el id explícito o exporta DEVTOOLS_PROMOTE_ARGOCD_APP. Ver ADR 0002."
+        return 2
+    fi
 
     if [[ "${DEVTOOLS_DRY_RUN:-0}" == "1" ]]; then
         log_info "⚗️ DRY-RUN: omito ArgoCD set/sync para ${argocd_app} -> ${tag}."

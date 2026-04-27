@@ -214,11 +214,12 @@ y vean menciones a "P-AMBOS-3 abierta".
   filter-repo` + force-push coordinado (T0.0-bis). Independiente de
   Fase 5 (no mezclar flujos).
 - **Secret `DB_PASSWORD` hardcodeado** en `devbox.json` del toolset:
-  cerrado Phase1 (`SEC-2B-Phase1`, commit `d190e9e6`, 2026-04-26). El
-  bloque `env` se redujo a `DEVBOX_ENV_NAME`; ya no contiene
-  `DB_PASSWORD`, `SECRET_KEY` ni vars de stack. Phase2 (refactor de
-  `lib/promote/workflows/**`) desbloqueada conceptualmente tras cierre
-  de `T-IHH-20` (B-3); pendiente de ejecución como bloque separado.
+  cerrado Phase1 (`SEC-2B-Phase1`, commit `d190e9e6`, 2026-04-26) +
+  Phase2 (B-5 SEC-2B-Phase2, 2026-04-27). El bloque `env` se redujo a
+  `DEVBOX_ENV_NAME`; ya no contiene `DB_PASSWORD`, `SECRET_KEY` ni
+  vars de stack. Phase2 cerrada: refactor de `lib/promote/workflows/**`
+  consume `lib/core/services.sh` (jerarquía oficial ADR 0002) y ya no
+  tiene defaults literales `pmbok` en lógica de control de flujo.
 - **Email gmail/hotmail/yahoo/outlook detectado** en
   `erd-ecosystem/devops/aws/workspaces/variables.tf` (1 archivo,
   detección en HEAD actual). Probablemente legítimo (defaults Terraform
@@ -229,12 +230,16 @@ y vean menciones a "P-AMBOS-3 abierta".
 
 ### 5.2 Deudas P1 (operativas y arquitectónicas)
 
-- **~40 hardcodings literales a "pmbok" (Phase2)** en 9 archivos del toolset
-  (concentrados en `lib/promote/workflows/to-local/`). Desbloqueada
-  conceptualmente: `T-IHH-20` resuelto en B-3 con suite contractual
-  `tests/contracts/promote-workflows.bats` (21 tests sobre funciones
-  casi puras de `common.sh` y `to-local/{10-utils,50-k8s}.sh`). El
-  refactor queda pendiente de ejecución como SEC-2B-Phase2.
+- **~40 hardcodings literales a "pmbok" (Phase2)** en 8 archivos del toolset
+  (concentrados en `lib/promote/workflows/to-local/`). Cerrada en B-5
+  (SEC-2B-Phase2, 2026-04-27): refactor mecánico consumiendo
+  `lib/core/services.sh` (helper canónico que implementa la jerarquía
+  oficial de ADR 0002). Suite contractual nueva
+  `tests/contracts/services.bats` (22 tests) más regresión cero en
+  vendor.bats (18/18), git-acp.bats (19/19), promote-workflows.bats
+  (21/21). Las 5 categorías virtuales de `resolve_promote_component`
+  (`ihh`, `pmbok`, `iHexHubs`, `devbox`, `ihh-ecosystem`) se preservan
+  como etiquetas de cambio; no son IDs de servicios.
 - **`vendorize.sh` decorativo** (33 líneas, NO lee `vendor.manifest.yaml`).
   El vendoring real lo hace `git archive --format=tar` en
   `bin/git-devtools-update.sh:356`, que extrae el árbol completo del
@@ -482,7 +487,7 @@ Esta sección consolida el inventario de hallazgos al cierre de la sesión 2026-
 
 ### 11.4 En curso / bloqueado
 
-- `H-AMBOS-9` Phase2 — ~40 menciones literales `pmbok` en `lib/promote/workflows/**`. Desbloqueado conceptualmente tras cierre de `T-IHH-20` (B-3); pendiente de ejecución como bloque separado.
+- `H-AMBOS-9` Phase2 cerrado en B-5 (SEC-2B-Phase2): refactor de los 8 archivos núcleo de `lib/promote/workflows/**` consumiendo `lib/core/services.sh`. Sin defaults literales `pmbok` en lógica de control de flujo.
 - `H-IHH-14` cerrado en B-2 (refactor opción F en `git-acp.sh` con flags `--staged-only`/`--interactive`/`--yes` + variable `DEVTOOLS_ACP_DEFAULT_MODE`).
 - `T-IHH-16` cerrado en `ddf04486` (Fase 2B). Suite `tests/contracts/vendor.bats` con 18 tests. `.ci/contract-checks.yaml` queda como sub-deuda P2 separada, no bloqueante.
 - `T-IHH-20` cerrado en B-3. Suite `tests/contracts/promote-workflows.bats` con 21 tests cubriendo funciones casi puras de `common.sh` y `to-local/{10-utils,50-k8s}.sh`.
@@ -517,7 +522,7 @@ Esta sección consolida el inventario de hallazgos al cierre de la sesión 2026-
 
 ### 11.9 Bloqueado por falta de tests
 
-- (vacío) `T-IHH-20` resuelto en B-3; `H-AMBOS-9` Phase2 desbloqueado conceptualmente, pendiente de ejecución.
+- (vacío) `T-IHH-20` resuelto en B-3; `H-AMBOS-9` Phase2 cerrado en B-5 con refactor consumiendo `lib/core/services.sh`.
 
 ### 11.10 Riesgos abiertos relevantes
 
@@ -528,10 +533,10 @@ Esta sección consolida el inventario de hallazgos al cierre de la sesión 2026-
 
 ### 11.11 Próximos bloques recomendados (orden defendible)
 
-1. **SEC-2B-Phase2** (en ihh-devtools) — refactor de las ~40 menciones literales `pmbok` en `lib/promote/workflows/**`. Desbloqueado conceptualmente tras cierre de `T-IHH-20` (B-3) y `H-IHH-14` (B-2). Riesgo medio; suite contractual (`promote-workflows.bats`) cubre funciones casi puras como red de seguridad.
-2. **`SEC-2C`** (en erd-ecosystem) — alto impacto en seguridad real; requiere decisión arquitectónica primero.
-3. **`T-AMBOS-4`** + **`T-ERD-3`** + **`T0.0-bis`** — flujo coordinado de re-vendorización + purga histórica. Requiere ventana de mantenimiento + comunicación a contribuidores.
-4. **Fase 2C** (validador integrado en CLI) — diferible mientras los pasos 1-3 no estén cerrados.
+1. **`SEC-2C`** (en erd-ecosystem) — alto impacto en seguridad real (k8s manifests + secret references); requiere decisión arquitectónica primero (ExternalSecret/SealedSecret).
+2. **`T-AMBOS-4`** + **`T-ERD-3`** + **`T0.0-bis`** — flujo coordinado de re-vendorización + purga histórica. Requiere ventana de mantenimiento + comunicación a contribuidores.
+3. **Fase 2C** (validador integrado en CLI) — diferible mientras los pasos 1-2 no estén cerrados.
+4. (cerrado) SEC-2B-Phase2 cerrado en B-5; ya no figura como bloque pendiente.
 
 NO se recomienda avanzar en paralelo en más de un frente sin ADR explícito.
 

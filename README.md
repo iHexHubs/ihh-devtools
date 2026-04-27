@@ -176,7 +176,7 @@ El directorio `devbox-app/` contiene una aplicación de referencia (React + Djan
 | `task lint:contamination` | **Solo escanea `README.md, CHANGELOG.md, scripts, devtools.repo.yaml`** (`H-IHH-13`). NO escanea `bin/` ni `lib/` |
 | `bash scripts/gh-policy-check.sh` | Detectado, no ejecutado |
 | `bash scripts/vendorize.sh` | **Es un placeholder** (`H-AMBOS-8`). Solo verifica que existen `bin/devtools` y `lib/`. No empaqueta nada |
-| BATS tests | `tests/contracts/vendor.bats` (Fase 2B, 18 tests, validación de `lib/core/vendor.sh`) + `tests/contracts/git-acp.bats` (B-2, 19 tests, validación de los modos de staging de `bin/git-acp.sh` + `lib/core/acp-mode.sh`) + `tests/contracts/promote-workflows.bats` (B-3, 21 tests, regresión de funciones casi puras de `lib/promote/workflows/**`). |
+| BATS tests | `tests/contracts/vendor.bats` (Fase 2B, 18 tests, validación de `lib/core/vendor.sh`) + `tests/contracts/git-acp.bats` (B-2, 19 tests, modos de staging de `bin/git-acp.sh` + `lib/core/acp-mode.sh`) + `tests/contracts/promote-workflows.bats` (B-3, 21 tests, regresión de funciones casi puras de `lib/promote/workflows/**`) + `tests/contracts/services.bats` (B-5, 22 tests, helper canónico `lib/core/services.sh`). |
 
 ## 13. Auditoría técnica y gobierno del repo
 
@@ -222,13 +222,13 @@ Sufijos: `-IHH-` (este repo), `-ERD-` (`erd-ecosystem`), `-AMBOS-` (afecta a amb
 | `H-IHH-3` | Alta | `git-devtools-update.sh` sin rollback automático |
 | `H-AMBOS-2` | Alta | 11 BATS suites del consumer no migradas al canónico |
 
-> Hallazgos resueltos en la auditoría 2026-04-26: `H-IHH-4` (entrypoints documentados), `H-IHH-12` (cleanup `git-promote.sh` con variable validada), T-IHH-19 (aviso tag-clobber visible en `git-acp.sh`), **`H-AMBOS-9` Phase1** (bloque `env` PMBOK retirado del `devbox.json`; ~40 menciones literales en `lib/promote/workflows/**` quedan para Phase2), **`H-IHH-14`** (refactor opción F en `git-acp.sh` con flags `--staged-only`/`--interactive`/`--yes` + variable `DEVTOOLS_ACP_DEFAULT_MODE`; bloque B-2). Ya resueltos previamente: `H-IHH-11`, `H-IHH-13`, `H-IHH-15`. Detalles en [`./versioning-research.md`](./versioning-research.md).
+> Hallazgos resueltos en la auditoría 2026-04-26 / 2026-04-27: `H-IHH-4` (entrypoints documentados), `H-IHH-12` (cleanup `git-promote.sh` con variable validada), T-IHH-19 (aviso tag-clobber visible en `git-acp.sh`), **`H-AMBOS-9` Phase1+Phase2** (bloque `env` PMBOK retirado del `devbox.json` en SEC-2B-Phase1; refactor de `lib/promote/workflows/**` consumiendo `lib/core/services.sh` en B-5 SEC-2B-Phase2), **`H-IHH-14`** (refactor opción F en `git-acp.sh` con flags `--staged-only`/`--interactive`/`--yes` + variable `DEVTOOLS_ACP_DEFAULT_MODE`; bloque B-2). Ya resueltos previamente: `H-IHH-11`, `H-IHH-13`, `H-IHH-15`. Detalles en [`./versioning-research.md`](./versioning-research.md).
 
 ### Tareas P0 abiertas
 
 - `T-IHH-2` — Resolver desfase `main-b80c3c4` ↔ `main` y destino de `tests/devbox-shell-smoke.sh`.
 - `T-IHH-4` — Implementar `vendorize.sh` real o eliminar manifest (bloqueado por `P-AMBOS-3`).
-- `T-AMBOS-3` — Phase1 cerrada el 2026-04-26: bloque `env` retirado del `devbox.json` raíz + scripts PMBOK eliminados. Phase2 pendiente: refactor de `lib/promote/workflows/**` (~40 menciones literales).
+- `T-AMBOS-3` — Phase1+Phase2 cerradas (Phase1 SEC-2B-Phase1 2026-04-26 + Phase2 SEC-2B-Phase2 / B-5 2026-04-27): refactor de `lib/promote/workflows/**` consumiendo `lib/core/services.sh` (helper canónico ADR 0002).
 - `T-AMBOS-4` — Decidir tag base real y reescribir `.devtools.lock` del consumidor.
 - `T-AMBOS-5` — Migrar 11 BATS suites antes de re-vendorizar.
 - `T-AMBOS-10` — Resolver `vendor.manifest.yaml` decorativo (bloqueado por `P-AMBOS-3`).
@@ -259,7 +259,7 @@ Ambos archivos viven en `erd-ecosystem` por convención del operador.
 1. Verificar baseline en terminal antes de modificar nada (ver checklist en `versioning-research.md` sección 10).
 2. Resolver `T-IHH-2` (rama y tests) — alto impacto, bajo esfuerzo.
 3. Aplicar `T-IHH-14` (lint:contamination) — cambio de una línea, alto valor.
-4. Decidir `P-AMBOS-3` (vendorización). `P-AMBOS-5` cerrado parcialmente en SEC-2B-Phase1 (2026-04-26); Phase2 desbloqueada conceptualmente tras `T-IHH-20` (B-3), pendiente de ejecución.
+4. Decidir `P-AMBOS-3` (vendorización). `P-AMBOS-5` cerrado totalmente: Phase1 (SEC-2B-Phase1, 2026-04-26) + Phase2 (B-5 SEC-2B-Phase2, 2026-04-27); `lib/promote/workflows/**` consume `lib/core/services.sh`.
 5. Implementar `T-IHH-5` (rollback) antes de cualquier `git devtools-update` masivo.
 
 ## 16. Licencia

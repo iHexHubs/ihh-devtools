@@ -74,7 +74,7 @@ promote_local_next_tag_from_previous() {
     # Calcula rev.N basándose en el tag que está desplegado (origin/local overlay).
     # - base: último dev tag (git semver, con +build)
     # - compara contra previous en formato imagen (-build)
-    local previous_image_tag="$1"   # ej: pmbok-v1.2.3-rc.4-build.7-rev.3
+    local previous_image_tag="$1"   # ej: <service>-v1.2.3-rc.4-build.7-rev.3
 
     local base_dev_tag=""
     base_dev_tag="$(promote_base_tag_for_local | tail -n 1)" || return 1

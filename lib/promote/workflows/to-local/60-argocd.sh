@@ -1,6 +1,64 @@
 #!/usr/bin/env bash
 # Module loaded by to-local.sh. Must not execute actions on load (only define functions/vars).
 
+# ==============================================================================
+# Helpers internos para resolver los deployments locales gestionados por el flujo.
+# Implementan la jerarquía oficial de ADR 0002:
+#   1) ENV var explícita.
+#   2) Derivación desde services.yaml (basename del file de cada deployment,
+#      prefijado con "local-").
+#   3) Lista vacía si services.yaml no está disponible (caller decide).
+# Postgres-db es infra y se añade siempre como último elemento de la lista.
+# ==============================================================================
+
+__promote_local_managed_deployments() {
+    if [[ -n "${DEVTOOLS_LOCAL_MANAGED_DEPLOYMENTS:-}" ]]; then
+        # Lista separada por espacios.
+        printf '%s\n' "$DEVTOOLS_LOCAL_MANAGED_DEPLOYMENTS" | tr ' ' '\n' | sed '/^$/d'
+        return 0
+    fi
+    if declare -F services_load >/dev/null 2>&1 && services_load 2>/dev/null; then
+        printf '%s' "${__DEVTOOLS_SERVICES_CONTENT:-}" \
+            | yq eval -r '.services[].k8s.deployments[]?.file // ""' - 2>/dev/null \
+            | sed '/^$/d' \
+            | while IFS= read -r f; do
+                [[ -z "$f" ]] && continue
+                local base
+                base="$(basename "$f" .yaml)"
+                [[ -n "$base" ]] && printf 'local-%s\n' "$base"
+            done
+    fi
+    # Componente de infraestructura local; siempre verificable.
+    printf 'local-postgres-db\n'
+}
+
+__promote_local_deploy_name_for_component() {
+    local component="$1"
+    case "$component" in
+        backend)
+            if [[ -n "${DEVTOOLS_LOCAL_BACKEND_DEPLOY_NAME:-}" ]]; then
+                printf '%s' "$DEVTOOLS_LOCAL_BACKEND_DEPLOY_NAME"
+                return 0
+            fi
+            __promote_local_managed_deployments \
+                | grep -E -- '-backend-deployment$|-backend$' \
+                | head -n 1
+            ;;
+        frontend)
+            if [[ -n "${DEVTOOLS_LOCAL_FRONTEND_DEPLOY_NAME:-}" ]]; then
+                printf '%s' "$DEVTOOLS_LOCAL_FRONTEND_DEPLOY_NAME"
+                return 0
+            fi
+            __promote_local_managed_deployments \
+                | grep -E -- '-frontend-deployment$|-frontend$' \
+                | head -n 1
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 promote_local_argocd_wait_healthy_or_die() {
     local strict="${DEVTOOLS_E2E_ARGOCD_STRICT:-0}"
     local namespace="${DEVTOOLS_ARGOCD_NAMESPACE:-argocd}"
@@ -88,7 +146,8 @@ promote_local_report_pull_errors_or_die() {
 
     local has_failure=0
     local dep=""
-    for dep in local-pmbok-backend-deployment local-pmbok-frontend-deployment local-postgres-db; do
+    while IFS= read -r dep; do
+        [[ -z "$dep" ]] && continue
         if ! kubectl -n "${namespace}" get deploy "${dep}" >/dev/null 2>&1; then
             continue
         fi
@@ -96,13 +155,20 @@ promote_local_report_pull_errors_or_die() {
             log_error "Rollout no saludable: deploy/${dep} (timeout=${rollout_timeout})."
             has_failure=1
         fi
-    done
+    done < <(__promote_local_managed_deployments)
 
     if [[ -n "${expected_tag:-}" ]]; then
         local backend_applied=""
         local frontend_applied=""
-        backend_applied="$(kubectl -n "${namespace}" get deploy local-pmbok-backend-deployment -o jsonpath='{.spec.template.spec.containers[*].image}' 2>/dev/null | awk '{print $1}')"
-        frontend_applied="$(kubectl -n "${namespace}" get deploy local-pmbok-frontend-deployment -o jsonpath='{.spec.template.spec.containers[*].image}' 2>/dev/null | awk '{print $1}')"
+        local backend_deploy frontend_deploy
+        backend_deploy="$(__promote_local_deploy_name_for_component "backend" 2>/dev/null || true)"
+        frontend_deploy="$(__promote_local_deploy_name_for_component "frontend" 2>/dev/null || true)"
+        if [[ -n "$backend_deploy" ]]; then
+            backend_applied="$(kubectl -n "${namespace}" get deploy "$backend_deploy" -o jsonpath='{.spec.template.spec.containers[*].image}' 2>/dev/null | awk '{print $1}')"
+        fi
+        if [[ -n "$frontend_deploy" ]]; then
+            frontend_applied="$(kubectl -n "${namespace}" get deploy "$frontend_deploy" -o jsonpath='{.spec.template.spec.containers[*].image}' 2>/dev/null | awk '{print $1}')"
+        fi
         if [[ -n "${backend_applied:-}" && "${backend_applied}" != *":${expected_tag}" ]]; then
             log_error "Tag aplicado backend no coincide: ${backend_applied} (esperado *:${expected_tag})."
             has_failure=1
@@ -152,7 +218,11 @@ promote_local_report_pull_errors_or_die() {
 
 
 promote_local_preflight_argocd_or_die() {
-    local app="${1:-pmbok-backend-app}"
+    local app="${1:-}"
+    if [[ -z "$app" ]]; then
+        log_error "❌ promote_local_preflight_argocd_or_die: nombre de app ArgoCD vacío. Pasa el id explícito o exporta DEVTOOLS_ARGOCD_APP_LOCAL. Ver ADR 0002."
+        return 2
+    fi
     local namespace="${DEVTOOLS_ARGOCD_NAMESPACE:-argocd}"
 
     if ! command -v kubectl >/dev/null 2>&1; then
@@ -189,7 +259,11 @@ promote_local_preflight_argocd_or_die() {
 
 promote_local_argocd_sync_by_tag_or_die() {
     local revision="${1:-}"
-    local app="${2:-pmbok-backend-app}"
+    local app="${2:-}"
+    if [[ -z "$app" ]]; then
+        log_error "❌ promote_local_argocd_sync_by_tag_or_die: nombre de app ArgoCD vacío. Pasa el id explícito o exporta DEVTOOLS_ARGOCD_APP_LOCAL. Ver ADR 0002."
+        return 2
+    fi
     local timeout="${3:-${DEVTOOLS_ARGOCD_WAIT_TIMEOUT:-300}}"
     local namespace="${DEVTOOLS_ARGOCD_NAMESPACE:-argocd}"
     local strict="${DEVTOOLS_E2E_ARGOCD_STRICT:-0}"
@@ -366,11 +440,11 @@ promote_local_argocd_sync_by_tag_or_die() {
 
 
 promote_local_argocd_revision_best_effort() {
-    local app="${1:-pmbok-backend-app}"
+    local app="${1:-}"
     local namespace="${DEVTOOLS_ARGOCD_NAMESPACE:-argocd}"
     local rev=""
 
-    if ! command -v kubectl >/dev/null 2>&1; then
+    if [[ -z "$app" ]] || ! command -v kubectl >/dev/null 2>&1; then
         printf '%s\n' ""
         return 0
     fi

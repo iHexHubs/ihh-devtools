@@ -618,7 +618,10 @@ promote_to_local() {
     log_info "Tag imagen: ${image_tag} (previo: ${previous_tag})"
     log_info "Checkpoint: version ok (tag=${final_tag})"
 
-    local argocd_app="${DEVTOOLS_ARGOCD_APP_LOCAL:-pmbok-backend-app}"
+    local argocd_app="${DEVTOOLS_ARGOCD_APP_LOCAL:-}"
+    if [[ -z "$argocd_app" ]]; then
+        die "DEVTOOLS_ARGOCD_APP_LOCAL no definida. Exporta DEVTOOLS_ARGOCD_APP_LOCAL=<nombre-app-argocd> antes de ejecutar promote local. Ver ADR 0002."
+    fi
     local gitops_revision=""
     gitops_revision="$(promote_local_resolve_gitops_revision "$final_tag")"
     [[ -n "${gitops_revision:-}" ]] || gitops_revision="local"
@@ -784,12 +787,13 @@ promote_to_local() {
         promote_local_apply_pull_policy_overrides "$local_pull_policy"
         local registry_value="${DEVTOOLS_LOCAL_REGISTRY:-}"
         local registry_prefix="${registry_value%/}"
-        local backend_newname="pmbok-backend"
-        local frontend_newname="pmbok-frontend"
+        local backend_newname frontend_newname
+        backend_newname="$(__promote_local_backend_image_name)"
+        frontend_newname="$(__promote_local_frontend_image_name)"
         if [[ -n "${DEVTOOLS_LOCAL_REGISTRY:-}" ]]; then
             local registry_host="${registry_prefix%%/*}"
             if [[ "$registry_host" != *.* && "$registry_host" != *:* ]]; then
-                die "DEVTOOLS_LOCAL_REGISTRY inválido: ${registry_prefix}. Usa host calificado (ej: localhost:5000/pmbok)."
+                die "DEVTOOLS_LOCAL_REGISTRY inválido: ${registry_prefix}. Usa host calificado (ej: localhost:5000/myorg)."
             fi
             backend_newname="${registry_prefix}/backend"
             frontend_newname="${registry_prefix}/frontend"
