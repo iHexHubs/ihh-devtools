@@ -3,9 +3,12 @@
 > Punto de entrada rápido para sesiones nuevas. Resumen ejecutivo.
 > Para detalle granular, ver `docs/project-state.md`.
 >
-> Última actualización: 2026-04-25
-> Última fase cerrada: Fase 2B (commit `ddf04486`)
-> Próxima fase recomendada: Fase 2C (requiere análisis previo).
+> Última actualización: 2026-04-26
+> Última fase cerrada: Fase 2B (commit `ddf04486`).
+> Bloques posteriores aplicados (sesión 2026-04-26):
+>   - erd-ecosystem: `SEC-2A` (commit `7ad85d4`).
+>   - ihh-devtools: `SEC-2B-Phase1` (commit `d190e9e6`) y `SEC-2B-Cleanup-Light` (commit `d55f2f26`).
+> Próxima fase recomendada: ver §9 (menú de 3 opciones reales).
 
 ## 1. Rol del repo
 
@@ -96,6 +99,34 @@ no operativa.
 - **Fuera de alcance de la fase:** CLI, task expuesto, integración
   con `git-devtools-update.sh`, lectura de consumer real.
 
+### Bloque SEC-2A — refactor seguridad terraform en erd-ecosystem (commit `7ad85d4`)
+
+- **Repo:** erd-ecosystem (no ihh-devtools, pero relevante para trazabilidad del ecosistema).
+- **Objetivo:** retirar literales triviales (`secretpassword`, `django-insecure-change-me-via-terraform`, `pmbok_user`, `pmbok_db`) del módulo Terraform `main-stack` y eliminar `devops/prod/compose.yml` heredado.
+- **Archivos principales:** `devops/aws/modules/main-stack/{secrets.tf,rds.tf,variables.tf}`, `devops/prod/compose.yml` (eliminado).
+- **Validaciones:** sintaxis bash OK en scripts colaterales; baseline `changelog-check.sh` no afectado; `terraform plan` queda como tarea humana posterior.
+- **Resultado:** `secrets.tf` usa `random_password` para `db_password` y `django_secret_key`; `rds.tf` y `secrets.tf` consumen `var.db_username` / `var.db_name` con validation block (sin defaults).
+- **Hallazgos cerrados:** `SEC-09`, `SEC-10`, `SEC-13`, `SEC-18`.
+- **Fuera de alcance:** k8s manifests (`SEC-2C`), compose locales (`SEC-2E`), workflows (Fase 3).
+
+### Bloque SEC-2B-Phase1 — toolset genérico (commit `d190e9e6`)
+
+- **Objetivo:** retirar acoplamiento explícito a PMBOK del `devbox.json` raíz; cerrar parcialmente `P-AMBOS-5`.
+- **Archivos principales:** `devbox.json`, `README.md`, `versioning-research.md`.
+- **Validaciones:** `jq . devbox.json` válido; sin matches a `pmbok|django-insecure|secretpassword`; escape Unicode de `DEVBOX_ENV_NAME` preservado byte a byte.
+- **Resultado:** bloque `env` reducido a `DEVBOX_ENV_NAME`; `scripts.backend`/`scripts.frontend` PMBOK eliminados; `init_hook` con mensaje genérico y label `DEV` en case "Dev"; migration note añadida en README §5.1.
+- **Hallazgos cerrados:** `SEC-19` (parcial: bloque `env` del `devbox.json`); `H-AMBOS-9` parcial (Phase2 pendiente); `P-AMBOS-5` parcial (decisión "toolset genérico" registrada); `T-AMBOS-3` Phase1; `B-AMBOS-3` retirado de bloqueos activos.
+- **Fuera de alcance:** `lib/promote/workflows/**` (Phase2; ~40 menciones literales), tests, schema, ADRs.
+
+### Bloque SEC-2B-Cleanup-Light — limpieza residual (commit `d55f2f26`)
+
+- **Objetivo:** endurecer guardas en wrappers y desacoplar paths absolutos del repo del operador.
+- **Archivos principales:** `bin/git-feature.sh`, `bin/git-pipeline.sh`, `README.md`, `docs/migration-2026-04/README.md`, `docs/project-state.md`, `docs/adr/0001-devtools-consolidation.md`, `docs/schema-v1.md`.
+- **Validaciones:** `bash -n` OK en ambos scripts; 0 hits para path absoluto del clon en `*.md`/`*.sh`/etc.; 0 hits para `44 menciones`/`44 hardcodings`; 0 hits para `eval "` en `git-pipeline.sh`.
+- **Resultado:** `git-feature.sh` valida `BASE_BRANCH` y `REMOTE` antes de `update_branch_from_remote` (`N-SCR-1`); `git-pipeline.sh` cambia `eval` por `bash -c` (`N-SCR-2`); paths absolutos de docs reemplazados por placeholders portables; conteo "44" actualizado a "~40 (Phase2)" en `project-state.md` §3, §5, §8.
+- **Hallazgos cerrados:** `N-SCR-1`, `N-SCR-2`, deuda documental de paths absolutos, coherencia README L262 con `P-AMBOS-5` cerrado.
+- **Fuera de alcance:** `H-IHH-14` (refactor `git-acp.sh`), `T-IHH-16` (suite contractual base), Phase2.
+
 ## 5. Decisiones cerradas
 
 - **5.1** ihh-devtools será toolset universal, no específico-multi.
@@ -110,6 +141,7 @@ no operativa.
 - **5.8** Tag de referencia futuro recomendado: `v0.1.0-rc.7`,
   sujeto a validación de contenido en Fase 2C.
 - **5.9** P-AMBOS-4 diferida hasta Fase 2D. NO bloquea Fases 2A-2C.
+- **5.10** P-AMBOS-5 cerrada parcialmente en SEC-2B-Phase1 (commit `d190e9e6`, 2026-04-26): toolset genérico sin asunciones de stack (Django/Vite/PMBOK) en `devbox.json` raíz. Phase2 (refactor de `lib/promote/workflows/**`, ~40 menciones literales `pmbok`) bloqueada por `T-IHH-16` (suite contractual base no implementada).
 
 ## 6. Archivos clave actuales
 
@@ -165,24 +197,32 @@ Garantías comprobadas por la suite BATS:
 - Sin migración de erd-ecosystem.
 - Sin modificación de `.devtools.lock` legacy.
 - Sin resolución de P-AMBOS-4.
-- Sin eliminación de hardcodings PMBOK.
+- Eliminación de hardcodings PMBOK Phase1 cerrada (SEC-2B-Phase1, commit `d190e9e6`): `devbox.json` raíz purgado de literales superficiales. Phase2 pendiente: ~40 menciones literales `pmbok` en `lib/promote/workflows/**`. Bloqueada por `T-IHH-16`.
 
 ## 9. Próximo paso recomendado
 
-**Fase 2C** debe ser **integración controlada del validador**, no
-implementación a ciegas. Antes del prompt:
+Tres opciones reales según prioridad operativa. **Elegir una; no avanzar en paralelo sin ADR.**
 
-1. Decidir strictness del validador (strict / lenient / permissive).
-2. Decidir si el subcomando lee `.devtools.lock` legacy bash en
-   paralelo al `.devtools/lock` YAML nuevo (recomendación previa: sí).
-3. Decidir caso `git write-tree` cuando `.devtools/` no es repo git.
+### 9.1 Opción A — `T-IHH-16` (suite BATS contractual base)
 
-Después:
+- **Por qué:** desbloquea SEC-2B-Phase2 (refactor de `lib/promote/workflows/**` con ~40 menciones literales `pmbok`). Sin tests no es seguro tocar 9 archivos críticos.
+- **Esfuerzo estimado:** mediano (3-5 archivos nuevos en `tests/contracts/`, suite smoke + casos de fallo).
+- **Cierra:** habilita Phase2 + completa el plano contractual prometido en `AGENTS.md`.
 
-- `bin/vendor-check.sh` (entrypoint).
-- `task vendor:check` en `Taskfile.yaml`.
-- Suite BATS adicional.
-- **Primer dry-run contra erd-ecosystem solo lectura.**
+### 9.2 Opción B — `H-IHH-14` (refactor `git-acp.sh:187` con `git add` controlado)
 
-NO migrar erd-ecosystem todavía. NO tocar tag fantasma aislado.
-NO tocar `.devtools.lock` cosméticamente.
+- **Por qué:** el wrapper diario más usado hace `git add .` sin filtros; combinado con push automático puede commitear secrets accidentales o artefactos. Reduce riesgo operativo cotidiano.
+- **Esfuerzo estimado:** mediano (refactor + flag `--staged-only` + test interactivo).
+- **Cierra:** `H-IHH-14`, deuda P0/P1 abierta.
+
+### 9.3 Opción C — pausar trabajo en ihh-devtools y avanzar en erd-ecosystem (SEC-2C)
+
+- **Por qué:** SEC-2A cerró Terraform; SEC-2C atacaría k8s manifests (`devops/k8s/components/postgres-db/secret.yaml`, overlays con `django-insecure-*`). Es trabajo contiguo en el consumer principal con mayor visibilidad de impacto.
+- **Esfuerzo estimado:** mediano-grande (decisión arquitectónica ExternalSecret/SealedSecret + rotación coordinada + manifests + ADR).
+- **Cierra:** `SEC-01`, `SEC-02`, `SEC-03..08`, `SEC-11`.
+
+### 9.4 Fase 2C (validador integrado) sigue diferida
+
+La integración del validador `vendor.sh` en CLI productivo (`bin/vendor-check.sh` + `task vendor:check`) sigue siendo trabajo válido pero **no urgente**. Requiere decisiones humanas previas (strictness, lectura de lock legacy en paralelo, caso `git write-tree` sin HEAD). Documentado en `docs/project-state.md` §4.4.4 y §9.3.
+
+NO migrar erd-ecosystem todavía. NO tocar tag fantasma aislado. NO tocar `.devtools.lock` cosméticamente.

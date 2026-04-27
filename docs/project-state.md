@@ -112,6 +112,8 @@ contenido (tree_sha) es detectable por `vendor_check_drift`.
 | Fase 5 | bloqueada | — | resolución del tag fantasma con re-vendorizado real (depende de P-AMBOS-3 + P-AMBOS-4) |
 | Fase 6 | pendiente | — | docs estables + adaptadores legacy |
 
+> **Nota sesión 2026-04-26:** después de cerrar Fase 2B (`ddf04486`), se aplicaron 3 bloques estructurales no listados en la tabla canónica de fases: `SEC-2A` en erd-ecosystem (commit `7ad85d4`), `SEC-2B-Phase1` (commit `d190e9e6`) y `SEC-2B-Cleanup-Light` (commit `d55f2f26`) en ihh-devtools. Estos bloques NO sustituyen Fase 2C — ejecutan trabajo paralelo (seguridad y limpieza estructural) que estaba implícito en Fase 3 y bloques previos no formalizados. Detalle en §11.
+
 ### Detalle de fases pendientes (alto nivel)
 
 - **Fase 2C** — `bin/vendor-check.sh` invoca `vendor_check_drift`,
@@ -211,10 +213,11 @@ y vean menciones a "P-AMBOS-3 abierta".
   redactado). Path: `.devtools/.git-acprc`. Resuelve solo via `git
   filter-repo` + force-push coordinado (T0.0-bis). Independiente de
   Fase 5 (no mezclar flujos).
-- **Secret `DB_PASSWORD` hardcodeado** en `devbox.json` del toolset
-  (línea 32, valor empieza con `secr...`). Acompañado por `SECRET_KEY`
-  Django dev (línea 29, valor `djan...`). Cierra en Fase 3 al
-  templatizar.
+- **Secret `DB_PASSWORD` hardcodeado** en `devbox.json` del toolset:
+  cerrado Phase1 (`SEC-2B-Phase1`, commit `d190e9e6`, 2026-04-26). El
+  bloque `env` se redujo a `DEVBOX_ENV_NAME`; ya no contiene
+  `DB_PASSWORD`, `SECRET_KEY` ni vars de stack. Phase2 (refactor de
+  `lib/promote/workflows/**`) sigue pendiente, bloqueada por `T-IHH-16`.
 - **Email gmail/hotmail/yahoo/outlook detectado** en
   `erd-ecosystem/devops/aws/workspaces/variables.tf` (1 archivo,
   detección en HEAD actual). Probablemente legítimo (defaults Terraform
@@ -226,8 +229,9 @@ y vean menciones a "P-AMBOS-3 abierta".
 ### 5.2 Deudas P1 (operativas y arquitectónicas)
 
 - **~40 hardcodings literales a "pmbok" (Phase2)** en 9 archivos del toolset
-  (concentrados en `lib/promote/workflows/to-local/`). Cierra en
-  Fase 3.
+  (concentrados en `lib/promote/workflows/to-local/`). Bloqueada por
+  `T-IHH-16` (suite contractual base no implementada). Refactor sin
+  tests es riesgoso; abrir SEC-2B-Phase2 cuando T-IHH-16 esté cerrado.
 - **`vendorize.sh` decorativo** (33 líneas, NO lee `vendor.manifest.yaml`).
   El vendoring real lo hace `git archive --format=tar` en
   `bin/git-devtools-update.sh:356`, que extrae el árbol completo del
@@ -280,6 +284,12 @@ y vean menciones a "P-AMBOS-3 abierta".
 - **`tests/devbox-shell-smoke.sh`** sigue siendo placeholder vacío
   (0 bytes, untracked). Decidir destino (eliminar / implementar)
   cuando llegue suite contractual completa en Fase 6.
+- **Paths absolutos del clon local en docs:**
+  cerrado en `SEC-2B-Cleanup-Light` (commit `d55f2f26`, 2026-04-26). Los
+  4 hits en `docs/migration-2026-04/README.md`, `docs/project-state.md`,
+  `docs/adr/0001-...md`, `docs/schema-v1.md` se reemplazaron por
+  placeholders portables (`<local clone of ihh-devtools>`,
+  `${DEVTOOLS_REPO:-/path/to/ihh-devtools}`, etc.).
 
 ### 5.4 Deudas P3 (cosmética, baja prioridad)
 
@@ -379,6 +389,14 @@ Solo commits estructurales del proyecto, no commits menores. Todos del
 | `a1f66277` | 12:38 | ihh-devtools | **Fase 1** | schema v1 publicado (`contract.json` + `lock.json` + 5 ejemplos + docs) |
 | `c8362767` | 14:45 | ihh-devtools | **Fase 2A** | schema v1.1 con `tree_sha` opcional + ADR 0003 |
 | `ddf04486` | 15:28 | ihh-devtools | **Fase 2B** | `lib/core/vendor.sh` (5 funciones públicas) + suite BATS (18 tests) |
+| `9589027a` | 2026-04-26 ~10:00 | ihh-devtools | bloque P0 inicial | `git-promote.sh:259` valida `DEVTOOLS_PROMOTE_FROM_BRANCH` antes del cleanup. (Subject menciona "H-SCR-2" por error de etiquetado; fix real cubre `H-SCR-1` según `versioning-research.md`.) |
+| `8645318` | 2026-04-26 ~10:30 | erd-ecosystem | bloque P0 inicial | `bin/devtools` valida target ejecutable antes del `exec` del wrapper (cubre `H-SCR-2`; subject del commit menciona `H-SCR-1` por mismo error de etiquetado). |
+| `369e8c9` | 2026-04-26 | erd-ecosystem | mini-bloque higiene | `SEC-16` `letsencrypt/acme.json` destrackeado + entrada en `.gitignore`. |
+| `3fa80e12` | 2026-04-26 | ihh-devtools | mini-bloque higiene | `SEC-23` `.env` raíz destrackeado + entrada en `.gitignore`. |
+| `0e8151f` | 2026-04-26 | erd-ecosystem | auditoría inicial | cierre auditoría técnica paralela: 15 fixes documentales + scripts (`changelog-check.sh`, `new-webapp.sh`, `onboarding.md`, `fase-0-...md`, `versionado.md`, `arquitectura.md`, `.gitignore`, `.gitmodules`, governance docs, `AUDITORIA_TECNICA_PARALELA.md`). |
+| `7ad85d4` | 2026-04-26 | erd-ecosystem | **SEC-2A** | refactor terraform `main-stack` (`secrets.tf` con `random_password`, `rds.tf` con `var.db_username`/`var.db_name`, `variables.tf` nuevas con validation; `devops/prod/compose.yml` eliminado). Cierra `SEC-09/10/13/18`. |
+| `d190e9e6` | 2026-04-26 | ihh-devtools | **SEC-2B-Phase1** | toolset genérico: `devbox.json` `env` retirado salvo `DEVBOX_ENV_NAME`, `scripts.backend/frontend` eliminados, `init_hook` ajustado; README §5.1 migration note; `versioning-research.md` cierra parcial `H-AMBOS-9`/`P-AMBOS-5`/`T-AMBOS-3`. |
+| `d55f2f26` | 2026-04-26 | ihh-devtools | **SEC-2B-Cleanup-Light** | guard en `git-feature.sh:83`, `eval`→`bash -c` en `git-pipeline.sh:27`, README L262 coherente con `P-AMBOS-5` cerrado, 4 paths absolutos del clon retirados de docs, conteo "44" → "~40 (Phase2)". |
 
 Antes del 2026-04-25, el repo tenía gobierno técnico parcial sin
 estado consolidado. Esta cronología empieza desde el primer commit
@@ -407,32 +425,17 @@ estructural del plan de fases actual.
 
 ### 9.3 Próximo paso operativo
 
-**Fase 2C — `vendor:check` solo lectura, primer contacto con
-erd-ecosystem.**
+Tres opciones reales (espejo de HANDOFF §9). **Elegir una; no avanzar en paralelo.**
 
-Diseño preliminar (no es el prompt final, es resumen):
+**Opción A — `T-IHH-16` (suite BATS contractual base).** Desbloquea SEC-2B-Phase2 (refactor de `lib/promote/workflows/**`). Esfuerzo mediano; entrega habilita el resto de Fase 3.
 
-- `bin/vendor-check.sh` — entrypoint que invoca `vendor_check_drift` con
-  argumentos `--consumer <ruta>` y `--source <ruta>`. Por defecto
-  `--source` apunta al repo actual de `ihh-devtools` (descubrible via
-  `git rev-parse --show-toplevel`).
-- `Taskfile.yaml` — añadir `task vendor:check` que invoque el
-  binario.
-- `tests/contracts/vendor-check-cli.bats` — suite BATS adicional para
-  el binario (smoke + casos de fallo).
-- **Primer dry-run** contra `/webapps/erd-ecosystem`. Resultado
-  esperado: drift confirmado (tag fantasma `v0.1.1-rc.1+build.40` no
-  resuelve, SHA `2e8cffbf...` no presente). Esto valida que el
-  validador detecta el caso real.
-- **No mutar nada del consumer.** Es Fase 2C, solo lectura.
+**Opción B — `H-IHH-14` (refactor `git-acp.sh:187`).** Reduce riesgo del wrapper diario (`git add .` sin filtros). Esfuerzo mediano; impacto operativo inmediato.
 
-Decisiones a tomar antes de empezar Fase 2C:
+**Opción C — pausar ihh-devtools, avanzar en erd-ecosystem (`SEC-2C`).** Atacar k8s manifests (`devops/k8s/components/postgres-db/secret.yaml`, overlays con `django-insecure-*`, ArgoCD apps con `password: secretpassword`). Esfuerzo mediano-grande; requiere decisión arquitectónica (ExternalSecret vs SealedSecret) + rotación coordinada.
 
-- Strictness del validador (4.4.4 de este doc).
-- ¿Soportar lectura del legacy `.devtools.lock` bash key=value en
-  paralelo al nuevo `.devtools/lock` YAML? Mi recomendación: sí, durante
-  el periodo de rampa (3-4 semanas).
-- Caso `git write-tree` (5.3 de este doc).
+**Fase 2C (validador integrado) sigue diferida.** Sin urgencia operativa; requiere decisiones humanas previas (strictness, lectura de lock legacy paralela, caso `git write-tree` sin HEAD). Decisiones bloqueadas en §4.4.4 + §5.3 + §9.3 anterior.
+
+NO migrar erd-ecosystem todavía. NO tocar tag fantasma aislado. NO tocar `.devtools.lock` cosméticamente.
 
 ## 10. Mantenimiento de este documento
 
@@ -450,6 +453,83 @@ Este documento se actualiza al cerrar cada fase. Reglas:
   Citar por referencia.
 - **Actualizar el header**: fecha de última actualización, última fase
   cerrada y próxima fase, en cada update.
+
+## 11. Estado de bloques 2026-04-26
+
+Esta sección consolida el inventario de hallazgos al cierre de la sesión 2026-04-26 tras los bloques `SEC-2A`, `SEC-2B-Phase1` y `SEC-2B-Cleanup-Light`. Es snapshot, no canon — la fuente autoritativa sigue siendo §3 (Plan de fases) + `versioning-research.md`.
+
+### 11.1 Cerrado (commit ya pusheado)
+
+- `H-SCR-1`/`H-SCR-2` — guards en `bin/git-promote.sh:259` y `bin/devtools` wrapper. Commits `9589027a` (ihh) y `8645318` (erd). IDs intercambiados en subjects.
+- `SEC-09`, `SEC-10`, `SEC-13`, `SEC-18` — refactor terraform main-stack. Commit `7ad85d4` (erd).
+- `SEC-16` — `letsencrypt/acme.json` destrackeado + `.gitignore`. Commit `369e8c9` (erd).
+- `SEC-23` — `.env` raíz destrackeado + `.gitignore`. Commit `3fa80e12` (ihh).
+- `SEC-19` Phase1 — bloque `env` del `devbox.json` raíz purgado. Commit `d190e9e6` (ihh).
+- `H-AMBOS-9` parcial, `P-AMBOS-5` parcial, `T-AMBOS-3` Phase1, `B-AMBOS-3` retirado. Commit `d190e9e6` (ihh).
+- `N-SCR-1` (`git-feature.sh`), `N-SCR-2` (`git-pipeline.sh` `eval`→`bash -c`), 4 paths absolutos retirados de docs, conteo "44 menciones" → "~40 (Phase2)", coherencia README L262. Commit `d55f2f26` (ihh).
+- 15 fixes documentales de auditoría inicial (`onboarding.md`, `arquitectura.md`, `versionado.md`, `.gitignore`, `.gitmodules`, etc.). Commit `0e8151f` (erd).
+
+### 11.2 Cumplido por estado preexistente (sin commit)
+
+- `SEC-17` — `.env` raíz de erd-ecosystem nunca estuvo en index; `.gitignore:48` ya lo cubría desde antes. No requirió acción.
+
+### 11.3 Acción local del operador (sin commit)
+
+- Investigación `certs/dev.key` en historia git de erd-ecosystem clasificada P1 `real_sin_uso_evidente` (RSA 2048 mkcert local, SAN sólo loopback, sin referencias activas). Rotación local mkcert ejecutada en máquina del operador.
+
+### 11.4 En curso / bloqueado
+
+- `H-AMBOS-9` Phase2 — ~40 menciones literales `pmbok` en `lib/promote/workflows/**`. Bloqueado por `T-IHH-16`.
+- `H-IHH-14` — `git-acp.sh:187` `git add .` sin filtros. Trabajo P1 abierto, no priorizado todavía.
+- `T-IHH-16` — suite BATS contractual base. Sin commits, sin diseño cerrado.
+
+### 11.5 Pendiente P0 (sin commit, sin bloqueo de tests)
+
+- `SEC-2C` (futuro) — k8s manifests con `password: secretpassword` (5 envs ArgoCD + bootstrap legacy + componente postgres-db) y overlays con `django-insecure-*`. Requiere decisión arquitectónica humana (ExternalSecret/SealedSecret/k8s manual) + rotación coordinada postgres real.
+- `T0.0-bis` — purga histórica de blob `498ddec` en erd-ecosystem (`.devtools/.git-acprc` con perfiles personales de 4 contribuidores). Requiere `git filter-repo` + `git push --force-with-lease` coordinado con todos los contribuidores activos.
+- `T-AMBOS-4` — decidir tag base real para reescribir `.devtools.lock` del consumer (hoy declara `v0.1.1-rc.1+build.40` que NO existe en el productor canónico).
+
+### 11.6 Pendiente P1 (sin urgencia inmediata)
+
+- `H-IHH-14` (`git add .` sin filtros).
+- `T-IHH-5` — rollback automático en `git-devtools-update.sh:343-395`.
+- `T-IHH-3` — validación del contrato del consumer en `git-devtools-update`.
+- `T-AMBOS-5` — migrar 11 BATS suites del consumer a `tests/contracts/` antes de re-vendorizar.
+- `T-AMBOS-6` — estandarizar URL canónica en docs/scripts restantes.
+
+### 11.7 Pospuesto P2 (no se aborda esta etapa)
+
+- `H-IHH-5`, `H-IHH-6`, `H-IHH-7`, `H-IHH-8`, `H-IHH-9`, `H-IHH-10`.
+- `H-AMBOS-6` (`cliff.toml` duplicado), `H-AMBOS-7` (convenciones IA divergen).
+- Reescritura de `docs/release-flow.md`, `docs/contrato-tags.md`, runbooks.
+
+### 11.8 Bloqueado por decisión humana
+
+- `P-AMBOS-1` (services.yaml vs apps.yaml) — ADR 0002 sin escribir.
+- `P-AMBOS-3` (método de vendorización) — bloquea `T-IHH-4` (`vendorize.sh` real).
+- `P-AMBOS-4` (sub-apps `.devtools/`) — diferida hasta Fase 2D.
+- `P-ERD-1` (conservar/eliminar `new-webapp.sh`) — decisión humana en erd-ecosystem.
+- `P-ERD-2` (rama `main` vs `prod`) — contradicción documental abierta en erd-ecosystem.
+
+### 11.9 Bloqueado por falta de tests
+
+- `H-AMBOS-9` Phase2 (refactor `lib/promote/workflows/**`) bloqueado por `T-IHH-16`.
+
+### 11.10 Riesgos abiertos relevantes
+
+- **Tag fantasma `v0.1.1-rc.1+build.40`** declarado en `.devtools.lock` del consumer pero NO existe en productor. Cualquier `git devtools-update` ejecutado contra el consumer fracasa hasta resolver `T-AMBOS-4`.
+- **Vendoring ignora `vendor.manifest.yaml`** (`H-AMBOS-8`). Cualquier re-vendorización propaga el árbol completo del tag (incluyendo `devbox-app/`, `docs/`, `devbox.json`, archivos `.tgz` espurios) al consumer.
+- **Sin rollback automático en `git-devtools-update.sh`** (`T-IHH-5`). Falla parcial deja `.devtools/` consumer corrupto.
+- **K8s manifests con secrets triviales en path `/prod/`** (commit `7ad85d4` retiró Terraform; los manifests siguen abiertos en `SEC-2C` futuro).
+
+### 11.11 Próximos bloques recomendados (orden defendible)
+
+1. **`T-IHH-16`** o **`H-IHH-14`** (en ihh-devtools) — bajo riesgo, desbloquea próximas fases.
+2. **`SEC-2C`** (en erd-ecosystem) — alto impacto en seguridad real; requiere decisión arquitectónica primero.
+3. **`T-AMBOS-4`** + **`T-ERD-3`** + **`T0.0-bis`** — flujo coordinado de re-vendorización + purga histórica. Requiere ventana de mantenimiento + comunicación a contribuidores.
+4. **Fase 2C** (validador integrado en CLI) — diferible mientras los pasos 1-3 no estén cerrados.
+
+NO se recomienda avanzar en paralelo en más de un frente sin ADR explícito.
 
 ---
 
