@@ -125,7 +125,7 @@ no operativa.
 - **Validaciones:** `bash -n` OK en ambos scripts; 0 hits para path absoluto del clon en `*.md`/`*.sh`/etc.; 0 hits para `44 menciones`/`44 hardcodings`; 0 hits para `eval "` en `git-pipeline.sh`.
 - **Resultado:** `git-feature.sh` valida `BASE_BRANCH` y `REMOTE` antes de `update_branch_from_remote` (`N-SCR-1`); `git-pipeline.sh` cambia `eval` por `bash -c` (`N-SCR-2`); paths absolutos de docs reemplazados por placeholders portables; conteo "44" actualizado a "~40 (Phase2)" en `project-state.md` §3, §5, §8.
 - **Hallazgos cerrados:** `N-SCR-1`, `N-SCR-2`, deuda documental de paths absolutos, coherencia README L262 con `P-AMBOS-5` cerrado.
-- **Fuera de alcance:** `H-IHH-14` (refactor `git-acp.sh`), `T-IHH-16` (suite contractual base), Phase2.
+- **Fuera de alcance:** `H-IHH-14` (refactor `git-acp.sh`), `T-IHH-20` (suite de regresión específica de workflows), Phase2.
 
 ## 5. Decisiones cerradas
 
@@ -141,7 +141,7 @@ no operativa.
 - **5.8** Tag de referencia futuro recomendado: `v0.1.0-rc.7`,
   sujeto a validación de contenido en Fase 2C.
 - **5.9** P-AMBOS-4 diferida hasta Fase 2D. NO bloquea Fases 2A-2C.
-- **5.10** P-AMBOS-5 cerrada parcialmente en SEC-2B-Phase1 (commit `d190e9e6`, 2026-04-26): toolset genérico sin asunciones de stack (Django/Vite/PMBOK) en `devbox.json` raíz. Phase2 (refactor de `lib/promote/workflows/**`, ~40 menciones literales `pmbok`) bloqueada por `T-IHH-16` (suite contractual base no implementada).
+- **5.10** P-AMBOS-5 cerrada parcialmente en SEC-2B-Phase1 (commit `d190e9e6`, 2026-04-26): toolset genérico sin asunciones de stack (Django/Vite/PMBOK) en `devbox.json` raíz. Phase2 (refactor de `lib/promote/workflows/**`, ~40 menciones literales `pmbok`) bloqueada por `T-IHH-20` (suite de regresión específica de `lib/promote/workflows/**`, sin diseño cerrado).
 
 ## 6. Archivos clave actuales
 
@@ -197,17 +197,17 @@ Garantías comprobadas por la suite BATS:
 - Sin migración de erd-ecosystem.
 - Sin modificación de `.devtools.lock` legacy.
 - Sin resolución de P-AMBOS-4.
-- Eliminación de hardcodings PMBOK Phase1 cerrada (SEC-2B-Phase1, commit `d190e9e6`): `devbox.json` raíz purgado de literales superficiales. Phase2 pendiente: ~40 menciones literales `pmbok` en `lib/promote/workflows/**`. Bloqueada por `T-IHH-16`.
+- Eliminación de hardcodings PMBOK Phase1 cerrada (SEC-2B-Phase1, commit `d190e9e6`): `devbox.json` raíz purgado de literales superficiales. Phase2 pendiente: ~40 menciones literales `pmbok` en `lib/promote/workflows/**`. Bloqueada por `T-IHH-20`.
 
 ## 9. Próximo paso recomendado
 
 Tres opciones reales según prioridad operativa. **Elegir una; no avanzar en paralelo sin ADR.**
 
-### 9.1 Opción A — `T-IHH-16` (suite BATS contractual base)
+### 9.1 Opción A — `T-IHH-20` (suite de regresión para `lib/promote/workflows/**`)
 
-- **Por qué:** desbloquea SEC-2B-Phase2 (refactor de `lib/promote/workflows/**` con ~40 menciones literales `pmbok`). Sin tests no es seguro tocar 9 archivos críticos.
-- **Esfuerzo estimado:** mediano (3-5 archivos nuevos en `tests/contracts/`, suite smoke + casos de fallo).
-- **Cierra:** habilita Phase2 + completa el plano contractual prometido en `AGENTS.md`.
+- **Por qué:** desbloquea SEC-2B-Phase2 con tests de regresión específicos sobre los 9 archivos a refactorizar (`lib/promote/workflows/{to-local/*,common.sh,to-dev.sh}`, ~40 menciones literales `pmbok`). Sin tests no es seguro tocar 9 archivos críticos.
+- **Esfuerzo estimado:** mediano-alto: decisión de estrategia de tests previa (snapshot/dry-run/combinación) + implementación. Archivos nuevos vivirán en `tests/contracts/` o subcarpeta dedicada (`tests/regression/` o similar, decisión de diseño).
+- **Cierra:** habilita SEC-2B-Phase2; completa el plano de regresión necesario antes de templatizar workflows.
 
 ### 9.2 Opción B — `H-IHH-14` (refactor `git-acp.sh:187` con `git add` controlado)
 

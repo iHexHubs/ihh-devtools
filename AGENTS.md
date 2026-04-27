@@ -20,7 +20,7 @@ docs/           ADRs (`docs/adr/`) y plan de migración (`docs/migration-2026-04
 
 > **Esqueleto en preparación (sin contenido todavía):** `intent/intents/`, `spec/features/`, `implementation/experiments/`, `integration/tests/`, `integration/deltas/`, `integration/wsv/`, `contracts/reviews/`. Reservados para artefactos de la metodología spec-anchored.
 >
-> **Tests contractuales (`tests/contracts/`) y `.ci/contract-checks.yaml`** son objetivos pendientes. La validación actual vive en `Taskfile.yaml`: `task lint:shell`, `task lint:contamination`, `task ci`. Nuevas reglas se añaden ahí o en `scripts/gh-policy-check.sh` mientras no exista el plano contractual.
+> **`tests/contracts/vendor.bats`** está implementado desde Fase 2B (validación de `lib/core/vendor.sh`, 18 tests). `.ci/contract-checks.yaml` sigue pendiente como sub-deuda P2 no bloqueante. La validación CI continúa centralizada en `Taskfile.yaml` (`task lint:shell`, `task lint:contamination`, `task ci`); nuevas reglas se siguen añadiendo ahí o en `scripts/gh-policy-check.sh` hasta que el plano contractual se complete.
 
 ## Reglas
 
@@ -36,7 +36,7 @@ docs/           ADRs (`docs/adr/`) y plan de migración (`docs/migration-2026-04
 
 6. **Antes de tocar un flujo, entender la cadena completa.** Cada comando empieza en `bin/git-<comando>.sh`, que hace `source` de módulos en `lib/`. Trazar la cadena de sources antes de modificar.
 
-7. **Validación actual del repo:** `task ci` ejecuta `lint:shell` (sintaxis bash en `bin/` y `lib/`), `lint:contamination` y `scripts/gh-policy-check.sh` (políticas GitHub Actions). Cuando exista la suite contractual planificada en `tests/contracts/` y `.ci/contract-checks.yaml`, esta nota se actualiza.
+7. **Validación actual del repo:** `task ci` ejecuta `lint:shell` (sintaxis bash en `bin/` y `lib/`), `lint:contamination` y `scripts/gh-policy-check.sh` (políticas GitHub Actions). La suite contractual `tests/contracts/vendor.bats` ya existe desde Fase 2B; `.ci/contract-checks.yaml` se incorporará cuando se cierre la sub-deuda P2 correspondiente.
 
 ## Archivos clave
 

@@ -35,7 +35,7 @@ Este archivo registra:
 | `VERSION` actual | `0.1.0` | Verificado |
 | `.promote_tag` actual | `v0.1.0` (env=prod) | Verificado |
 | Rama según reporte previo | `main-b80c3c4` (75 commits adelante de `main`) | Verificado por reporte previo |
-| Tests contractuales (`tests/contracts/`) | Declarados como objetivo, no implementados | Verificado por inspección |
+| Tests contractuales (`tests/contracts/`) | Implementados parcialmente (Fase 2B, `tests/contracts/vendor.bats` con 18 tests, commit `ddf04486`) | Verificado por inspección |
 
 **Documentación encontrada:**
 
@@ -530,13 +530,13 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 
 ### T-IHH-16 — Crear `tests/contracts/` con suite base
 
-- estado: abierto
+- estado: resuelto (Fase 2B, commit `ddf04486`)
 - prioridad: P1
 - hallazgo relacionado: `H-IHH-2`.
-- qué se hizo: nada.
-- qué falta: estructura `tests/contracts/`, smoke test inicial. Crear `.ci/contract-checks.yaml` planificado.
+- qué se hizo: `tests/contracts/vendor.bats` con 18 tests (`vendor_resolve_tag`, `vendor_is_excluded_tag`, `vendor_compute_tree_sha`, `vendor_validate_lock`, `vendor_check_drift` e invariantes), más 5 fixtures controlados en `tests/contracts/fixtures/`.
+- qué falta: nada del scope original. Sub-deuda separada: `.ci/contract-checks.yaml` (registrada como P2 no bloqueante; mientras tanto `task ci` cubre la validación).
 - bloqueos: ninguno.
-- siguiente paso: definir el formato de un check contractual.
+- nota: `T-IHH-20` abre el frente específico de regresión para `lib/promote/workflows/**` antes de SEC-2B-Phase2.
 
 ### T-IHH-17 — Separar reglas de contaminación entre código y documentación
 
@@ -555,6 +555,17 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 - qué se hizo: el `git fetch --tags` post-rebase ahora redirige stdout a `/dev/null` y captura stderr en variable. Si stderr contiene "rejected" o "clobber", se muestran al operador prefijados como aviso (`Tags locales preservados ...`). Sintaxis validada con `bash -n`.
 - qué falta: nada. UX queda visible sin perder el silencio del flujo normal.
 - bloqueos: ninguno.
+
+### T-IHH-20 — Suite de regresión para `lib/promote/workflows/**`
+
+- estado: abierto
+- prioridad: P1
+- hallazgo relacionado: `H-AMBOS-9` Phase2.
+- qué se hizo: nada.
+- qué falta: definir la estrategia de tests (snapshot/golden tests u otra) sobre los 9 archivos en `lib/promote/workflows/{to-local/*,common.sh,to-dev.sh}` que serán refactorizados en SEC-2B-Phase2 para retirar las ~40 menciones literales `pmbok`. Implementar la suite y dejarla pasando antes de tocar el código productivo.
+- bloqueos: ninguno operativo. Decisión humana previa: estrategia de tests (snapshot vs invocación dry-run vs combinación).
+- siguiente paso: ADR breve o nota de diseño que fije la estrategia, luego implementación.
+- impacto si no se cierra: SEC-2B-Phase2 sigue bloqueada.
 
 ---
 
@@ -593,7 +604,7 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
   - `devbox.json` `init_hook`: ajustes de mensaje y label.
   - `README.md`: nota de cierre + migration note para consumers.
   - `versioning-research.md`: este cierre.
-- pendiente Phase2: refactor de `lib/promote/workflows/**` (~40 menciones literales `pmbok`). Bloqueado conceptualmente por `tests/contracts/` no implementados (T-IHH-16).
+- pendiente Phase2: refactor de `lib/promote/workflows/**` (~40 menciones literales `pmbok`). Bloqueado por `T-IHH-20` (suite de regresión específica de workflows). Nota: `T-IHH-16` cerrado en `ddf04486`.
 - responsable Phase2: mantenedor de este repo.
 
 ---
@@ -639,9 +650,9 @@ Inventario completo de referencias legadas: `docs/migration-2026-04/legacy-devto
 - prioridad: P0 → P1 (Phase2)
 - hallazgo relacionado: `H-AMBOS-9`, `H-ERD-8`.
 - qué se hizo Phase1: bloque SEC-2B-Phase1. `devbox.json` `env` retirado, `scripts` PMBOK eliminados, `init_hook` ajustado.
-- qué falta Phase2: refactor de `lib/promote/workflows/**` (~40 hits literales). Coupled a `tests/contracts/` (T-IHH-16) que aún no existen — el refactor sin tests es riesgoso.
-- bloqueos Phase2: T-IHH-16 (suite contractual base).
-- siguiente paso: cuando se implemente T-IHH-16, abrir SEC-2B-Phase2.
+- qué falta Phase2: refactor de `lib/promote/workflows/**` (~40 hits literales). Bloqueado por `T-IHH-20` (suite de regresión específica de workflows) — el refactor sin tests es riesgoso.
+- bloqueos Phase2: `T-IHH-20` (suite de regresión específica de `lib/promote/workflows/**`).
+- siguiente paso: cuando se cierre `T-IHH-20`, abrir SEC-2B-Phase2.
 
 ### T-AMBOS-4 — Decidir tag base real y reescribir `.devtools.lock`
 
