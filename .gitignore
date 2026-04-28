@@ -23,3 +23,6 @@ prod.md
 
 # Local env file (SEC-23)
 .env
+# Evidencia local de auditoría (no versionable). Ver
+# .audit-evidence/README.txt
+.audit-evidence/
