@@ -246,3 +246,36 @@ Tres opciones reales según prioridad operativa. **Elegir una; no avanzar en par
 La integración del validador `vendor.sh` en CLI productivo (`bin/vendor-check.sh` + `task vendor:check`) sigue siendo trabajo válido pero **no urgente**. Requiere decisiones humanas previas (strictness, lectura de lock legacy en paralelo, caso `git write-tree` sin HEAD). Documentado en `docs/project-state.md` §4.4.4 y §9.3.
 
 NO migrar erd-ecosystem todavía. NO tocar tag fantasma aislado. NO tocar `.devtools.lock` cosméticamente.
+
+## 10. T-AMBOS-5 — Migración de suites BATS (2026-04-28, sin commit)
+
+- Migradas desde `erd-ecosystem/.devtools/tests/` a
+  `ihh-devtools/tests/contracts/`:
+    - `devbox-guardrails.bats`     (5 tests, 5/5 ok)
+    - `devbox-init-hook.bats`      (4 tests, 4/4 ok — greps adaptados de literales `$root/.devtools` a forma con variables `$DT_ROOT/$DT_BIN`)
+    - `devbox-packages.bats`       (5 tests, 5/5 ok)
+    - `devtools-update.bats`       (15 tests, 6/15 ok — fixture adaptado con `devtools.repo.yaml`; 9 fallos F-DRIFT)
+    - `git-core.bats`              (1 test, 1/1 ok)
+    - `promote.bats`               (60 tests, 55/60 ok — 5 fallos F-DRIFT)
+    - `semver.bats`                (20 tests, 20/20 ok)
+    - `version-strategy.bats`      (11 tests, 11/11 ok)
+    - `test_refactor.sh`           (script bash, no bats; verificación manual: 5/5 funciones detectadas, refactorización ok)
+- No migradas en esta iteración:
+    - `utils.bats` — F-LEGACY: archivo placeholder vacío (51 bytes, una sola línea de comentario, sin `@test`).
+    - `apps-sync.sh` — F-LEGACY: depende de `lib/apps/{apps_config_parser,sync}.sh` ausentes en canónico (`B-IHH-1` lo confirmó). Desbloqueo: decisión humana sobre paridad de `lib/apps/`.
+- Estado de ejecución global tras 2 rondas de adaptación: **187 pasados / 14 fallados / 0 skipped** sobre `tests/contracts/` completo (201 tests = 80 baseline canónico + 121 migrados). Ronda 1: copia + ajuste de paths/loads. Ronda 2: adaptación de fixture en `devtools-update.bats:setup` para incluir `devtools.repo.yaml` (cerró 5 F-MIG).
+- Cierra `H-AMBOS-2` parcialmente: 9 de las 11 suites del consumer ahora viven en el canónico bajo `tests/contracts/` (8 .bats + 1 .sh). Las 2 restantes (utils, apps-sync) quedan declaradas no-migrables por causa documentada. La cobertura ANTES sólo existía en el vendor legado; AHORA existe en el canónico, por lo que un re-vendoring limpio en Op-C no la borra.
+- Sigue bloqueando Op-C:
+    - Los 14 fallos F-DRIFT (mensajes de `git-devtools-update.sh` y dependencias de `lib/promote/workflows/to-local/40-build.sh`). No bloquean la migración pero indican deuda real.
+    - `H-AMBOS-1` — tag fantasma `v0.1.1-rc.1+build.40` sin existir en canónico. Pendiente de `T-AMBOS-4` fase 2 (Op-C).
+    - `H-AMBOS-3` — contrato no validado en `git devtools-update`. Pendiente.
+    - `H-AMBOS-8` — `vendorize.sh` placeholder + `git archive` sin manifest. Pendiente.
+    - Drift de `lib/apps/*`, `lib/core/{services,vendor,contract,dispatch}.sh` entre legado y canónico.
+    - Descalce `releases/prod.md` (`## v0.1.2`) vs `VERSION` (`0.1.0`) y `.promote_tag` (`v0.1.0`).
+- **Sin commit, sin push.** Los archivos viven en el working tree para revisión humana mediante zip. Iteración futura decide versionar tal cual o ajustar.
+- Evidencia completa en `.audit-evidence/t-ambos-5/`:
+  `bats-contracts-pre.txt` (baseline 80/80), `bats-contracts-final.txt`
+  (post-migración 187/201), `failures.txt` (clasificación F-DRIFT),
+  `migration-plan.txt`, `suites-inventory.txt`,
+  `helpers-fixtures-inventory.txt`, `git-state-final.txt`,
+  `diff-summary.txt`, `files-changed.txt`, `claude-code-report.txt`.
