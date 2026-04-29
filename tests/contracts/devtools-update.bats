@@ -257,6 +257,7 @@ LOCK
   cp "$SCRIPT" "$toolrepo/bin/git-devtools-update.sh"
   cp "$REPO_ROOT/lib/core/utils.sh" "$toolrepo/lib/core/utils.sh"
   cp "$REPO_ROOT/lib/core/git-ops.sh" "$toolrepo/lib/core/git-ops.sh"
+  cp "$REPO_ROOT/lib/core/contract.sh" "$toolrepo/lib/core/contract.sh"
   chmod +x "$toolrepo/bin/git-devtools-update.sh"
   printf "vX\n" > "$toolrepo/.devtools/VENDORED_TAG"
 
@@ -305,6 +306,7 @@ EOF
   cp "$SCRIPT" "$toolrepo/bin/git-devtools-update.sh"
   cp "$REPO_ROOT/lib/core/utils.sh" "$toolrepo/lib/core/utils.sh"
   cp "$REPO_ROOT/lib/core/git-ops.sh" "$toolrepo/lib/core/git-ops.sh"
+  cp "$REPO_ROOT/lib/core/contract.sh" "$toolrepo/lib/core/contract.sh"
   chmod +x "$toolrepo/bin/git-devtools-update.sh"
   printf "vX\n" > "$toolrepo/.devtools/VENDORED_TAG"
 
@@ -325,6 +327,7 @@ EOF
   cp "$toolrepo/bin/git-devtools-update.sh" "$foreign_bin/git-devtools-update.sh"
   cp "$toolrepo/lib/core/utils.sh" "$foreign_lib/utils.sh"
   cp "$toolrepo/lib/core/git-ops.sh" "$foreign_lib/git-ops.sh"
+  cp "$toolrepo/lib/core/contract.sh" "$foreign_lib/contract.sh"
   chmod +x "$foreign_bin/git-devtools-update.sh"
 
   real_git="$(command -v git)"

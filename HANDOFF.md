@@ -279,3 +279,22 @@ NO migrar erd-ecosystem todavía. NO tocar tag fantasma aislado. NO tocar `.devt
   `migration-plan.txt`, `suites-inventory.txt`,
   `helpers-fixtures-inventory.txt`, `git-state-final.txt`,
   `diff-summary.txt`, `files-changed.txt`, `claude-code-report.txt`.
+
+## 11. Bloque β-acotada — cierre parcial de F-DRIFT (commit pendiente)
+
+- **T-IHH-N2** (mocks/env vars en `tests/contracts/promote.bats`): 5 F-DRIFT-2 cerrados.
+  Tests 014/015/016: añadidos `export DEVTOOLS_LOCAL_BACKEND_IMAGE` y `..._FRONTEND_IMAGE` (escape hatch documentado en `40-build.sh:32`).
+  Tests 024/027: añadido `export DEVTOOLS_PROMOTE_ARGOCD_APP="pmbok"` (requerido por ADR 0002).
+  Diff: 8 líneas insertadas, 0 eliminadas. Sin tocar productivo.
+- **T-IHH-N1** (alineación contrato URL upstream): 8 de 9 F-DRIFT-1 cerrados.
+  Cambios en `bin/git-devtools-update.sh` (23 líneas netas, ≤30 tope):
+  - Helper `__display_remote_url()` para convertir SSH→HTTPS sólo en display.
+  - Detección de IS_UPSTREAM_REPO=1 cuando cwd ES un toolrepo aunque el script viva en otra ruta.
+  - `UPSTREAM_REPO=$ROOT` en lugar de `$SCRIPT_REPO_ROOT` cuando IS_UPSTREAM_REPO=1 (consistente con cwd-based hint).
+  - `resolve_source_for_list` ignora prefijo `local/*` (no es origen remoto válido).
+  - Mensajes "Consultando upstream oficial" + "Origen remoto desconocido" (substrings esperados por suites BATS migradas).
+  Adaptación de fixture en `tests/contracts/devtools-update.bats` (3 líneas): tests 23/24 ahora copian `lib/core/contract.sh` al toolrepo sandbox (canónico añadió esa dependencia).
+- **Test 11 deferido**: F-DRIFT-BEHAVIORAL. El canónico reemplazó curl-tarball por git clone; el test espera el output legacy de curl-download. Restaurar tarball excede tope ≤30 líneas. Decisión documentada en ADR 0004 sección "Limitaciones de alcance"; ADR 0006 propuesta para futuro si se requiere reversión.
+- **ADR 0004 — Formato de URL upstream** — estado: Aceptada. README.md de ADRs actualizado, sub-apps placeholder movido a 0005.
+- **Suite contractual final**: 200 ok / 1 not ok / 0 skip / 201 plan. Pasados de 187 a 200. Único fallo restante = test 11 deferido.
+- **Sin commit ni push**. A la espera de revisión humana vía zip antes de versionar.

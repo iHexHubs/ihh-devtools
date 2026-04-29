@@ -13,9 +13,23 @@ source "${LIB_DIR}/core/utils.sh"
 source "${LIB_DIR}/core/git-ops.sh"
 source "${LIB_DIR}/core/contract.sh"
 
+# ADR 0004: forma HTTPS para display de URLs upstream. NO afecta clone real.
+__display_remote_url() {
+  local url="${1:-}"
+  case "$url" in
+    git@*:*) printf 'https://%s' "$(printf '%s' "$url" | sed -E 's#^git@([^:]+):#\1/#')" ;;
+    ssh://git@*) printf 'https://%s' "$(printf '%s' "$url" | sed -E 's#^ssh://git@##')" ;;
+    *) printf '%s' "$url" ;;
+  esac
+}
+
 ROOT="$(detect_workspace_root)"
 IS_UPSTREAM_REPO=0
 if [[ "${ROOT}" == "${SCRIPT_REPO_ROOT}" ]]; then
+  IS_UPSTREAM_REPO=1
+elif [[ -x "${ROOT}/bin/git-devtools-update.sh" && -f "${ROOT}/lib/core/git-ops.sh" ]] \
+     && git -C "${ROOT}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  # ADR 0004: cwd es un toolrepo independiente (script vive afuera) — modo upstream.
   IS_UPSTREAM_REPO=1
 fi
 
@@ -190,7 +204,7 @@ list_remote_tags_or_die() {
 
   mapfile -t remote_candidates < <(build_remote_candidates "$source_repo" "$repo_hint")
   if [[ "${#remote_candidates[@]}" -eq 0 ]]; then
-    ui_error "Origen remoto no definido. Usa --source owner/repo o --repo /ruta/upstream."
+    ui_error "Origen remoto desconocido. Usa --source <owner>/<repo> (ej. --source owner/repo) o --repo /ruta/upstream."
     exit 1
   fi
 
@@ -250,6 +264,11 @@ resolve_source_from_repo() {
 resolve_source_for_list() {
   local src=""
   src="$(normalize_devtools_source "${DEVTOOLS_SOURCE:-}")"
+
+  # ADR 0004: prefijo "local/*" no es un origen remoto válido para list.
+  if [[ "${src:-}" == "local/"* ]]; then
+    src=""
+  fi
 
   if [[ -z "${src:-}" && -n "${UPSTREAM_REPO:-}" ]] && is_work_tree_dir "${UPSTREAM_REPO}"; then
     src="$(resolve_source_from_repo "$UPSTREAM_REPO")"
@@ -455,7 +474,9 @@ DEVTOOLS_SUBDIR="${DEVTOOLS_SUBDIR#./}"
 
 if [[ -z "${UPSTREAM_REPO:-}" ]]; then
   if [[ "$IS_UPSTREAM_REPO" == "1" ]]; then
-    UPSTREAM_REPO="$SCRIPT_REPO_ROOT"
+    # ADR 0004: usa ROOT (cwd toolrepo); equivale a SCRIPT_REPO_ROOT en el
+    # caso base y al toolrepo externo cuando script vive cross-tree.
+    UPSTREAM_REPO="$ROOT"
   elif is_current_root_devtools_repo; then
     # Permite que un wrapper/alias externo siga funcionando al ejecutar dentro del repo madre.
     UPSTREAM_REPO="$ROOT"
@@ -466,12 +487,14 @@ if [[ "$COMMAND" == "list" ]]; then
   ui_header "📦 devtools tags (Remote)"
   list_repo_hint="${UPSTREAM_REPO:-}"
   if [[ -z "${list_repo_hint:-}" && "$IS_UPSTREAM_REPO" == "1" ]]; then
-    list_repo_hint="$SCRIPT_REPO_ROOT"
+    # ADR 0004: usa ROOT (cwd) como hint del toolrepo, no SCRIPT_REPO_ROOT
+    # (que puede vivir en una ruta foreign cuando el script se invoca cross-tree).
+    list_repo_hint="$ROOT"
   fi
   DEVTOOLS_SOURCE="$(resolve_source_for_list)"
   list_remote_tags_or_die "$DEVTOOLS_SOURCE" "$list_repo_hint"
   remote_url="${LIST_REMOTE_URL_USED:-desconocido}"
-  ui_info "Consultando remoto: ${remote_url}"
+  ui_info "Consultando upstream oficial: $(__display_remote_url "${remote_url}")"
   if [[ -z "${LIST_REMOTE_TAGS:-}" ]]; then
     ui_warn "No encontré tags v* en el upstream."
     exit 0
@@ -571,7 +594,7 @@ if [[ -n "${OVERRIDE_VERSION:-}" ]]; then
   if [[ -n "${UPSTREAM_REPO:-}" ]]; then
     USE_LOCAL_ARCHIVE=1
   elif [[ "$IS_UPSTREAM_REPO" == "1" ]]; then
-    UPSTREAM_REPO="$SCRIPT_REPO_ROOT"
+    UPSTREAM_REPO="$ROOT"
     USE_LOCAL_ARCHIVE=1
   elif is_current_root_devtools_repo; then
     UPSTREAM_REPO="$ROOT"
@@ -604,7 +627,7 @@ if [[ -n "${OVERRIDE_VERSION:-}" ]]; then
     fi
   fi
   if [[ -z "${DEVTOOLS_SOURCE:-}" || "${DEVTOOLS_SOURCE:-}" == "local/"* ]]; then
-    ui_error "Origen remoto no definido. Usa --source owner/repo o --repo /ruta/upstream."
+    ui_error "Origen remoto desconocido. Usa --source <owner>/<repo> (ej. --source owner/repo) o --repo /ruta/upstream."
     exit 1
   fi
   ui_info "UPSTREAM: remoto=${DEVTOOLS_SOURCE} tag=${OVERRIDE_VERSION}"
@@ -624,7 +647,7 @@ if [[ -z "${DEVTOOLS_SOURCE:-}" || "${DEVTOOLS_SOURCE:-}" == "local/"* ]]; then
   fi
 fi
 if [[ -z "${DEVTOOLS_SOURCE:-}" || "${DEVTOOLS_SOURCE:-}" == "local/"* ]]; then
-  ui_error "Origen remoto no definido. Usa --source owner/repo o --repo /ruta/upstream."
+  ui_error "Origen remoto desconocido. Usa --source <owner>/<repo> (ej. --source owner/repo) o --repo /ruta/upstream."
   exit 1
 fi
 if [[ -z "${DEVTOOLS_VERSION:-}" ]]; then
@@ -637,7 +660,7 @@ tmp_dir="$(mktemp -d)"
 clone_dir="${tmp_dir}/devtools"
 mapfile -t clone_remote_candidates < <(build_remote_candidates "$DEVTOOLS_SOURCE" "${UPSTREAM_REPO:-}")
 if [[ "${#clone_remote_candidates[@]}" -eq 0 ]]; then
-  ui_error "Origen remoto no definido. Usa --source owner/repo o --repo /ruta/upstream."
+  ui_error "Origen remoto desconocido. Usa --source <owner>/<repo> (ej. --source owner/repo) o --repo /ruta/upstream."
   exit 1
 fi
 

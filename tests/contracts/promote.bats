@@ -276,6 +276,8 @@ function test_case_014 { #@test
   run bash -c '
     set -euo pipefail
     source "lib/promote/workflows/to-local.sh"
+    export DEVTOOLS_LOCAL_BACKEND_IMAGE="pmbok-backend"
+    export DEVTOOLS_LOCAL_FRONTEND_IMAGE="pmbok-frontend"
     log_info(){ :; }
     minikube() {
       if [[ "${1:-}" == "image" && "${2:-}" == "ls" ]]; then
@@ -295,6 +297,8 @@ function test_case_015 { #@test
   run bash -c '
     set -euo pipefail
     source "lib/promote/workflows/to-local.sh"
+    export DEVTOOLS_LOCAL_BACKEND_IMAGE="pmbok-backend"
+    export DEVTOOLS_LOCAL_FRONTEND_IMAGE="pmbok-frontend"
     log_info(){ :; }
     log_warn(){ :; }
     log_error(){ :; }
@@ -318,6 +322,8 @@ function test_case_016 { #@test
   run bash -c '
     set -euo pipefail
     source "lib/promote/workflows/to-local.sh"
+    export DEVTOOLS_LOCAL_BACKEND_IMAGE="pmbok-backend"
+    export DEVTOOLS_LOCAL_FRONTEND_IMAGE="pmbok-frontend"
     log_info(){ :; }
     promote_local_kind_cluster_name() { echo "dev"; }
     promote_local_kind_nodes() { printf "dev-control-plane\ndev-worker\n"; }
@@ -535,6 +541,7 @@ function test_case_024 { #@test
     log_error(){ echo "$*" >&2; }
     export DEVTOOLS_PROMOTE_REQUIRE_DOCKER=0
     export DEVTOOLS_PROMOTE_ARGOCD_REQUIRED=1
+    export DEVTOOLS_PROMOTE_ARGOCD_APP="pmbok"
 
     argocd() {
       if [[ "${1:-}" == "account" && "${2:-}" == "get-user-info" ]]; then
@@ -615,6 +622,7 @@ function test_case_027 { #@test
   run bash -c '
     set -euo pipefail
     source "lib/promote/workflows/to-dev.sh"
+    export DEVTOOLS_PROMOTE_ARGOCD_APP="pmbok"
     log_info(){ echo "$*"; }
     log_warn(){ echo "$*"; }
     log_error(){ echo "$*" >&2; }

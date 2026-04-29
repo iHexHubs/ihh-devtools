@@ -19,6 +19,7 @@ Registro de decisiones arquitectónicas del toolset canónico.
 - [0001 — Consolidación del toolset](./0001-devtools-consolidation.md) · Aceptado · 2026-04-24
 - [0002 — Fuente de verdad de servicios y jerarquía de resolución](./0002-services-source-of-truth.md) · Aceptado · 2026-04-27
 - [0003 — Método canónico de vendorización (P-AMBOS-3 opción C)](./0003-vendor-strategy.md) · Aceptado · 2026-04-25
+- [0004 — Formato de URL upstream en mensajes de `git-devtools-update`](./0004-url-upstream-display-format.md) · Aceptado · 2026-04-29
 
 ## ADRs propuestos (sin escribir)
-- 0004 — Estrategia para múltiples `.devtools/` en sub-apps (P-03).
+- 0005 — Estrategia para múltiples `.devtools/` en sub-apps (P-03).
